@@ -124,11 +124,11 @@
   #signinPanel h2{font-family:'Fraunces',serif; color:var(--ink); font-size:20px; margin:0 0 8px;}
   #signinPanel p{color:var(--muted); font-size:13px; line-height:1.55; margin:0 0 20px;}
   #signinForm{display:flex; flex-direction:column; gap:12px;}
-  #idInput{
+  #idInput, #passInput{
     font-family:'IBM Plex Mono',monospace; font-size:15px; text-align:center; letter-spacing:.04em;
     padding:11px 12px; border:1.5px solid var(--paper-line); border-radius:7px; background:#FFFEFC; color:var(--ink);
   }
-  #idInput:focus{outline:none; border-color:var(--ink);}
+  #idInput:focus, #passInput:focus{outline:none; border-color:var(--ink);}
   #signinError{color:var(--pencil-red); font-size:12.5px; display:none;}
   #signinNote{font-size:11.5px; color:var(--muted); margin-top:14px;}
 
@@ -158,22 +158,24 @@
 <div class="wrap">
 
   <div class="masthead">
-    <p class="brand-eyebrow">Personal · Accessible · Yours</p>
+    <p class="brand-eyebrow">Personal · Offline · Yours</p>
     <h1>Personalized School Record<br>Management System</h1>
-    <p class="tagline">One home base for the school year — your class schedule and your quiz reviewers(soon), kept in local files instead of scattered across apps.</p>
+    <p class="tagline">One home base for the school year — your class schedule and your quiz reviewers, kept in local files instead of scattered across apps.</p>
     <div class="id-strip"><span class="dot"></span> Running from local files — no accounts, no server</div>
     <div class="session-strip" id="sessionStrip"></div>
   </div>
 
   <div id="signinPanel">
     <h2>Sign in</h2>
-    <p>Enter your school ID</p>
+    <p>Enter your school ID to open the dashboard. Guest accounts get view-only access; Master accounts can edit the schedule.</p>
     <form id="signinForm">
       <input id="idInput" type="text" inputmode="numeric" autocomplete="off" placeholder="School ID" required>
+      <input id="passInput" type="password" autocomplete="off" placeholder="Owner passphrase — Master accounts only">
       <button type="submit" id="signinBtn">Sign in</button>
     </form>
     <div id="signinError">ID not recognized. Check with the system owner if this seems wrong.</div>
-    <p id="signinNote">Your ID is hashed in this browser before it's checked — the plain ID is never sent or stored anywhere.</p>
+    <div id="signinLocked" style="display:none; color:var(--pencil-red); font-size:12.5px;"></div>
+    <p id="signinNote">Your ID is hashed in this browser before it's checked — the plain ID is never sent or stored anywhere. Master accounts also need the owner passphrase.</p>
   </div>
 
   <div id="hubContent">
@@ -224,7 +226,8 @@
  */
 const GH = { owner:'Santino67-67', repo:'school_record_management_system', branch:'main', path:'Subject_Scheduler.xlsx' };
 const AUTH_SALT = "SRMS-Santino67-67-v1";       // salt for the lookup hash only
-const ENC_SALT  = "SRMS-Santino67-67-v1-name";  // separate salt for the per-row name key — deliberately not reused
+const GUEST_ENC_SALT  = "SRMS-Santino67-67-v1-name";  // Guest name-key salt (fast path — view-only, low stakes)
+const PBKDF2_ITER = 300000; // Master verification/name-key derivation — deliberately slow to raise brute-force cost
 const SESSION_KEY = 'srms_session';
 
 async function hashId(id){
@@ -239,16 +242,23 @@ function b64ToBytes(b64){
   for(let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
   return bytes;
 }
+function bytesToHex(bytes){
+  return Array.from(bytes).map(b => b.toString(16).padStart(2,'0')).join('');
+}
 
-// The AES key for a row is derived straight from that person's own ID — nobody can decrypt
-// a name without already knowing the ID it belongs to, including someone reading this source.
-async function decryptName(id, ivB64, ctB64){
-  const keyMaterial = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(id).trim() + ENC_SALT));
+// Guest name key: fast, ID-derived only (unchanged — Guests are view-only).
+async function decryptNameGuest(id, ivB64, ctB64){
+  const keyMaterial = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(id).trim() + GUEST_ENC_SALT));
   const key = await crypto.subtle.importKey('raw', keyMaterial, {name:'AES-GCM'}, false, ['decrypt']);
-  const iv = b64ToBytes(ivB64);
-  const ct = b64ToBytes(ctB64);
-  const plainBuf = await crypto.subtle.decrypt({name:'AES-GCM', iv}, key, ct);
+  const plainBuf = await crypto.subtle.decrypt({name:'AES-GCM', iv:b64ToBytes(ivB64)}, key, b64ToBytes(ctB64));
   return new TextDecoder().decode(plainBuf);
+}
+
+// PBKDF2, 300k rounds — used for both Master passphrase verification and their name-decryption key.
+async function pbkdf2Bits(payload, saltBytes, iterations){
+  const keyMaterial = await crypto.subtle.importKey('raw', new TextEncoder().encode(payload), {name:'PBKDF2'}, false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({name:'PBKDF2', salt:saltBytes, iterations, hash:'SHA-256'}, keyMaterial, 256);
+  return new Uint8Array(bits);
 }
 
 async function fetchValidUsers(){
@@ -262,6 +272,33 @@ async function fetchValidUsers(){
   const aoa = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
   const headerIdx = aoa.findIndex(r => r[0] === 'Unique_Identifier');
   return aoa.slice(headerIdx+1).filter(r => r[0]);
+  // row shape: [Unique_Identifier, Name_IV, Name_Enc, Designation, Master_Salt, Master_Verifier]
+}
+
+/* ---------------- Attempt throttling ----------------
+ * Speed bump for the live form only — resets on reload, and does nothing
+ * against someone brute-forcing the hash offline against the public sheet.
+ * The PBKDF2 cost above is the real defense for that; this just deters
+ * casual repeated guessing through the page itself.
+ */
+let failCount = 0;
+let lockedUntil = 0;
+function checkLock(){
+  const remaining = lockedUntil - Date.now();
+  if(remaining > 0){
+    document.getElementById('signinLocked').style.display = 'block';
+    document.getElementById('signinLocked').textContent = `Too many attempts — try again in ${Math.ceil(remaining/1000)}s.`;
+    return true;
+  }
+  document.getElementById('signinLocked').style.display = 'none';
+  return false;
+}
+function registerFail(){
+  failCount++;
+  if(failCount >= 5){
+    lockedUntil = Date.now() + 30000;
+    failCount = 0;
+  }
 }
 
 function getSession(){
@@ -293,19 +330,46 @@ document.getElementById('signinForm').addEventListener('submit', async (e) => {
   const errEl = document.getElementById('signinError');
   const btn = document.getElementById('signinBtn');
   errEl.style.display = 'none';
+  if(checkLock()) return;
   const idVal = document.getElementById('idInput').value.trim();
+  const passVal = document.getElementById('passInput').value;
   if(!idVal) return;
   btn.disabled = true; btn.textContent = 'Checking…';
   try{
     const users = await fetchValidUsers();
     const hash = await hashId(idVal);
     const match = users.find(r => String(r[0]).trim().toLowerCase() === hash);
-    if(!match){
+
+    let session = null;
+    if(match && match[3] === 'Master'){
+      // Real Master row: verify the passphrase with PBKDF2 before granting anything.
+      const salt = b64ToBytes(match[4]);
+      const verifierBits = await pbkdf2Bits(`${idVal}:${passVal}:verify`, salt, PBKDF2_ITER);
+      if(bytesToHex(verifierBits) === String(match[5]).trim().toLowerCase()){
+        const encKey = await pbkdf2Bits(`${idVal}:${passVal}:enc`, salt, PBKDF2_ITER);
+        const key = await crypto.subtle.importKey('raw', encKey, {name:'AES-GCM'}, false, ['decrypt']);
+        const plainBuf = await crypto.subtle.decrypt({name:'AES-GCM', iv:b64ToBytes(match[1])}, key, b64ToBytes(match[2]));
+        session = { name: new TextDecoder().decode(plainBuf), role: 'Master' };
+      } else {
+        // Wrong passphrase for a real Master row — still falls through to the
+        // generic failure below, identical to an unrecognized ID.
+      }
+    } else if(match){
+      // Guest row — fast path, no passphrase involved.
+      session = { name: await decryptNameGuest(idVal, match[1], match[2]), role: match[3] || 'Guest' };
+      // Burn a comparable amount of time to a real Master check so a Guest
+      // login and a wrong-passphrase Master attempt don't time differently.
+      await pbkdf2Bits(`dummy:${idVal}`, new Uint8Array(16), PBKDF2_ITER);
+    } else {
+      // No matching row at all — same dummy cost, same generic error.
+      await pbkdf2Bits(`dummy:${idVal}`, new Uint8Array(16), PBKDF2_ITER);
+    }
+
+    if(!session){
+      registerFail();
       errEl.style.display = 'block';
       return;
     }
-    const name = await decryptName(idVal, match[1], match[2]);
-    const session = { name, role: match[3] || 'Guest' };
     setSession(session);
     renderSignedIn(session);
   }catch(err){

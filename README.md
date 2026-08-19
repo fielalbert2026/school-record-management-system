@@ -49,16 +49,58 @@ The hub (`index.html`) now asks for a school ID before showing the modules.
   directly, so opening that file without signing in on the hub first shows a
   locked screen instead of the schedule.
 
+### Master accounts need a second factor now
+
+Because a school ID is only ~8 digits, it's brute-forceable offline in
+minutes even when hashed with a single fast SHA-256 pass — anyone with the
+public repo could crack every ID, Master's included, without ever touching
+the sign-in form. To close that, **any row marked `Master` also requires an
+Owner Passphrase**, verified with **PBKDF2-HMAC-SHA256 at 300,000
+iterations** (a deliberately slow hash — the standard mitigation for
+password-like secrets) instead of a single fast hash. Two design choices
+that matter here, not just decoration:
+
+* **The ID and passphrase fields submit together, in one step.** If entering
+  a valid Master ID alone triggered a separate "now enter your passphrase"
+  screen, that response *itself* would confirm to an attacker they'd found a
+  real Master ID. A wrong passphrase now returns the exact same generic
+  "ID not recognized" message as an unrecognized ID — there's no way to
+  distinguish "wrong ID" from "right ID, wrong passphrase" from the
+  outside.
+* **Timing is equalized.** A Guest login and a failed Master check now cost
+  roughly the same wall-clock time (the code runs a matching PBKDF2 pass on
+  both paths, even when it's thrown away), so response speed alone can't be
+  used to tell them apart either.
+
+Guest accounts are unchanged — fast ID-hash lookup, no passphrase — since
+they're view-only and the extra cost isn't proportionate there.
+
+**A basic form-level lockout** (5 failed attempts → 30s cooldown) also
+exists, but be clear-eyed about what it does and doesn't do: it only slows
+down someone typing guesses into the live page. It does nothing against
+someone who downloads `Subject_Scheduler.xlsx` and brute-forces the hashes
+in their own script, completely offline — the PBKDF2 cost above is the
+actual defense against that, since it makes each offline guess expensive
+too, not just each guess through the form.
+
+**Your Master passphrase was generated once, during setup, and shown only
+in that session** — it is not stored anywhere retrievable (only its PBKDF2
+verifier is saved, the same way a password manager or login system would
+never store your actual password). If it's lost, regenerate it by re-running
+the row's derivation with a new passphrase and pushing the updated sheet —
+the passphrase itself never needs to touch the repo.
+
 ### Managing Valid_Users
 
 Adding or removing someone now needs a small script rather than typing
-straight into the sheet, since the Name column is ciphertext. The salts and
-the AES scheme (SHA-256(ID + salt) → 32-byte key, random 12-byte IV,
-AES-256-GCM, tag appended to ciphertext — same convention Web Crypto uses)
-are defined at the top of `index.html`'s script and in the generation logic
-used to build this sheet; reuse that same logic (in Python via the
-`cryptography` package's `AESGCM`, or equivalent) to add new rows so the
-in-browser decryption keeps matching.
+straight into the sheet, since the Name column is ciphertext (and Master
+rows also carry a PBKDF2 salt/verifier). The salts, iteration counts, and
+the AES/PBKDF2 scheme are defined at the top of `index.html`'s script and in
+the generation logic used to build this sheet; reuse that same logic (in
+Python via `hashlib.pbkdf2_hmac` and the `cryptography` package's `AESGCM`,
+or equivalent) to add new rows so the in-browser verification keeps
+matching. For a new Master account specifically, generate a fresh random
+passphrase, hand it to that person once, and store only its verifier.
 
 ## How it works
 
