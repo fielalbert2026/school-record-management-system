@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Personalized School Record Management System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1D2B4F;
+    --ink-soft:#2A3D6B;
+    --paper:#F7F4EE;
+    --paper-line:#DCD3C0;
+    --card:#FFFEFC;
+    --graphite:#4A4A48;
+    --muted:#8A8577;
+    --highlighter:#E8B93E;
+    --highlighter-ink:#6B4E00;
+    --pencil-red:#C0392B;
+    --sage:#5E8567;
+    --sage-bg:#E9F0EA;
+    --radius:10px;
+    --shadow:0 1px 2px rgba(29,43,79,.06), 0 6px 18px rgba(29,43,79,.06);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    background-image:linear-gradient(var(--paper-line) 1px, transparent 1px);
+    background-size:100% 36px;
+    color:var(--graphite);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1000px; margin:0 auto; padding:56px 26px 90px;}
+  a{color:inherit;}
+
+  /* ---------- Hero / masthead ---------- */
+  .masthead{text-align:center; margin-bottom:52px;}
+  .brand-eyebrow{
+    font-family:'IBM Plex Mono',monospace; font-size:11.5px; letter-spacing:.16em;
+    text-transform:uppercase; color:var(--sage); margin:0 0 14px;
+  }
+  h1{
+    font-family:'Fraunces',serif; font-weight:700; font-size:clamp(32px,5vw,52px);
+    margin:0 0 14px; color:var(--ink); line-height:1.05;
+  }
+  .tagline{
+    color:var(--muted); font-size:15.5px; max-width:480px; margin:0 auto;
+    line-height:1.55;
+  }
+  .id-strip{
+    display:inline-flex; align-items:center; gap:8px; margin-top:22px;
+    font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted);
+    background:var(--card); border:1px solid var(--paper-line); border-radius:20px;
+    padding:6px 14px;
+  }
+  .id-strip .dot{width:6px; height:6px; border-radius:50%; background:var(--sage);}
+
+  /* ---------- Module grid ---------- */
+  .section-label{
+    font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 16px; padding-left:2px;
+  }
+  .modules{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:44px;}
+  .mod-card{
+    background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius);
+    box-shadow:var(--shadow); padding:26px 24px; display:flex; flex-direction:column;
+    text-decoration:none; color:inherit; position:relative; overflow:hidden;
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .mod-card.live{cursor:pointer;}
+  .mod-card.live:hover{transform:translateY(-3px); box-shadow:0 4px 8px rgba(29,43,79,.08), 0 14px 28px rgba(29,43,79,.1);}
+  .mod-card.soon{opacity:.72; cursor:default;}
+  .mod-index{
+    font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted); margin-bottom:14px;
+  }
+  .mod-icon{
+    width:40px; height:40px; border-radius:9px; display:flex; align-items:center; justify-content:center;
+    margin-bottom:16px; font-size:19px; background:var(--sage-bg); color:var(--sage);
+  }
+  .mod-card.soon .mod-icon{background:#EFEAE0; color:var(--muted);}
+  .mod-title{
+    font-family:'Fraunces',serif; font-size:21px; font-weight:700; color:var(--ink); margin:0 0 8px;
+  }
+  .mod-desc{font-size:13.5px; color:var(--muted); line-height:1.55; margin:0 0 20px; flex-grow:1;}
+  .mod-foot{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+  .mod-cta{
+    font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600; color:var(--ink);
+  }
+  .mod-card.live .mod-cta::after{content:" →"; }
+  .badge-soon{
+    font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:.06em;
+    background:#EFEAE0; color:var(--muted); border-radius:20px; padding:4px 10px; white-space:nowrap;
+  }
+
+  /* ---------- Footer note ---------- */
+  .note-panel{
+    border:1.5px dashed var(--paper-line); border-radius:var(--radius); background:var(--card);
+    padding:20px 22px; font-size:13px; color:var(--muted); line-height:1.6;
+  }
+  .note-panel strong{color:var(--graphite);}
+  footer{text-align:center; color:#A79F8C; font-size:12px; margin-top:44px;}
+
+  @media (max-width:640px){
+    .modules{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="masthead">
+    <p class="brand-eyebrow">Personal · Offline · Yours</p>
+    <h1>Personalized School Record<br>Management System</h1>
+    <p class="tagline">One home base for the school year — your class schedule and your quiz reviewers, kept in local files instead of scattered across apps.</p>
+    <div class="id-strip"><span class="dot"></span> Running from local files — no accounts, no server</div>
+  </div>
+
+  <p class="section-label">Modules</p>
+  <div class="modules">
+
+    <a href="subject_scheduler_dashboard.html" class="mod-card live">
+      <div class="mod-index">Module 01</div>
+      <div class="mod-icon">🗓</div>
+      <h2 class="mod-title">Subject Scheduler</h2>
+      <p class="mod-desc">Your weekly class schedule — professors, rooms, Classroom and Meet links, plus a live "today" view of what's now and next.</p>
+      <div class="mod-foot">
+        <span class="mod-cta">Open module</span>
+      </div>
+    </a>
+
+    <div class="mod-card soon">
+      <div class="mod-index">Module 02</div>
+      <div class="mod-icon">🗂</div>
+      <h2 class="mod-title">Flashcard Reviewer</h2>
+      <p class="mod-desc">Spaced-repetition flashcard decks for quiz reviewers — build, drill, and track recall the way AnkiDroid does.</p>
+      <div class="mod-foot">
+        <span class="badge-soon">Coming soon</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="note-panel">
+    <strong>How this works.</strong> Each module is its own file that reads and writes a local data file directly — the Scheduler uses <code>Subject_Scheduler.xlsx</code> sitting in this same folder. Keep this dashboard, the module files, and their data files together so the links between them keep working.
+  </div>
+
+  <footer>Personalized School Record Management System · local-first, module by module</footer>
+</div>
+</body>
+</html>

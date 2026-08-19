@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Subject Scheduler — Personalized School Record Management System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --ink:#1D2B4F;
+    --ink-soft:#2A3D6B;
+    --paper:#F7F4EE;
+    --paper-line:#DCD3C0;
+    --card:#FFFEFC;
+    --graphite:#4A4A48;
+    --muted:#8A8577;
+    --highlighter:#E8B93E;
+    --highlighter-ink:#6B4E00;
+    --pencil-red:#C0392B;
+    --sage:#5E8567;
+    --sage-bg:#E9F0EA;
+    --radius:10px;
+    --shadow:0 1px 2px rgba(29,43,79,.06), 0 6px 18px rgba(29,43,79,.06);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    background-image:linear-gradient(var(--paper-line) 1px, transparent 1px);
+    background-size:100% 36px;
+    color:var(--graphite);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1100px; margin:0 auto; padding:32px 26px 90px;}
+  a{color:inherit;}
+  button{
+    font-family:'Inter',sans-serif; font-weight:600; font-size:13.5px;
+    border-radius:7px; border:1.5px solid var(--ink); padding:9px 16px;
+    cursor:pointer; background:transparent; color:var(--ink);
+    transition:transform .12s ease, background .15s ease, opacity .15s ease;
+  }
+  button:hover{transform:translateY(-1px);}
+  button:disabled{opacity:.45; cursor:not-allowed; transform:none;}
+  button:focus-visible{outline:3px solid var(--highlighter); outline-offset:2px;}
+  .btn-primary{background:var(--ink); color:var(--paper);}
+  .btn-primary:hover{background:var(--ink-soft);}
+  .btn-highlight{background:var(--highlighter); border-color:var(--highlighter); color:var(--highlighter-ink);}
+  .btn-highlight:hover{background:#f0c453;}
+  .btn-ghost{border-color:var(--paper-line); color:var(--graphite); background:#fff;}
+  .btn-text{border:none; background:none; padding:2px 6px; font-size:12.5px; text-decoration:underline;}
+
+  /* ---------- Header / connection bar ---------- */
+  header{
+    display:flex; align-items:flex-start; justify-content:space-between;
+    gap:20px; flex-wrap:wrap; margin-bottom:22px;
+  }
+  .back-link{
+    display:inline-block; font-family:'IBM Plex Mono',monospace; font-size:11px;
+    color:var(--muted); text-decoration:none; margin:0 0 10px; border-bottom:1px dotted var(--paper-line);
+  }
+  .back-link:hover{color:var(--ink); border-bottom-color:var(--ink);}
+  .brand-eyebrow{
+    font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--sage); margin:0 0 6px;
+  }
+  h1{
+    font-family:'Fraunces',serif; font-weight:700; font-size:clamp(26px,4vw,38px);
+    margin:0; color:var(--ink); line-height:1.05;
+  }
+  .connect-box{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end;
+  }
+  .file-chip{
+    display:flex; align-items:center; gap:8px;
+    background:#fff; border:1.5px solid var(--paper-line); border-radius:8px;
+    padding:8px 12px; font-size:12.5px;
+  }
+  .file-chip .dot{width:7px; height:7px; border-radius:50%; background:var(--sage); flex:none;}
+  .file-chip .dot.saving{background:var(--highlighter); animation:blink 1s infinite;}
+  @keyframes blink{50%{opacity:.3;}}
+  .file-chip .name{font-family:'IBM Plex Mono',monospace; color:var(--ink); font-weight:500;}
+  .file-chip .status{color:var(--muted);}
+
+  #connectPanel{
+    background:#fff; border:1.5px dashed var(--paper-line); border-radius:var(--radius);
+    padding:26px; text-align:center; margin-bottom:28px;
+  }
+  #connectPanel h2{font-family:'Fraunces',serif; color:var(--ink); margin:0 0 6px; font-size:20px;}
+  #connectPanel p{color:var(--muted); font-size:13.5px; margin:0 0 18px; max-width:480px; margin-left:auto; margin-right:auto;}
+  #connectPanel .actions{display:flex; gap:10px; justify-content:center; flex-wrap:wrap;}
+  #compatNote{
+    font-size:12px; color:var(--pencil-red); margin-top:14px; display:none;
+  }
+
+  /* ---------- Today hero ---------- */
+  #todayHero{
+    background:var(--ink); color:var(--paper); border-radius:var(--radius);
+    padding:22px 24px; margin-bottom:28px; box-shadow:var(--shadow); display:none;
+  }
+  #todayHero.show{display:block;}
+  .hero-top{display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px;}
+  .hero-eyebrow{font-family:'IBM Plex Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:.12em; color:#B9C4E0;}
+  .hero-date{font-family:'Fraunces',serif; font-size:20px; font-weight:600;}
+  .hero-list{display:flex; flex-direction:column; gap:0;}
+  .hero-row{
+    display:grid; grid-template-columns:100px 1fr auto; gap:14px; align-items:center;
+    padding:11px 0; border-bottom:1px solid rgba(255,255,255,.12);
+  }
+  .hero-row:last-child{border-bottom:none;}
+  .hero-time{font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:#C9D2E8;}
+  .hero-name{font-weight:600; font-size:14.5px;}
+  .hero-meta{font-size:12px; color:#B9C4E0; margin-top:2px;}
+  .badge{
+    font-family:'IBM Plex Mono',monospace; font-size:10.5px; text-transform:uppercase;
+    letter-spacing:.06em; padding:3px 9px; border-radius:20px; white-space:nowrap;
+  }
+  .badge.now{background:var(--pencil-red); color:#fff;}
+  .badge.next{background:var(--highlighter); color:var(--highlighter-ink);}
+  .badge.later{background:rgba(255,255,255,.12); color:#DDE3F2;}
+  .badge.done{background:rgba(255,255,255,.06); color:#8894B5;}
+  .hero-empty{color:#B9C4E0; font-size:13.5px; padding:8px 0 4px;}
+  .next-countdown{
+    display:none; align-items:center; gap:14px; flex-wrap:wrap;
+    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14);
+    border-radius:8px; padding:12px 16px; margin-bottom:14px;
+  }
+  .next-countdown.show{display:flex;}
+  .cd-label{
+    font-family:'IBM Plex Mono',monospace; font-size:10.5px; text-transform:uppercase;
+    letter-spacing:.1em; color:#B9C4E0;
+  }
+  .cd-timer{
+    font-family:'IBM Plex Mono',monospace; font-size:22px; font-weight:600;
+    color:var(--highlighter); letter-spacing:.02em; min-width:0;
+  }
+  .cd-name{font-size:13.5px; color:#DDE3F2; flex:1; min-width:120px;}
+  .cd-name b{color:#fff;}
+  .next-countdown a.open-link{
+    font-size:11.5px; font-weight:600; color:var(--ink); background:var(--highlighter);
+    padding:6px 11px; border-radius:6px; text-decoration:none; white-space:nowrap;
+  }
+  .next-countdown a.open-link.meet{background:var(--sage); color:#fff;}
+  .hero-row a.open-link{
+    font-size:11.5px; font-weight:600; color:var(--ink); background:var(--highlighter);
+    padding:5px 10px; border-radius:6px; text-decoration:none; white-space:nowrap;
+  }
+  .hero-row a.open-link.meet{background:var(--sage); color:#fff;}
+
+  /* ---------- Add class toggle + form ---------- */
+  .section-toolbar{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:10px;}
+  .section-toolbar h2{font-family:'Fraunces',serif; font-size:19px; color:var(--ink); margin:0;}
+
+  .panel{
+    background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius);
+    box-shadow:var(--shadow); padding:22px 22px 18px; margin-bottom:24px; display:none;
+  }
+  .panel.open{display:block;}
+  form{display:grid; grid-template-columns:repeat(4,1fr); gap:14px 16px;}
+  .field{display:flex; flex-direction:column; gap:5px;}
+  .field.wide{grid-column:span 2;}
+  .field.full{grid-column:1/-1;}
+  label{font-size:11.5px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:var(--muted);}
+  input, select{
+    font-family:'Inter',sans-serif; font-size:14px; padding:9px 10px;
+    border:1.5px solid var(--paper-line); border-radius:6px; background:#FFFEFC; color:var(--ink);
+  }
+  input:focus, select:focus{outline:none; border-color:var(--ink);}
+  .form-actions{grid-column:1/-1; display:flex; justify-content:flex-end; gap:10px; margin-top:2px;}
+  #formError{grid-column:1/-1; color:var(--pencil-red); font-size:13px; display:none;}
+  .day-check-group{display:flex; gap:7px; flex-wrap:wrap;}
+  .day-check{
+    display:flex; align-items:center; gap:6px; font-size:13px; font-weight:600; color:var(--graphite);
+    border:1.5px solid var(--paper-line); border-radius:20px; padding:7px 13px; cursor:pointer;
+    background:#FFFEFC; user-select:none; transition:background .15s ease, border-color .15s ease, color .15s ease;
+  }
+  .day-check input{accent-color:var(--ink); margin:0;}
+  .day-check:has(input:checked){background:var(--ink); border-color:var(--ink); color:var(--paper);}
+  .session-rows{display:flex; flex-direction:column; gap:8px; margin-top:10px;}
+  .session-row{
+    display:grid; grid-template-columns:64px 1fr 1fr auto; gap:8px; align-items:center;
+    background:#F4F0E7; border:1px solid var(--paper-line); border-radius:7px; padding:7px 9px;
+  }
+  .session-row .sess-day{font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600; color:var(--ink);}
+  .session-row input{padding:6px 8px; font-size:13px;}
+  .session-row .copy-btn{
+    font-size:11px; padding:5px 8px; border-radius:5px; border-color:var(--paper-line); color:var(--muted); white-space:nowrap;
+  }
+  .session-hint{font-size:12px; color:var(--muted); margin-top:8px;}
+
+  /* ---------- Week tabs ---------- */
+  .tabs{display:flex; gap:4px; overflow-x:auto;}
+  .tab{
+    font-family:'IBM Plex Mono',monospace; font-size:12.5px; font-weight:500;
+    padding:10px 16px 12px; background:#EFEAE0; color:var(--muted);
+    border:1px solid var(--paper-line); border-bottom:none; border-radius:8px 8px 0 0;
+    cursor:pointer; position:relative; top:1px; white-space:nowrap;
+  }
+  .tab.active{background:var(--card); color:var(--ink); font-weight:700;}
+  .tab.is-today::before{
+    content:""; position:absolute; top:-1px; left:0; right:0; height:3px;
+    background:var(--pencil-red); border-radius:8px 8px 0 0;
+  }
+  .tab .count{color:#B5AE9C; margin-left:3px;}
+  .tab.active .count{color:var(--muted);}
+  .day-panel{
+    background:var(--card); border:1px solid var(--paper-line); border-radius:0 10px 10px 10px;
+    box-shadow:var(--shadow); padding:18px; min-height:130px;
+  }
+  .empty{text-align:center; color:#A79F8C; font-size:14px; padding:32px 10px;}
+  .row-card{
+    display:grid; grid-template-columns:74px 1fr auto; gap:16px; align-items:center;
+    padding:14px 10px; border-bottom:1px dashed var(--paper-line);
+  }
+  .row-card:last-child{border-bottom:none;}
+  .time-block{
+    font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:var(--ink); font-weight:500;
+    line-height:1.4; border-left:3px solid var(--sage); padding-left:10px;
+  }
+  .time-block.now{border-left-color:var(--pencil-red);}
+  .row-main .subject-name{font-weight:600; color:var(--ink); font-size:15px;}
+  .row-main .code-pill{
+    font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--sage);
+    background:var(--sage-bg); padding:2px 6px; border-radius:4px; margin-left:8px; vertical-align:middle;
+  }
+  .row-meta{font-size:12.5px; color:var(--muted); margin-top:3px;}
+  .row-meta a{color:var(--ink); font-weight:600; text-decoration:none; border-bottom:1px solid var(--highlighter);}
+  .row-actions{display:flex; gap:4px;}
+  .row-actions button{padding:5px 8px; font-size:12px; border-radius:5px;}
+
+  footer{text-align:center; color:#A79F8C; font-size:12px; margin-top:36px;}
+
+  @media (max-width:640px){
+    header{flex-direction:column;}
+    .connect-box{justify-content:flex-start;}
+    form{grid-template-columns:1fr 1fr;}
+    .field.wide, .field.full{grid-column:1/-1;}
+    .row-card{grid-template-columns:1fr; gap:6px;}
+    .hero-row{grid-template-columns:1fr; gap:4px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <a href="main_dashboard.html" class="back-link">← Personalized School Record Management System</a>
+      <p class="brand-eyebrow">Module 01 · Academic Schedule</p>
+      <h1>Subject Scheduler</h1>
+    </div>
+    <div class="connect-box" id="connectBox"></div>
+  </header>
+
+  <div id="connectPanel">
+    <h2>Connect your Excel file</h2>
+    <p>This dashboard reads and writes directly to a Subject_Scheduler.xlsx file on your computer — that file stays your real database. Connect an existing one, or create a fresh copy to start with.</p>
+    <div class="actions">
+      <button class="btn-primary" id="connectExistingBtn">Connect existing .xlsx</button>
+      <button class="btn-ghost" id="createNewBtn">Create new file</button>
+    </div>
+    <div id="compatNote">Your browser can't open local files directly (this needs Chrome or Edge on desktop). If you're viewing this inside the chat preview, try downloading the file and opening it in your browser directly — that gives it full access to your file system, the way a local desktop app would.</div>
+  </div>
+
+  <div id="todayHero">
+    <div class="hero-top">
+      <span class="hero-eyebrow">Today</span>
+      <span class="hero-date" id="heroDate"></span>
+    </div>
+    <div id="nextCountdown" class="next-countdown"></div>
+    <div class="hero-list" id="heroList"></div>
+  </div>
+
+  <div class="section-toolbar">
+    <h2>Weekly schedule</h2>
+    <button class="btn-highlight" id="addToggleBtn" disabled>+ Add class</button>
+  </div>
+
+  <div class="panel" id="formPanel">
+    <h3 id="formTitle" style="font-family:'Fraunces',serif; margin:0 0 14px; color:var(--ink); font-size:17px;">Add a class session</h3>
+    <form id="subjectForm">
+      <div class="field"><label for="f_code">Subject Code</label><input id="f_code" placeholder="MATH101" required></div>
+      <div class="field wide"><label for="f_name">Subject Name</label><input id="f_name" placeholder="Calculus I" required></div>
+      <div class="field wide"><label for="f_prof">Professor</label><input id="f_prof" placeholder="Prof. Santos"></div>
+
+      <div class="field full">
+        <label>Days &amp; Times</label>
+        <div class="day-check-group" id="dayCheckGroup">
+          <label class="day-check"><input type="checkbox" value="Monday">Mon</label>
+          <label class="day-check"><input type="checkbox" value="Tuesday">Tue</label>
+          <label class="day-check"><input type="checkbox" value="Wednesday">Wed</label>
+          <label class="day-check"><input type="checkbox" value="Thursday">Thu</label>
+          <label class="day-check"><input type="checkbox" value="Friday">Fri</label>
+          <label class="day-check"><input type="checkbox" value="Saturday">Sat</label>
+          <label class="day-check"><input type="checkbox" value="Sunday">Sun</label>
+        </div>
+        <div id="sessionRows" class="session-rows"></div>
+        <div id="sessionHint" class="session-hint">Pick the days this meets — each one gets its own start/end time, so Mon and Wed can run at different hours.</div>
+      </div>
+      <div class="field"><label for="f_room">Room / Platform</label><input id="f_room" placeholder="Room 204 / Online"></div>
+
+      <div class="field wide"><label for="f_link">Google Classroom Link</label><input id="f_link" type="url" placeholder="https://classroom.google.com/c/…"></div>
+      <div class="field wide"><label for="f_meet">Google Meet Link</label><input id="f_meet" type="url" placeholder="https://meet.google.com/abc-defg-hij"></div>
+      <div class="field"><label for="f_sy">SY (School Year)</label><input id="f_sy" placeholder="2026-2027"></div>
+      <div class="field"><label for="f_term">Term / Semester</label><input id="f_term" placeholder="1st Sem"></div>
+      <div class="field full"><label for="f_notes">Notes</label><input id="f_notes" placeholder="Bring calculator"></div>
+
+      <div id="formError">Please fill in Subject Code, Subject Name, Day, Start and End time.</div>
+      <div class="form-actions">
+        <button type="button" class="btn-ghost" id="cancelEditBtn">Cancel</button>
+        <button type="submit" class="btn-primary" id="submitBtn">Add to schedule</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="tabs" id="tabs"></div>
+  <div class="day-panel" id="dayPanel"><div class="empty">Connect your Excel file above to load your schedule.</div></div>
+
+  <footer>Reads and writes directly to your connected .xlsx file · matches the Subject_Scheduler.xlsx column layout · part of the Personalized School Record Management System</footer>
+</div>
+
+<script>
+const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+const HEADERS = ["Subject Code","Subject Name","Professor","Day","Start Time","End Time","Room / Platform","Google Classroom Link","Google Meet Link","SY","Term / Semester","Notes"];
+const COL_WIDTHS = [12,24,20,12,11,11,18,30,22,12,16,24];
+const SHEET_NAME = "Subject_Scheduler";
+const todayIdx = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
+const todayName = DAYS[todayIdx];
+
+let subjects = [];
+let activeDay = todayName;
+let editingId = null;
+let workbook = null;
+let fileHandle = null;
+let fileName = '';
+let connected = false;
+
+function uid(){ return 'sub_' + Date.now() + '_' + Math.random().toString(36).slice(2,8); }
+function timeToMinutes(t){ if(!t) return 0; const [h,m]=t.split(':').map(Number); return h*60+(m||0); }
+function fmtTime(t){
+  if(!t) return '';
+  const [h,m] = t.split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = ((h+11)%12)+1;
+  return `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+function escapeHtml(str){
+  return (str||'').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function normalizeTime(v){
+  if(v === undefined || v === null || v === '') return '';
+  if(typeof v === 'number'){
+    const totalMin = Math.round(v*24*60);
+    const h = Math.floor(totalMin/60)%24, m = totalMin%60;
+    return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
+  }
+  const str = String(v).trim();
+  let m = str.match(/^(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)$/);
+  if(m){
+    let h = parseInt(m[1],10);
+    const ap = m[3].toUpperCase();
+    if(ap==='PM' && h!==12) h+=12;
+    if(ap==='AM' && h===12) h=0;
+    return String(h).padStart(2,'0')+':'+m[2];
+  }
+  m = str.match(/^(\d{1,2}):(\d{2})$/);
+  if(m) return String(m[1]).padStart(2,'0')+':'+m[2];
+  return str;
+}
+
+/* ---------------- Connection UI ---------------- */
+function renderConnectBox(){
+  const box = document.getElementById('connectBox');
+  if(!connected){ box.innerHTML=''; return; }
+  box.innerHTML = `
+    <div class="file-chip">
+      <span class="dot" id="saveDot"></span>
+      <span class="name">${escapeHtml(fileName)}</span>
+      <span class="status" id="saveStatus">connected</span>
+    </div>
+    <button class="btn-ghost" id="disconnectBtn">Switch file</button>`;
+  document.getElementById('disconnectBtn').addEventListener('click', disconnect);
+}
+function setSaving(state){
+  const dot = document.getElementById('saveDot');
+  const status = document.getElementById('saveStatus');
+  if(!dot || !status) return;
+  dot.classList.remove('saving');
+  dot.style.background = '';
+  if(state === 'saving'){ dot.classList.add('saving'); status.textContent = 'saving…'; }
+  else if(state === 'lost'){ dot.style.background = 'var(--pencil-red)'; status.textContent = 'file not found — reconnect'; }
+  else { status.textContent = 'saved just now'; }
+}
+function disconnect(){
+  connected = false; fileHandle = null; workbook = null; fileName = ''; subjects = [];
+  document.getElementById('connectPanel').style.display = 'block';
+  document.getElementById('todayHero').classList.remove('show');
+  document.getElementById('addToggleBtn').disabled = true;
+  renderConnectBox();
+  render();
+}
+
+/* ---------------- File System Access ---------------- */
+const fsSupported = 'showOpenFilePicker' in window;
+
+function freshWorkbook(){
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([
+    ["Subject Scheduler — Personalized School Record Management System"],
+    ["Module: Academic Schedule — edits made here from the dashboard are saved automatically."],
+    [],
+    HEADERS
+  ]);
+  ws['!cols'] = COL_WIDTHS.map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws, SHEET_NAME);
+  return wb;
+}
+
+function parseSubjectsFromWorkbook(){
+  const name = workbook.SheetNames.includes(SHEET_NAME) ? SHEET_NAME : workbook.SheetNames[0];
+  const ws = workbook.Sheets[name];
+  const aoa = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+  let headerRowIdx = aoa.findIndex(row => row[0] === 'Subject Code');
+  if(headerRowIdx === -1) headerRowIdx = 0;
+  const rows = aoa.slice(headerRowIdx+1);
+  subjects = rows
+    .filter(r => r.some(cell => cell !== undefined && cell !== ''))
+    .map(r => ({
+      id: uid(), code:r[0]||'', name:r[1]||'', professor:r[2]||'', day:r[3]||'',
+      start:normalizeTime(r[4]), end:normalizeTime(r[5]), room:r[6]||'',
+      link:r[7]||'', meet:r[8]||'', sy:r[9]||'', term:r[10]||'', notes:r[11]||''
+    }));
+}
+
+async function connectExisting(){
+  try{
+    const [handle] = await window.showOpenFilePicker({
+      types:[{description:'Excel Workbook', accept:{'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx']}}]
+    });
+    fileHandle = handle;
+    const file = await handle.getFile();
+    const buf = await file.arrayBuffer();
+    workbook = XLSX.read(buf, {type:'array'});
+    parseSubjectsFromWorkbook();
+    fileName = file.name;
+    finishConnect();
+  }catch(e){
+    if(e.name !== 'AbortError') alert('Could not open that file: ' + e.message);
+  }
+}
+
+async function createNew(){
+  try{
+    const handle = await window.showSaveFilePicker({
+      suggestedName:'Subject_Scheduler.xlsx',
+      types:[{description:'Excel Workbook', accept:{'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx']}}]
+    });
+    fileHandle = handle;
+    workbook = freshWorkbook();
+    subjects = [];
+    fileName = handle.name;
+    await persistToFile();
+    finishConnect();
+  }catch(e){
+    if(e.name !== 'AbortError') alert('Could not create that file: ' + e.message);
+  }
+}
+
+function finishConnect(){
+  connected = true;
+  document.getElementById('connectPanel').style.display = 'none';
+  document.getElementById('addToggleBtn').disabled = false;
+  renderConnectBox();
+  render();
+}
+
+function buildSheetAOA(){
+  const sorted = subjects.slice().sort((a,b) =>
+    DAYS.indexOf(a.day) - DAYS.indexOf(b.day) || timeToMinutes(a.start) - timeToMinutes(b.start));
+  const rows = sorted.map(s => [s.code,s.name,s.professor,s.day,s.start,s.end,s.room,s.link,s.meet,s.sy,s.term,s.notes]);
+  return [
+    ["Subject Scheduler — Personalized School Record Management System"],
+    ["Module: Academic Schedule — edits made here from the dashboard are saved automatically."],
+    [],
+    HEADERS,
+    ...rows
+  ];
+}
+
+async function persistToFile(){
+  if(!fileHandle) return;
+  setSaving('saving');
+  const aoa = buildSheetAOA();
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = COL_WIDTHS.map(w=>({wch:w}));
+  if(!workbook) workbook = XLSX.utils.book_new();
+  workbook.Sheets[SHEET_NAME] = ws;
+  if(!workbook.SheetNames.includes(SHEET_NAME)) workbook.SheetNames.unshift(SHEET_NAME);
+  const wbout = XLSX.write(workbook, {bookType:'xlsx', type:'array'});
+  try{
+    const writable = await fileHandle.createWritable();
+    await writable.write(wbout);
+    await writable.close();
+    setSaving('saved');
+  }catch(e){
+    if(e.name === 'NotFoundError'){
+      alert("Your Excel file couldn't be found — it may have been moved, renamed, or deleted since you connected it. Your edits are still here on screen; click \"Switch file\" and reconnect it (or the new location) to keep saving.");
+      setSaving('lost');
+    } else {
+      alert('Could not save to your Excel file: ' + e.message);
+    }
+  }
+}
+
+/* ---------------- Form / CRUD ---------------- */
+const formPanel = document.getElementById('formPanel');
+const sessionRowsEl = document.getElementById('sessionRows');
+document.getElementById('addToggleBtn').addEventListener('click', () => {
+  if(formPanel.classList.contains('open') && !editingId){ closeForm(); }
+  else { openForm(); }
+});
+function openForm(){ formPanel.classList.add('open'); document.getElementById('f_code').focus(); }
+function closeForm(){ formPanel.classList.remove('open'); resetForm(); }
+
+function syncSessionRows(){
+  const checked = Array.from(document.querySelectorAll('#dayCheckGroup input:checked'))
+    .map(cb => cb.value)
+    .sort((a,b) => DAYS.indexOf(a) - DAYS.indexOf(b));
+  // remove rows for unchecked days
+  sessionRowsEl.querySelectorAll('.session-row').forEach(row => {
+    if(!checked.includes(row.dataset.day)) row.remove();
+  });
+  // add rows for newly checked days, in day order
+  checked.forEach((day, idx) => {
+    if(sessionRowsEl.querySelector(`.session-row[data-day="${day}"]`)) return;
+    const row = document.createElement('div');
+    row.className = 'session-row';
+    row.dataset.day = day;
+    row.innerHTML = `
+      <span class="sess-day">${day.slice(0,3)}</span>
+      <input type="time" class="sess-start" required>
+      <input type="time" class="sess-end" required>
+      ${idx === 0 ? '' : '<button type="button" class="btn-ghost copy-btn" title="Copy first day\'s time">Copy 1st</button>'}
+    `;
+    if(idx !== 0){
+      row.querySelector('.copy-btn').addEventListener('click', () => {
+        const first = sessionRowsEl.querySelector('.session-row');
+        if(!first) return;
+        row.querySelector('.sess-start').value = first.querySelector('.sess-start').value;
+        row.querySelector('.sess-end').value = first.querySelector('.sess-end').value;
+      });
+    }
+    sessionRowsEl.appendChild(row);
+  });
+  document.getElementById('sessionHint').style.display = checked.length ? 'none' : 'block';
+}
+document.getElementById('dayCheckGroup').addEventListener('change', () => {
+  syncSessionRows();
+});
+
+function resetForm(){
+  document.getElementById('subjectForm').reset();
+  sessionRowsEl.innerHTML = '';
+  document.getElementById('sessionHint').style.display = 'block';
+  document.querySelectorAll('#dayCheckGroup input').forEach(cb => cb.disabled = false);
+  editingId = null;
+  document.getElementById('formTitle').textContent = 'Add a class session';
+  document.getElementById('submitBtn').textContent = 'Add to schedule';
+  document.getElementById('formError').style.display = 'none';
+}
+document.getElementById('cancelEditBtn').addEventListener('click', closeForm);
+
+document.getElementById('subjectForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const base = {
+    code: document.getElementById('f_code').value.trim(),
+    name: document.getElementById('f_name').value.trim(),
+    professor: document.getElementById('f_prof').value.trim(),
+    room: document.getElementById('f_room').value.trim(),
+    link: document.getElementById('f_link').value.trim(),
+    meet: document.getElementById('f_meet').value.trim(),
+    sy: document.getElementById('f_sy').value.trim(),
+    term: document.getElementById('f_term').value.trim(),
+    notes: document.getElementById('f_notes').value.trim(),
+  };
+  const rows = Array.from(sessionRowsEl.querySelectorAll('.session-row')).map(row => ({
+    day: row.dataset.day,
+    start: row.querySelector('.sess-start').value,
+    end: row.querySelector('.sess-end').value,
+  }));
+  const incomplete = rows.some(r => !r.start || !r.end);
+  if(!base.code || !base.name || rows.length === 0 || incomplete){
+    document.getElementById('formError').textContent = 'Please fill in Subject Code, Subject Name, and a start/end time for every selected day.';
+    document.getElementById('formError').style.display = 'block';
+    return;
+  }
+  if(editingId){
+    const original = subjects.find(s => s.id === editingId);
+    const originalDay = original ? original.day : null;
+    subjects = subjects.filter(s => s.id !== editingId);
+    rows.forEach(r => {
+      if(r.day === originalDay){
+        subjects.push({...base, id: editingId, day:r.day, start:r.start, end:r.end});
+      } else {
+        subjects.push({...base, id: uid(), day:r.day, start:r.start, end:r.end});
+      }
+    });
+    activeDay = rows[0].day;
+  } else {
+    rows.forEach(r => subjects.push({...base, id: uid(), day:r.day, start:r.start, end:r.end}));
+    activeDay = rows[0].day;
+  }
+  closeForm();
+  await persistToFile();
+  render();
+});
+
+function startEdit(id){
+  const s = subjects.find(x => x.id === id);
+  if(!s) return;
+  editingId = id;
+  document.getElementById('f_code').value = s.code;
+  document.getElementById('f_name').value = s.name;
+  document.getElementById('f_prof').value = s.professor;
+  document.querySelectorAll('#dayCheckGroup input').forEach(cb => {
+    cb.checked = cb.value === s.day;
+    cb.disabled = cb.value !== s.day ? false : false;
+  });
+  syncSessionRows();
+  const row = sessionRowsEl.querySelector(`.session-row[data-day="${s.day}"]`);
+  if(row){ row.querySelector('.sess-start').value = s.start; row.querySelector('.sess-end').value = s.end; }
+  document.getElementById('f_room').value = s.room;
+  document.getElementById('f_link').value = s.link;
+  document.getElementById('f_meet').value = s.meet || '';
+  document.getElementById('f_sy').value = s.sy;
+  document.getElementById('f_term').value = s.term;
+  document.getElementById('f_notes').value = s.notes;
+  document.getElementById('formTitle').textContent = 'Edit class session';
+  document.getElementById('submitBtn').textContent = 'Save changes';
+  openForm();
+  window.scrollTo({top: formPanel.offsetTop - 20, behavior:'smooth'});
+}
+
+async function deleteEntry(id){
+  if(!confirm('Remove this class from your schedule?')) return;
+  subjects = subjects.filter(s => s.id !== id);
+  await persistToFile();
+  render();
+}
+window.startEdit = startEdit;
+window.deleteEntry = deleteEntry;
+
+/* ---------------- Rendering ---------------- */
+function renderTabs(){
+  const tabsEl = document.getElementById('tabs');
+  tabsEl.innerHTML = DAYS.map(day => {
+    const count = subjects.filter(s => s.day === day).length;
+    return `<div class="tab ${day===activeDay?'active':''} ${day===todayName?'is-today':''}" data-day="${day}">
+      ${day.slice(0,3)}<span class="count">${count?('· '+count):''}</span>
+    </div>`;
+  }).join('');
+  tabsEl.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => { activeDay = t.dataset.day; render(); }));
+}
+
+function renderDayPanel(){
+  const panel = document.getElementById('dayPanel');
+  if(!connected){ panel.innerHTML = '<div class="empty">Connect your Excel file above to load your schedule.</div>'; return; }
+  const list = subjects.filter(s => s.day === activeDay).sort((a,b) => timeToMinutes(a.start)-timeToMinutes(b.start));
+  if(list.length === 0){ panel.innerHTML = `<div class="empty">No classes added for ${activeDay} yet.</div>`; return; }
+  const now = new Date();
+  const nowMin = now.getHours()*60 + now.getMinutes();
+  panel.innerHTML = list.map(s => {
+    const isNow = activeDay === todayName && nowMin >= timeToMinutes(s.start) && nowMin < timeToMinutes(s.end);
+    return `<div class="row-card">
+      <div class="time-block ${isNow?'now':''}">${fmtTime(s.start)}<br>${fmtTime(s.end)}</div>
+      <div class="row-main">
+        <span class="subject-name">${escapeHtml(s.name)}</span><span class="code-pill">${escapeHtml(s.code)}</span>
+        <div class="row-meta">
+          ${s.professor?escapeHtml(s.professor)+' · ':''}${s.room?escapeHtml(s.room):''}
+          ${s.sy?` · SY ${escapeHtml(s.sy)}`:''}${s.term?` ${escapeHtml(s.term)}`:''}
+          ${s.link?` · <a href="${escapeHtml(s.link)}" target="_blank" rel="noopener noreferrer">Classroom link</a>`:''}
+          ${s.meet?` · <a href="${escapeHtml(s.meet)}" target="_blank" rel="noopener noreferrer">Meet link</a>`:''}
+          ${s.notes?`<br>${escapeHtml(s.notes)}`:''}
+        </div>
+      </div>
+      <div class="row-actions">
+        <button class="btn-ghost" onclick="startEdit('${s.id}')">Edit</button>
+        <button class="btn-text" onclick="deleteEntry('${s.id}')" style="color:var(--pencil-red);">Delete</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderTodayHero(){
+  const hero = document.getElementById('todayHero');
+  if(!connected){ hero.classList.remove('show'); return; }
+  hero.classList.add('show');
+  document.getElementById('heroDate').textContent = new Date().toLocaleDateString(undefined, {weekday:'long', month:'long', day:'numeric'});
+  const todays = subjects.filter(s => s.day === todayName).sort((a,b) => timeToMinutes(a.start)-timeToMinutes(b.start));
+  const list = document.getElementById('heroList');
+  if(todays.length === 0){
+    list.innerHTML = `<div class="hero-empty">No classes scheduled today — nothing on the books.</div>`;
+    return;
+  }
+  const now = new Date();
+  const nowMin = now.getHours()*60 + now.getMinutes();
+  const upcoming = todays.filter(s => timeToMinutes(s.end) > nowMin);
+  const nextId = upcoming.length ? (upcoming.find(s => timeToMinutes(s.start) > nowMin) || upcoming[0]).id : null;
+
+  list.innerHTML = todays.map(s => {
+    const startM = timeToMinutes(s.start), endM = timeToMinutes(s.end);
+    let badge;
+    if(nowMin >= startM && nowMin < endM) badge = '<span class="badge now">Now</span>';
+    else if(s.id === nextId) badge = '<span class="badge next">Next</span>';
+    else if(nowMin >= endM) badge = '<span class="badge done">Done</span>';
+    else badge = '<span class="badge later">Later</span>';
+    return `<div class="hero-row">
+      <div class="hero-time">${fmtTime(s.start)}–${fmtTime(s.end)}</div>
+      <div>
+        <div class="hero-name">${escapeHtml(s.name)} <span style="color:#8894B5; font-weight:400;">${escapeHtml(s.code)}</span></div>
+        <div class="hero-meta">${s.professor?escapeHtml(s.professor):''}${s.professor&&s.room?' · ':''}${s.room?escapeHtml(s.room):''}</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        ${badge}
+        ${s.link?`<a class="open-link" href="${escapeHtml(s.link)}" target="_blank" rel="noopener noreferrer">Classroom →</a>`:''}
+        ${s.meet?`<a class="open-link meet" href="${escapeHtml(s.meet)}" target="_blank" rel="noopener noreferrer">Meet →</a>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function render(){
+  renderTabs();
+  renderDayPanel();
+  renderTodayHero();
+  updateCountdown();
+}
+
+/* ---------------- Live countdown to next subject ---------------- */
+function getNextSession(){
+  if(subjects.length === 0) return null;
+  const now = new Date();
+  const nowDayIdx = now.getDay() === 0 ? 6 : now.getDay() - 1;
+  const nowMin = now.getHours()*60 + now.getMinutes() + now.getSeconds()/60;
+  let best = null, bestScore = Infinity;
+  subjects.forEach(s => {
+    const dIdx = DAYS.indexOf(s.day);
+    if(dIdx === -1) return;
+    let dayDelta = dIdx - nowDayIdx;
+    if(dayDelta < 0) dayDelta += 7;
+    const startMin = timeToMinutes(s.start), endMin = timeToMinutes(s.end);
+    const isOngoing = dayDelta === 0 && nowMin >= startMin && nowMin < endMin;
+    let score;
+    if(isOngoing) score = 0;
+    else {
+      score = dayDelta*1440 + (startMin - nowMin);
+      if(score < 0) score += 7*1440;
+    }
+    if(score < bestScore){ bestScore = score; best = {...s, isOngoing, dayDelta, startMin, endMin}; }
+  });
+  if(!best) return null;
+  const startDate = new Date(now);
+  startDate.setDate(now.getDate() + best.dayDelta);
+  startDate.setHours(Math.floor(best.startMin/60), best.startMin%60, 0, 0);
+  const endDate = new Date(startDate);
+  endDate.setHours(Math.floor(best.endMin/60), best.endMin%60, 0, 0);
+  return {...best, startDate, endDate};
+}
+
+function fmtDuration(ms){
+  if(ms < 0) ms = 0;
+  const totalSec = Math.floor(ms/1000);
+  const h = Math.floor(totalSec/3600);
+  const m = Math.floor((totalSec%3600)/60);
+  const sec = totalSec%60;
+  if(h > 0) return `${h}h ${String(m).padStart(2,'0')}m ${String(sec).padStart(2,'0')}s`;
+  if(m > 0) return `${m}m ${String(sec).padStart(2,'0')}s`;
+  return `${sec}s`;
+}
+
+function updateCountdown(){
+  const el = document.getElementById('nextCountdown');
+  if(!connected){ el.classList.remove('show'); return; }
+  const next = getNextSession();
+  if(!next){ el.classList.remove('show'); return; }
+  el.classList.add('show');
+  const now = new Date();
+  const dayLabel = next.dayDelta === 0 ? '' : (next.dayDelta === 1 ? ' · Tomorrow' : ` · ${next.day}`);
+  const links = `${next.link?`<a class="open-link" href="${escapeHtml(next.link)}" target="_blank" rel="noopener noreferrer">Classroom →</a>`:''}${next.meet?`<a class="open-link meet" href="${escapeHtml(next.meet)}" target="_blank" rel="noopener noreferrer">Meet →</a>`:''}`;
+  if(next.isOngoing){
+    el.innerHTML = `
+      <span class="cd-label">In progress</span>
+      <span class="cd-timer">${fmtDuration(next.endDate - now)}</span>
+      <span class="cd-name">left for <b>${escapeHtml(next.name)}</b> (${escapeHtml(next.code)})</span>
+      ${links}`;
+  } else {
+    el.innerHTML = `
+      <span class="cd-label">Starts in</span>
+      <span class="cd-timer">${fmtDuration(next.startDate - now)}</span>
+      <span class="cd-name"><b>${escapeHtml(next.name)}</b> (${escapeHtml(next.code)})${dayLabel}</span>
+      ${links}`;
+  }
+}
+setInterval(updateCountdown, 1000);
+
+document.getElementById('connectExistingBtn').addEventListener('click', connectExisting);
+document.getElementById('createNewBtn').addEventListener('click', createNew);
+
+if(!fsSupported){
+  document.getElementById('compatNote').style.display = 'block';
+  document.getElementById('connectExistingBtn').disabled = true;
+  document.getElementById('createNewBtn').disabled = true;
+}
+
+render();
+</script>
+</body>
+</html>
