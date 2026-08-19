@@ -1,65 +1,76 @@
 # Personalized School Record Management System
 
-A local-first, offline dashboard for managing your school schedule — no accounts,
-no backend server. Your Excel file *is* the database; the dashboard reads and
-writes to it directly using your browser's File System Access API.
+A local-first dashboard for managing your school schedule. `Subject_Scheduler.xlsx`
+lives in this GitHub repo and acts as the database — the dashboard loads it
+automatically over the GitHub API, no file picker required, and (once you
+enable editing) writes changes straight back to it as commits.
 
 ## Structure
 
 ```
 index.html                         Landing page / module hub
 subject_scheduler_dashboard.html   Module 01 — Subject Scheduler
-Subject_Scheduler.xlsx             Your live schedule data (the "database")
+Subject_Scheduler.xlsx             Your schedule data (the "database")
 ```
 
-Keep all three files in the same folder — the hub links to the scheduler by
-relative path, and the scheduler expects to connect to an `.xlsx` file you
-pick yourself.
+Keep all three files in the same repo — the hub links to the scheduler by
+relative path, and the scheduler is hardcoded to read/write
+`Santino67-67/school_record_management_system` on branch `main`.
+
+## How it works
+
+- **Reading is automatic.** On page load, the dashboard fetches
+  `Subject_Scheduler.xlsx` from this repo via the GitHub Contents API and
+  parses it — works in any modern browser, no setup needed to just view your
+  schedule.
+- **Editing needs a token.** Add/edit/delete are disabled until you click
+  **"Enable editing"** and paste a GitHub Personal Access Token. Every save
+  from then on is a real commit to this repo.
+
+### Creating a token
+
+1. On GitHub: **Settings → Developer settings → Personal access tokens →
+   Fine-grained tokens → Generate new token.**
+2. **Repository access:** select only this repository (`school_record_management_system`) — not all repos.
+3. **Permissions:** under Repository permissions, set **Contents** to
+   **Read and write**. Leave everything else as No access.
+4. Set an expiration (90 days is reasonable — you'll just generate a new one
+   when it lapses).
+5. Copy the token and paste it into the dashboard's "Enable editing" prompt.
+
+**Keep this in mind:** the token is never written into the site's code or
+committed to the repo — it only lives in your browser (in memory, or in
+`localStorage` on that device if you check "Remember on this device"). Because
+this repo is public, anyone could otherwise read a hardcoded token straight
+out of the page source, which is exactly why it's entered per-browser instead.
+Scoping the token to just this one repo with only Contents access limits what
+someone could do with it even if it ever leaked.
+
+### Multiple devices
+
+Since the schedule now lives on GitHub instead of a local file, you can open
+the dashboard from any device and see the same data. If you edit from two
+tabs/devices at nearly the same time, the second save will detect the
+conflict, reload the latest version automatically, and ask you to redo your
+last change — this avoids silently overwriting someone else's edit (even if
+that "someone else" is just your other tab).
 
 ## Running it locally
 
-1. Download/clone this folder to your computer.
-2. Open `index.html` in **Chrome or Edge on desktop** (the File System Access
-   API these use isn't supported in Firefox/Safari, or on mobile).
-3. Click into the Subject Scheduler module, then **"Connect existing .xlsx"**
-   and choose `Subject_Scheduler.xlsx` from this same folder.
-4. Add/edit/delete classes from the dashboard — every change is written
-   straight back to that `.xlsx` file automatically.
+Just open `index.html` in a browser — reading works immediately since it
+talks to the public GitHub API directly; no server or local setup needed.
 
-## Running it from GitHub Pages
-
-You can host `index.html` and `subject_scheduler_dashboard.html` on GitHub
-Pages for a stable link to open anytime — the File System Access API still
-works the same way, since it talks to files on *your* computer regardless of
-where the page itself is served from.
-
-`Subject_Scheduler.xlsx` in this repo is a **starting copy/backup** of your
-data. Because GitHub Pages is static hosting, the live dashboard can't write
-back into the repo itself — each time you use it, you'll connect to your own
-local copy of the `.xlsx` file (on your Desktop, in a synced folder, wherever
-you keep it) exactly like running it locally. Re-download/commit an updated
-copy to this repo occasionally if you want a backup checked in.
-
-## Publishing this to GitHub
-
-From a terminal, inside this folder:
+## Publishing / updating this repo
 
 ```bash
-git init
 git add .
-git commit -m "Initial commit: school record management system"
-git branch -M main
-git remote add origin https://github.com/<your-username>/<repo-name>.git
-git push -u origin main
+git commit -m "Update dashboard"
+git push
 ```
 
-Then, to serve it with GitHub Pages:
-
-1. On GitHub, go to the repo's **Settings → Pages**.
-2. Under "Build and deployment", set Source to **Deploy from a branch**,
-   branch `main`, folder `/ (root)`.
-3. Save — your dashboard will be live at
-   `https://<your-username>.github.io/<repo-name>/` within a minute or two.
+With GitHub Pages enabled (**Settings → Pages → Deploy from branch → main,
+root**), the live site updates automatically after each push:
+`https://santino67-67.github.io/school_record_management_system/`
 
 ## Modules
 
@@ -69,3 +80,4 @@ Then, to serve it with GitHub Pages:
   to your next class.
 - **Flashcard Reviewer** (coming soon) — spaced-repetition decks for quiz
   review.
+
