@@ -576,7 +576,14 @@ function buildSheetAOA(){
 }
 
 async function persistToFile(){
-  if(!editingEnabled || !ghToken) return;
+  if(!editingEnabled || !ghToken){
+    // Never fail silently: a Master whose token/session lapsed needs to know
+    // the change did NOT save, instead of believing it did.
+    alert('This change was NOT saved — editing isn\'t enabled yet. Click "Enable editing" and enter your GitHub token, then redo this change.');
+    setSaving('lost');
+    promptEnableEditing();
+    return false;
+  }
   setSaving('saving');
   const aoa = buildSheetAOA();
   const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -610,10 +617,21 @@ async function persistToFile(){
     }
     currentSha = json.content.sha;
     setSaving('saved');
+    return true;
   }catch(e){
     alert('Could not save to GitHub: ' + e.message);
     setSaving('lost');
+    return false;
   }
+}
+
+// Master's edit UI should never dead-end silently: if they try to Add/Edit/
+// Delete before editing is enabled, surface the token panel immediately
+// instead of letting the action quietly go nowhere.
+function promptEnableEditing(){
+  if(!isMaster) return;
+  document.getElementById('tokenPanel').style.display = 'block';
+  document.getElementById('tokenInput').focus();
 }
 
 /* ---------------- Form / CRUD ---------------- */
@@ -698,6 +716,13 @@ document.getElementById('subjectForm').addEventListener('submit', async (e) => {
     document.getElementById('formError').style.display = 'block';
     return;
   }
+  if(!isMaster) return; // Master-only mutation, enforced here as well as in the UI.
+  if(!editingEnabled || !ghToken){ promptEnableEditing(); return; }
+
+  // Keep a snapshot so we can roll back if the GitHub write fails — a Master
+  // should never end up staring at a schedule that looks saved but isn't.
+  const snapshot = subjects.slice();
+
   if(editingId){
     const original = subjects.find(s => s.id === editingId);
     const originalDay = original ? original.day : null;
@@ -715,11 +740,14 @@ document.getElementById('subjectForm').addEventListener('submit', async (e) => {
     activeDay = rows[0].day;
   }
   closeForm();
-  await persistToFile();
+  const ok = await persistToFile();
+  if(ok === false) subjects = snapshot;
   render();
 });
 
 function startEdit(id){
+  if(!isMaster) return;
+  if(!editingEnabled || !ghToken){ promptEnableEditing(); return; }
   const s = subjects.find(x => x.id === id);
   if(!s) return;
   editingId = id;
@@ -746,9 +774,13 @@ function startEdit(id){
 }
 
 async function deleteEntry(id){
+  if(!isMaster) return;
+  if(!editingEnabled || !ghToken){ promptEnableEditing(); return; }
   if(!confirm('Remove this class from your schedule?')) return;
+  const snapshot = subjects.slice();
   subjects = subjects.filter(s => s.id !== id);
-  await persistToFile();
+  const ok = await persistToFile();
+  if(ok === false) subjects = snapshot;
   render();
 }
 window.startEdit = startEdit;

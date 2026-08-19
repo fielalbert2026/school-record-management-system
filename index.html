@@ -152,6 +152,68 @@
 
   #hubContent{display:none;}
   #hubContent.show{display:block;}
+
+  /* ---------- Shared button variants (mirrors scheduler module) ---------- */
+  .btn-primary{background:var(--ink); color:var(--paper);}
+  .btn-primary:hover{background:var(--ink-soft);}
+  .btn-highlight{background:var(--highlighter); border-color:var(--highlighter); color:var(--highlighter-ink);}
+  .btn-highlight:hover{background:#f0c453;}
+  .btn-ghost{border-color:var(--paper-line); color:var(--graphite); background:#fff;}
+  .btn-text{border:none; background:none; padding:2px 6px; font-size:12.5px; text-decoration:underline; cursor:pointer;}
+
+  /* ---------- Announcements ---------- */
+  .section-toolbar{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:10px;}
+  .section-toolbar h2{font-family:'Fraunces',serif; font-size:19px; color:var(--ink); margin:0;}
+  .ann-controls{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+  .ann-status{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted);}
+
+  #tokenPanel{
+    background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius);
+    box-shadow:var(--shadow); padding:22px 24px; margin-bottom:22px; text-align:center;
+  }
+  #tokenPanel h2{font-family:'Fraunces',serif; color:var(--ink); margin:0 0 6px; font-size:18px;}
+  #tokenPanel p{color:var(--muted); font-size:13px; margin:0 0 16px; max-width:480px; margin-left:auto; margin-right:auto;}
+  #tokenPanel .actions{display:flex; gap:10px; justify-content:center; flex-wrap:wrap; align-items:center;}
+  #tokenPanel input[type="password"]{
+    font-family:'IBM Plex Mono',monospace; font-size:13.5px; padding:10px 12px;
+    border:1.5px solid var(--paper-line); border-radius:7px; background:#FFFEFC; color:var(--ink);
+  }
+  #tokenPanel input[type="password"]:focus{outline:none; border-color:var(--ink);}
+
+  .ann-panel{
+    display:none; background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius);
+    box-shadow:var(--shadow); padding:22px 24px; margin-bottom:22px;
+  }
+  .ann-panel.open{display:block;}
+  .ann-panel h3{font-family:'Fraunces',serif; margin:0 0 14px; color:var(--ink); font-size:17px;}
+  .ann-panel label{display:block; font-family:'IBM Plex Mono',monospace; font-size:11px; text-transform:uppercase;
+    letter-spacing:.06em; color:var(--muted); margin:0 0 6px;}
+  .ann-panel input[type="text"], .ann-panel textarea{
+    width:100%; font-family:'Inter',sans-serif; font-size:14px; padding:10px 12px;
+    border:1.5px solid var(--paper-line); border-radius:7px; background:#FFFEFC; color:var(--ink);
+    margin-bottom:14px; resize:vertical;
+  }
+  .ann-panel input[type="text"]:focus, .ann-panel textarea:focus{outline:none; border-color:var(--ink);}
+  .ann-panel .actions{display:flex; gap:10px; flex-wrap:wrap;}
+  #annFormError{color:var(--pencil-red); font-size:12.5px; display:none; margin:-6px 0 14px;}
+
+  .ann-list{display:flex; flex-direction:column; gap:14px; margin-bottom:44px;}
+  .ann-card{
+    background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius);
+    box-shadow:var(--shadow); padding:22px 24px;
+  }
+  .ann-card h3{font-family:'Fraunces',serif; font-size:17px; color:var(--ink); margin:0 0 8px;}
+  .ann-card p{font-size:13.5px; color:var(--graphite); line-height:1.6; margin:0 0 14px; white-space:pre-wrap;}
+  .ann-foot{
+    display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+    border-top:1px dashed var(--paper-line); padding-top:10px;
+  }
+  .ann-attrib{
+    font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted);
+  }
+  .ann-attrib b{color:var(--ink); font-weight:600;}
+  .ann-actions{display:flex; gap:6px;}
+  .ann-empty{color:var(--muted); font-size:13.5px; padding:18px 4px; text-align:center;}
 </style>
 </head>
 <body>
@@ -179,6 +241,46 @@
   </div>
 
   <div id="hubContent">
+
+  <div id="tokenPanel" style="display:none;">
+    <h2>Enable editing</h2>
+    <p>Paste a GitHub Personal Access Token with <b>Contents: Read and write</b> access to this one repo. It's kept only in this browser — never written into the site's code or the repo itself.</p>
+    <form id="tokenForm" class="actions">
+      <input id="tokenInput" type="password" placeholder="github_pat_…" style="flex:1; min-width:220px;" autocomplete="off">
+      <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--muted); font-weight:500;">
+        <input type="checkbox" id="rememberTokenChk"> Remember on this device
+      </label>
+      <button type="submit" class="btn-primary">Save token</button>
+      <button type="button" class="btn-ghost" id="cancelTokenBtn">Cancel</button>
+    </form>
+    <p style="font-size:12px; color:var(--muted); margin-top:12px; margin-bottom:0;">
+      Need one for the Scheduler too? The same token works for both — this repo only has one Contents scope.
+      Create it at github.com → Settings → Developer settings → Fine-grained tokens.
+    </p>
+  </div>
+
+  <div class="section-toolbar">
+    <p class="section-label" style="margin:0;">Announcements</p>
+    <div class="ann-controls" id="annControls"></div>
+  </div>
+
+  <div class="ann-panel" id="annFormPanel">
+    <h3 id="annFormTitle">New announcement</h3>
+    <label for="annTitleInput">Title</label>
+    <input id="annTitleInput" type="text" placeholder="e.g. Term 2 schedule is live" maxlength="120">
+    <label for="annMessageInput">Message</label>
+    <textarea id="annMessageInput" rows="4" placeholder="What changed, and anything people should do about it."></textarea>
+    <div id="annFormError">Please fill in both a title and a message.</div>
+    <div class="actions">
+      <button class="btn-primary" id="annSubmitBtn" type="button">Post announcement</button>
+      <button class="btn-ghost" id="annCancelBtn" type="button">Cancel</button>
+    </div>
+  </div>
+
+  <div class="ann-list" id="annList">
+    <div class="ann-empty">Loading announcements…</div>
+  </div>
+
   <p class="section-label">Modules</p>
   <div class="modules">
 
@@ -261,13 +363,27 @@ async function pbkdf2Bits(payload, saltBytes, iterations){
   return new Uint8Array(bits);
 }
 
-async function fetchValidUsers(){
+/* Workbook is fetched once and cached — both sign-in (Valid_Users) and the
+ * Announcements section read from the same in-memory copy instead of
+ * hitting the GitHub API twice for one page load. */
+let cachedWorkbook = null;
+let cachedSha = null;
+
+async function fetchWorkbookFresh(authed){
   const url = `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${encodeURIComponent(GH.path)}?ref=${GH.branch}`;
-  const res = await fetch(url);
-  if(!res.ok) throw new Error(`Could not reach the user list (GitHub responded ${res.status}).`);
+  const headers = (authed && annGhToken) ? {Authorization:`Bearer ${annGhToken}`} : {};
+  const res = await fetch(url, {headers});
+  if(!res.ok) throw new Error(`Could not reach ${GH.path} (GitHub responded ${res.status}).`);
   const json = await res.json();
   const bytes = b64ToBytes(json.content.replace(/\n/g,''));
   const wb = XLSX.read(bytes.buffer, {type:'array'});
+  cachedWorkbook = wb;
+  cachedSha = json.sha;
+  return wb;
+}
+
+async function fetchValidUsers(){
+  const wb = await fetchWorkbookFresh(false);
   const ws = wb.Sheets['Valid_Users'];
   const aoa = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
   const headerIdx = aoa.findIndex(r => r[0] === 'Unique_Identifier');
@@ -307,23 +423,266 @@ function getSession(){
 function setSession(s){ sessionStorage.setItem(SESSION_KEY, JSON.stringify(s)); }
 function clearSession(){ sessionStorage.removeItem(SESSION_KEY); }
 
-function renderSignedIn(session){
+// Global session/role state — the Announcements section (and the token
+// panel it shares) reads these, same pattern as the Scheduler module.
+let session = null;
+let isMaster = false;
+
+function renderSignedIn(s){
+  session = s;
+  isMaster = session.role === 'Master';
   document.getElementById('signinPanel').style.display = 'none';
   document.getElementById('hubContent').classList.add('show');
   const strip = document.getElementById('sessionStrip');
   strip.classList.add('show');
-  const roleClass = session.role === 'Master' ? 'master' : 'guest';
+  const roleClass = isMaster ? 'master' : 'guest';
   strip.innerHTML = `Signed in as <b>${session.name}</b> <span class="role-pill ${roleClass}">${session.role}</span> <button id="logoutBtn" type="button">Log out</button>`;
   document.getElementById('logoutBtn').addEventListener('click', () => {
     clearSession();
     window.location.reload();
   });
+  if(isMaster){
+    try{
+      const saved = localStorage.getItem(ANN_TOKEN_KEY);
+      if(saved){ annGhToken = saved; annEditingEnabled = true; }
+    }catch(e){}
+  }
+  loadAnnouncements();
 }
 
-(function boot(){
-  const existing = getSession();
-  if(existing) renderSignedIn(existing);
-})();
+/* ---------------- Announcements ----------------
+ * Master-only CRUD, stored as a sheet in Subject_Scheduler.xlsx alongside
+ * the scheduler data and Valid_Users — read via the public GitHub API,
+ * written via the same GitHub PAT flow the Scheduler module uses. Sharing
+ * one localStorage key means a token entered in either module works in both.
+ */
+const ANN_SHEET = 'Announcements';
+const ANN_TOKEN_KEY = 'gh_pat_school_scheduler';
+let annGhToken = null;
+let annEditingEnabled = false;
+let announcements = [];
+let annEditingId = null;
+
+function uid(){ return 'ann_' + Date.now() + '_' + Math.random().toString(36).slice(2,8); }
+function escapeHtml(str){
+  return (str||'').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function fmtDate(iso){
+  try{
+    return new Date(iso).toLocaleString(undefined, {year:'numeric', month:'short', day:'numeric', hour:'numeric', minute:'2-digit'});
+  }catch(e){ return iso || ''; }
+}
+
+function parseAnnouncements(wb){
+  const ws = wb.Sheets[ANN_SHEET];
+  if(!ws) return [];
+  const aoa = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+  const headerIdx = aoa.findIndex(r => r[0] === 'ID');
+  if(headerIdx === -1) return [];
+  return aoa.slice(headerIdx+1)
+    .filter(r => r[0])
+    .map(r => ({id:r[0], title:r[1]||'', message:r[2]||'', author:r[3]||'', date:r[4]||''}))
+    .sort((a,b) => new Date(b.date) - new Date(a.date));
+}
+
+function buildAnnouncementsSheet(){
+  const sorted = announcements.slice().sort((a,b) => new Date(b.date) - new Date(a.date));
+  const rows = sorted.map(a => [a.id, a.title, a.message, a.author, a.date]);
+  const aoa = [
+    ["Announcements — Personalized School Record Management System"],
+    ["Managed by Master users from the dashboard. Do not edit IDs by hand."],
+    [],
+    ["ID","Title","Message","Author","Date"],
+    ...rows
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{wch:16},{wch:30},{wch:60},{wch:22},{wch:22}];
+  return ws;
+}
+
+function renderAnnControls(){
+  const el = document.getElementById('annControls');
+  if(!isMaster){ el.innerHTML = ''; return; }
+  if(!annEditingEnabled){
+    el.innerHTML = `<span class="ann-status">read-only</span><button class="btn-ghost" id="annEnableEditBtn" type="button">Enable editing</button>`;
+    document.getElementById('annEnableEditBtn').addEventListener('click', () => {
+      document.getElementById('tokenPanel').style.display = 'block';
+      document.getElementById('tokenInput').focus();
+    });
+  } else {
+    el.innerHTML = `<span class="ann-status">editing enabled</span><button class="btn-highlight" id="annAddBtn" type="button">+ New announcement</button><button class="btn-ghost" id="annLockBtn" type="button">Lock editing</button>`;
+    document.getElementById('annAddBtn').addEventListener('click', openAnnForm);
+    document.getElementById('annLockBtn').addEventListener('click', () => { annEditingEnabled = false; closeAnnForm(); renderAnnControls(); renderAnnouncements(); });
+  }
+}
+
+function renderAnnouncements(){
+  const list = document.getElementById('annList');
+  if(announcements.length === 0){
+    list.innerHTML = '<div class="ann-empty">No announcements yet.</div>';
+    return;
+  }
+  list.innerHTML = announcements.map(a => `
+    <div class="ann-card">
+      <h3>${escapeHtml(a.title)}</h3>
+      <p>${escapeHtml(a.message)}</p>
+      <div class="ann-foot">
+        <div class="ann-attrib">Updated by <b>${escapeHtml(a.author)}</b> · ${escapeHtml(fmtDate(a.date))}</div>
+        ${isMaster && annEditingEnabled ? `<div class="ann-actions">
+          <button class="btn-text" onclick="startAnnEdit('${a.id}')">Edit</button>
+          <button class="btn-text" onclick="deleteAnnouncement('${a.id}')" style="color:var(--pencil-red);">Delete</button>
+        </div>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+async function loadAnnouncements(){
+  const list = document.getElementById('annList');
+  try{
+    const wb = cachedWorkbook || await fetchWorkbookFresh(annEditingEnabled);
+    announcements = parseAnnouncements(wb);
+    renderAnnControls();
+    renderAnnouncements();
+  }catch(e){
+    list.innerHTML = `<div class="ann-empty">Couldn't load announcements: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function openAnnForm(){
+  if(!isMaster){ return; }
+  if(!annEditingEnabled){ document.getElementById('tokenPanel').style.display = 'block'; return; }
+  document.getElementById('annFormPanel').classList.add('open');
+  document.getElementById('annTitleInput').focus();
+}
+function closeAnnForm(){
+  annEditingId = null;
+  document.getElementById('annFormPanel').classList.remove('open');
+  document.getElementById('annTitleInput').value = '';
+  document.getElementById('annMessageInput').value = '';
+  document.getElementById('annFormError').style.display = 'none';
+  document.getElementById('annFormTitle').textContent = 'New announcement';
+  document.getElementById('annSubmitBtn').textContent = 'Post announcement';
+}
+
+function startAnnEdit(id){
+  if(!isMaster || !annEditingEnabled) return;
+  const a = announcements.find(x => x.id === id);
+  if(!a) return;
+  annEditingId = id;
+  document.getElementById('annTitleInput').value = a.title;
+  document.getElementById('annMessageInput').value = a.message;
+  document.getElementById('annFormTitle').textContent = 'Edit announcement';
+  document.getElementById('annSubmitBtn').textContent = 'Save changes';
+  document.getElementById('annFormPanel').classList.add('open');
+  document.getElementById('annTitleInput').focus();
+}
+window.startAnnEdit = startAnnEdit;
+
+async function deleteAnnouncement(id){
+  if(!isMaster || !annEditingEnabled) return;
+  if(!confirm('Delete this announcement?')) return;
+  const snapshot = announcements.slice();
+  announcements = announcements.filter(a => a.id !== id);
+  renderAnnouncements();
+  const ok = await persistAnnouncements();
+  if(!ok){ announcements = snapshot; renderAnnouncements(); }
+}
+window.deleteAnnouncement = deleteAnnouncement;
+
+document.getElementById('annCancelBtn').addEventListener('click', closeAnnForm);
+document.getElementById('annSubmitBtn').addEventListener('click', async () => {
+  if(!isMaster){ return; }
+  if(!annEditingEnabled || !annGhToken){
+    document.getElementById('tokenPanel').style.display = 'block';
+    return;
+  }
+  const title = document.getElementById('annTitleInput').value.trim();
+  const message = document.getElementById('annMessageInput').value.trim();
+  if(!title || !message){
+    document.getElementById('annFormError').style.display = 'block';
+    return;
+  }
+  const snapshot = announcements.slice();
+  const now = new Date().toISOString();
+  if(annEditingId){
+    announcements = announcements.map(a => a.id === annEditingId
+      ? {...a, title, message, author:session.name, date:now}
+      : a);
+  } else {
+    announcements.unshift({id:uid(), title, message, author:session.name, date:now});
+  }
+  closeAnnForm();
+  renderAnnouncements();
+  const ok = await persistAnnouncements();
+  if(!ok){ announcements = snapshot; renderAnnouncements(); }
+});
+
+async function persistAnnouncements(){
+  if(!isMaster || !annEditingEnabled || !annGhToken){
+    alert('This change was NOT saved — editing isn\'t enabled. Click "Enable editing" and enter your GitHub token, then redo this change.');
+    return false;
+  }
+  try{
+    if(!cachedWorkbook) await fetchWorkbookFresh(true);
+    const wb = cachedWorkbook;
+    wb.Sheets[ANN_SHEET] = buildAnnouncementsSheet();
+    if(!wb.SheetNames.includes(ANN_SHEET)) wb.SheetNames.push(ANN_SHEET);
+    const wbout = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+    const contentB64 = (function(buf){
+      const bytes = new Uint8Array(buf); let bin=''; const chunk=0x8000;
+      for(let i=0;i<bytes.length;i+=chunk) bin += String.fromCharCode.apply(null, bytes.subarray(i,i+chunk));
+      return btoa(bin);
+    })(wbout);
+    const url = `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${encodeURIComponent(GH.path)}`;
+    const res = await fetch(url, {
+      method:'PUT',
+      headers:{Authorization:`Bearer ${annGhToken}`, 'Content-Type':'application/json'},
+      body:JSON.stringify({
+        message:`Update announcements — ${new Date().toISOString()}`,
+        content:contentB64,
+        sha:cachedSha,
+        branch:GH.branch
+      })
+    });
+    const json = await res.json();
+    if(!res.ok){
+      if(res.status === 409){
+        alert('Someone (or another tab/device) saved a newer version since you loaded this page. Reloading the latest version now — please redo your last change.');
+        await fetchWorkbookFresh(true);
+        announcements = parseAnnouncements(cachedWorkbook);
+        renderAnnouncements();
+        return false;
+      }
+      throw new Error(json.message || `GitHub responded with ${res.status}`);
+    }
+    cachedSha = json.content.sha;
+    return true;
+  }catch(e){
+    alert('Could not save to GitHub: ' + e.message);
+    return false;
+  }
+}
+
+document.getElementById('cancelTokenBtn').addEventListener('click', () => {
+  document.getElementById('tokenPanel').style.display = 'none';
+});
+document.getElementById('tokenForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if(!isMaster){ document.getElementById('tokenPanel').style.display = 'none'; return; }
+  const val = document.getElementById('tokenInput').value.trim();
+  if(!val) return;
+  annGhToken = val;
+  annEditingEnabled = true;
+  if(document.getElementById('rememberTokenChk').checked){
+    try{ localStorage.setItem(ANN_TOKEN_KEY, val); }catch(err){}
+  }
+  document.getElementById('tokenPanel').style.display = 'none';
+  document.getElementById('tokenInput').value = '';
+  // Re-fetch with auth so we're working off the freshest sha before any edit.
+  try{ await fetchWorkbookFresh(true); announcements = parseAnnouncements(cachedWorkbook); }catch(err){}
+  renderAnnControls();
+  renderAnnouncements();
+});
 
 document.getElementById('signinForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -379,6 +738,11 @@ document.getElementById('signinForm').addEventListener('submit', async (e) => {
     btn.disabled = false; btn.textContent = 'Sign in';
   }
 });
+
+(function boot(){
+  const existing = getSession();
+  if(existing) renderSignedIn(existing);
+})();
 </script>
 </body>
 </html>

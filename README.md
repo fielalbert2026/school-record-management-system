@@ -157,6 +157,60 @@ With GitHub Pages enabled (**Settings → Pages → Deploy from branch → main,
 root**), the live site updates automatically after each push:
 `https://santino67-67.github.io/school\_record\_management\_system/`
 
+## Announcements
+
+The hub now has an Announcements section, above the module grid. Anyone
+signed in can read it; only Master accounts can post, edit, or delete.
+
+* Stored as its own sheet (`Announcements`) inside `Subject_Scheduler.xlsx`,
+  alongside the schedule and `Valid_Users` — same file, same GitHub PAT flow
+  the Scheduler module already uses. Entering the token in either page
+  ("Remember on this device") makes it available in both, since they share
+  the same `localStorage` key.
+* Each entry stores `ID, Title, Message, Author, Date`. `Author`/`Date` are
+  overwritten with whoever (and whenever) last saved that entry — this is
+  what the "Updated by …" line at the bottom of each card reflects. It's a
+  last-editor record, not necessarily the original poster.
+* Same conflict handling as the Scheduler: a 409 on save means someone else
+  wrote first, so the page reloads the latest version and asks you to redo
+  the change rather than silently overwriting it.
+
+## Master editing — what changed
+
+Two bugs are now fixed on the Scheduler module:
+
+1. `persistToFile()` used to fail **silently** if editing wasn't enabled —
+   the form would close as if the save worked, but nothing reached GitHub,
+   and the change vanished on next reload with zero explanation. It now
+   alerts you immediately and reopens the token prompt.
+2. The row-level **Edit**/**Delete** buttons were gated only on being a
+   Master, not on editing actually being enabled — so a Master without an
+   active token could open the edit form, "save," and lose the change with
+   no warning. They now check for an active token first and prompt for one
+   if it's missing, and a failed save rolls the in-memory change back
+   instead of leaving the UI out of sync with what's actually on GitHub.
+
+None of this touches the actual security boundary — a Master still needs a
+valid GitHub PAT to write anything, same as before. What changed is that
+Master actions no longer fail quietly.
+
+## Adding a new Master user
+
+`generate_master.html` is an offline, owner-only tool (open it locally or
+add it to the repo like the other pages — it's not linked from the hub on
+purpose) that generates everything a new `Valid_Users` Master row needs:
+
+1. Enter the new person's School ID and name.
+2. It generates a random passphrase, a `Master_Salt`, and derives
+   `Master_Verifier` and the AES-GCM-encrypted `Name_IV`/`Name_Enc` — using
+   the exact same PBKDF2-HMAC-SHA256 (300,000 iterations) scheme as
+   `index.html`'s sign-in check, so the row it produces verifies correctly.
+3. Copy the generated row into `Valid_Users`, commit, and hand the
+   passphrase to that person through a separate channel from their ID.
+
+The passphrase is shown once, in your browser only, and is never written
+anywhere — if you lose it before saving it, generate a fresh one.
+
 ## Modules
 
 * **Subject Scheduler** (live) — weekly class schedule with professors,
