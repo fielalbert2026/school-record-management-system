@@ -6,6 +6,7 @@
 <title>Personalized School Record Management System</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
     --ink:#1D2B4F;
@@ -106,18 +107,76 @@
   @media (max-width:640px){
     .modules{grid-template-columns:1fr;}
   }
+
+  /* ---------- Sign-in gate ---------- */
+  button{
+    font-family:'Inter',sans-serif; font-weight:600; font-size:13.5px;
+    border-radius:7px; border:1.5px solid var(--ink); padding:10px 18px;
+    cursor:pointer; background:var(--ink); color:var(--paper);
+    transition:transform .12s ease, opacity .15s ease;
+  }
+  button:hover{transform:translateY(-1px);}
+  button:disabled{opacity:.5; cursor:not-allowed; transform:none;}
+  #signinPanel{
+    max-width:380px; margin:0 auto 52px; background:var(--card); border:1px solid var(--paper-line);
+    border-radius:var(--radius); box-shadow:var(--shadow); padding:30px 28px; text-align:center;
+  }
+  #signinPanel h2{font-family:'Fraunces',serif; color:var(--ink); font-size:20px; margin:0 0 8px;}
+  #signinPanel p{color:var(--muted); font-size:13px; line-height:1.55; margin:0 0 20px;}
+  #signinForm{display:flex; flex-direction:column; gap:12px;}
+  #idInput{
+    font-family:'IBM Plex Mono',monospace; font-size:15px; text-align:center; letter-spacing:.04em;
+    padding:11px 12px; border:1.5px solid var(--paper-line); border-radius:7px; background:#FFFEFC; color:var(--ink);
+  }
+  #idInput:focus{outline:none; border-color:var(--ink);}
+  #signinError{color:var(--pencil-red); font-size:12.5px; display:none;}
+  #signinNote{font-size:11.5px; color:var(--muted); margin-top:14px;}
+
+  .session-strip{
+    display:none; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap;
+    font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--muted);
+    background:var(--card); border:1px solid var(--paper-line); border-radius:20px;
+    padding:7px 8px 7px 16px; margin:18px auto 0; width:fit-content;
+  }
+  .session-strip.show{display:inline-flex;}
+  .session-strip b{color:var(--ink); font-weight:600;}
+  .role-pill{
+    text-transform:uppercase; letter-spacing:.06em; font-size:10px; padding:3px 9px; border-radius:20px;
+  }
+  .role-pill.master{background:var(--sage-bg); color:var(--sage);}
+  .role-pill.guest{background:#EFEAE0; color:var(--muted);}
+  .session-strip button{
+    background:transparent; color:var(--muted); border:1px solid var(--paper-line);
+    padding:5px 11px; font-size:11px; border-radius:16px;
+  }
+
+  #hubContent{display:none;}
+  #hubContent.show{display:block;}
 </style>
 </head>
 <body>
 <div class="wrap">
 
   <div class="masthead">
-    <p class="brand-eyebrow">Personal · Offline · Yours</p>
+    <p class="brand-eyebrow">Personal · Accessible · Yours</p>
     <h1>Personalized School Record<br>Management System</h1>
-    <p class="tagline">One home base for the school year — your class schedule and your quiz reviewers, kept in local files instead of scattered across apps.</p>
+    <p class="tagline">One home base for the school year — your class schedule and your quiz reviewers(soon), kept in local files instead of scattered across apps.</p>
     <div class="id-strip"><span class="dot"></span> Running from local files — no accounts, no server</div>
+    <div class="session-strip" id="sessionStrip"></div>
   </div>
 
+  <div id="signinPanel">
+    <h2>Sign in</h2>
+    <p>Enter your school ID</p>
+    <form id="signinForm">
+      <input id="idInput" type="text" inputmode="numeric" autocomplete="off" placeholder="School ID" required>
+      <button type="submit" id="signinBtn">Sign in</button>
+    </form>
+    <div id="signinError">ID not recognized. Check with the system owner if this seems wrong.</div>
+    <p id="signinNote">Your ID is hashed in this browser before it's checked — the plain ID is never sent or stored anywhere.</p>
+  </div>
+
+  <div id="hubContent">
   <p class="section-label">Modules</p>
   <div class="modules">
 
@@ -146,8 +205,116 @@
   <div class="note-panel">
     <strong>How this works.</strong> Each module is its own file that reads and writes a local data file directly — the Scheduler uses <code>Subject_Scheduler.xlsx</code> sitting in this same folder. Keep this dashboard, the module files, and their data files together so the links between them keep working.
   </div>
+  </div>
 
   <footer>Personalized School Record Management System · local-first, module by module</footer>
 </div>
+
+<script>
+/* ---------------- Sign-in ----------------
+ * Client-side only — no server, no session tokens, no cookies.
+ * The ID is hashed (SHA-256 + a fixed, non-secret salt) before it's ever
+ * compared, and only the hash is checked against Valid_Users. This keeps
+ * a plain ID↔Name mapping out of casual view, but since this is a public
+ * static site, the hashing logic itself is public too — it is NOT a
+ * substitute for a real access-control boundary. The one real credential
+ * in this app is the GitHub token used by "Enable editing" in the
+ * Subject Scheduler module, which is unrelated to this sign-in and is
+ * never touched or auto-filled by it.
+ */
+const GH = { owner:'Santino67-67', repo:'school_record_management_system', branch:'main', path:'Subject_Scheduler.xlsx' };
+const AUTH_SALT = "SRMS-Santino67-67-v1";       // salt for the lookup hash only
+const ENC_SALT  = "SRMS-Santino67-67-v1-name";  // separate salt for the per-row name key — deliberately not reused
+const SESSION_KEY = 'srms_session';
+
+async function hashId(id){
+  const enc = new TextEncoder().encode(AUTH_SALT + String(id).trim());
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+function b64ToBytes(b64){
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
+// The AES key for a row is derived straight from that person's own ID — nobody can decrypt
+// a name without already knowing the ID it belongs to, including someone reading this source.
+async function decryptName(id, ivB64, ctB64){
+  const keyMaterial = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(id).trim() + ENC_SALT));
+  const key = await crypto.subtle.importKey('raw', keyMaterial, {name:'AES-GCM'}, false, ['decrypt']);
+  const iv = b64ToBytes(ivB64);
+  const ct = b64ToBytes(ctB64);
+  const plainBuf = await crypto.subtle.decrypt({name:'AES-GCM', iv}, key, ct);
+  return new TextDecoder().decode(plainBuf);
+}
+
+async function fetchValidUsers(){
+  const url = `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${encodeURIComponent(GH.path)}?ref=${GH.branch}`;
+  const res = await fetch(url);
+  if(!res.ok) throw new Error(`Could not reach the user list (GitHub responded ${res.status}).`);
+  const json = await res.json();
+  const bytes = b64ToBytes(json.content.replace(/\n/g,''));
+  const wb = XLSX.read(bytes.buffer, {type:'array'});
+  const ws = wb.Sheets['Valid_Users'];
+  const aoa = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+  const headerIdx = aoa.findIndex(r => r[0] === 'Unique_Identifier');
+  return aoa.slice(headerIdx+1).filter(r => r[0]);
+}
+
+function getSession(){
+  try{ return JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); }catch(e){ return null; }
+}
+function setSession(s){ sessionStorage.setItem(SESSION_KEY, JSON.stringify(s)); }
+function clearSession(){ sessionStorage.removeItem(SESSION_KEY); }
+
+function renderSignedIn(session){
+  document.getElementById('signinPanel').style.display = 'none';
+  document.getElementById('hubContent').classList.add('show');
+  const strip = document.getElementById('sessionStrip');
+  strip.classList.add('show');
+  const roleClass = session.role === 'Master' ? 'master' : 'guest';
+  strip.innerHTML = `Signed in as <b>${session.name}</b> <span class="role-pill ${roleClass}">${session.role}</span> <button id="logoutBtn" type="button">Log out</button>`;
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    clearSession();
+    window.location.reload();
+  });
+}
+
+(function boot(){
+  const existing = getSession();
+  if(existing) renderSignedIn(existing);
+})();
+
+document.getElementById('signinForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById('signinError');
+  const btn = document.getElementById('signinBtn');
+  errEl.style.display = 'none';
+  const idVal = document.getElementById('idInput').value.trim();
+  if(!idVal) return;
+  btn.disabled = true; btn.textContent = 'Checking…';
+  try{
+    const users = await fetchValidUsers();
+    const hash = await hashId(idVal);
+    const match = users.find(r => String(r[0]).trim().toLowerCase() === hash);
+    if(!match){
+      errEl.style.display = 'block';
+      return;
+    }
+    const name = await decryptName(idVal, match[1], match[2]);
+    const session = { name, role: match[3] || 'Guest' };
+    setSession(session);
+    renderSignedIn(session);
+  }catch(err){
+    errEl.textContent = err.message || 'Something went wrong — try again.';
+    errEl.style.display = 'block';
+  }finally{
+    btn.disabled = false; btn.textContent = 'Sign in';
+  }
+});
+</script>
 </body>
 </html>
