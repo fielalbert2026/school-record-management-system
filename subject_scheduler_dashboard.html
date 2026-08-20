@@ -233,6 +233,28 @@
 
   footer{text-align:center; color:#A79F8C; font-size:12px; margin-top:36px;}
 
+  /* ---------- Session strip / access lock ---------- */
+  .session-strip{
+    display:inline-flex; align-items:center; gap:10px; flex-wrap:wrap;
+    font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--muted);
+    background:#fff; border:1px solid var(--paper-line); border-radius:20px;
+    padding:6px 6px 6px 14px; margin-bottom:10px;
+  }
+  .session-strip b{color:var(--ink); font-weight:600;}
+  .role-pill{text-transform:uppercase; letter-spacing:.06em; font-size:10px; padding:3px 9px; border-radius:20px;}
+  .role-pill.master{background:var(--sage-bg); color:var(--sage);}
+  .role-pill.guest{background:#EFEAE0; color:var(--muted);}
+  .session-strip button{
+    background:transparent; color:var(--muted); border:1px solid var(--paper-line);
+    padding:4px 10px; font-size:11px; border-radius:16px;
+  }
+  #accessLockedPanel{
+    background:#fff; border:1.5px dashed var(--paper-line); border-radius:var(--radius);
+    padding:30px; text-align:center; margin-bottom:28px;
+  }
+  #accessLockedPanel h2{font-family:'Fraunces',serif; color:var(--ink); margin:0 0 8px; font-size:20px;}
+  #accessLockedPanel p{color:var(--muted); font-size:13.5px; margin:0 0 18px;}
+
   @media (max-width:640px){
     header{flex-direction:column;}
     .connect-box{justify-content:flex-start;}
@@ -251,9 +273,16 @@
       <a href="index.html" class="back-link">← Personalized School Record Management System</a>
       <p class="brand-eyebrow">Module 01 · Academic Schedule</p>
       <h1>Subject Scheduler</h1>
+      <div class="session-strip" id="sessionStrip" style="display:none;"></div>
     </div>
     <div class="connect-box" id="connectBox"></div>
   </header>
+
+  <div id="accessLockedPanel" style="display:none;">
+    <h2>Sign in required</h2>
+    <p>Sign in with your school ID on the hub page to open the Subject Scheduler.</p>
+    <a href="index.html"><button class="btn-primary" type="button">Go to sign in</button></a>
+  </div>
 
   <div id="connectPanel">
     <h2 id="connectPanelTitle">Loading your schedule from GitHub…</h2>
@@ -290,6 +319,7 @@
     <div class="hero-list" id="heroList"></div>
   </div>
 
+  <div id="schedulerContent">
   <div class="section-toolbar">
     <h2>Weekly schedule</h2>
     <button class="btn-highlight" id="addToggleBtn" disabled title="Enable editing above to add classes">+ Add class</button>
@@ -335,6 +365,7 @@
 
   <div class="tabs" id="tabs"></div>
   <div class="day-panel" id="dayPanel"><div class="empty">Loading your schedule from GitHub…</div></div>
+  </div>
 
   <footer>Reads and writes directly to your connected .xlsx file · matches the Subject_Scheduler.xlsx column layout · part of the Personalized School Record Management System</footer>
 </div>
@@ -352,8 +383,6 @@ let activeDay = todayName;
 let editingId = null;
 let workbook = null;
 let connected = false;
-const urlParams = new URLSearchParams(window.location.search);
-const adminMode = urlParams.get('admin') === '1';
 
 function uid(){ return 'sub_' + Date.now() + '_' + Math.random().toString(36).slice(2,8); }
 function timeToMinutes(t){ if(!t) return 0; const [h,m]=t.split(':').map(Number); return h*60+(m||0); }
@@ -388,6 +417,30 @@ function normalizeTime(v){
   return str;
 }
 
+/* ---------------- Session (set by index.html sign-in) ----------------
+ * This is a UI role flag, not a security boundary — see index.html for
+ * why. It decides which buttons render, nothing more. Real write access
+ * still requires a GitHub token entered separately below.
+ */
+const SESSION_KEY = 'srms_session';
+function getSession(){
+  try{ return JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); }catch(e){ return null; }
+}
+const session = getSession();
+const isMaster = !!session && session.role === 'Master';
+
+function renderSessionStrip(){
+  if(!session) return;
+  const strip = document.getElementById('sessionStrip');
+  strip.style.display = 'inline-flex';
+  const roleClass = isMaster ? 'master' : 'guest';
+  strip.innerHTML = `Signed in as <b>${escapeHtml(session.name)}</b> <span class="role-pill ${roleClass}">${escapeHtml(session.role)}</span> <button id="logoutBtn" type="button">Log out</button>`;
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    sessionStorage.removeItem(SESSION_KEY);
+    window.location.href = 'index.html';
+  });
+}
+
 /* ---------------- GitHub-backed storage ---------------- */
 const GH = { owner:'fielalbert2026', repo:'school_record_management_system', branch:'main', path:'Subject_Scheduler.xlsx' };
 let ghToken = null;
@@ -397,12 +450,7 @@ let editingEnabled = false;
 function renderConnectBox(){
   const box = document.getElementById('connectBox');
   if(!connected){ box.innerHTML=''; return; }
-  let extra = '';
-  if(adminMode){
-    extra = editingEnabled
-      ? '<button class="btn-ghost" id="lockEditBtn">Lock editing</button>'
-      : '<button class="btn-highlight" id="enableEditBtn2">Enable editing</button>';
-  }
+  const canEdit = isMaster; // Guests never see an edit entry point, at all
   box.innerHTML = `
     <div class="file-chip">
       <span class="dot" id="saveDot"></span>
@@ -410,25 +458,16 @@ function renderConnectBox(){
       <span class="status" id="saveStatus">${editingEnabled ? 'editing enabled' : 'read-only'}</span>
     </div>
     <button class="btn-ghost" id="reloadBtn">Reload from GitHub</button>
-    ${extra}`;
+    ${canEdit && !editingEnabled ? '<button class="btn-primary" id="headerEnableEditBtn">Enable editing</button>' : ''}
+    ${canEdit && editingEnabled ? '<button class="btn-ghost" id="lockEditBtn">Lock editing</button>' : ''}`;
   document.getElementById('reloadBtn').addEventListener('click', loadFromGitHub);
   const lockBtn = document.getElementById('lockEditBtn');
-  if(lockBtn) lockBtn.addEventListener('click', () => {
-    editingEnabled = false;
-    ghToken = null;
-    try{ localStorage.removeItem('gh_pat_school_scheduler'); }catch(e){}
-    document.getElementById('addToggleBtn').style.display = adminMode ? '' : 'none';
-    document.getElementById('addToggleBtn').disabled = true;
-    renderConnectBox();
-    renderDayPanel();
-    renderTodayHero();
+  if(lockBtn) lockBtn.addEventListener('click', () => { editingEnabled = false; document.getElementById('addToggleBtn').disabled = true; renderConnectBox(); });
+  const headerEnableBtn = document.getElementById('headerEnableEditBtn');
+  if(headerEnableBtn) headerEnableBtn.addEventListener('click', () => {
+    document.getElementById('tokenPanel').style.display = 'block';
+    document.getElementById('tokenInput').focus();
   });
-  const enableBtn2 = document.getElementById('enableEditBtn2');
-  if(enableBtn2) enableBtn2.addEventListener('click', openTokenPanel);
-}
-function openTokenPanel(){
-  document.getElementById('tokenPanel').style.display = 'block';
-  document.getElementById('tokenInput').focus();
 }
 function setSaving(state){
   const dot = document.getElementById('saveDot');
@@ -506,8 +545,11 @@ async function loadFromGitHub(){
     parseSubjectsFromWorkbook();
     connected = true;
     panel.style.display = 'none';
-    document.getElementById('addToggleBtn').style.display = adminMode ? '' : 'none';
-    document.getElementById('addToggleBtn').disabled = !editingEnabled;
+    if(isMaster){
+      document.getElementById('addToggleBtn').disabled = !editingEnabled;
+    } else {
+      document.getElementById('addToggleBtn').style.display = 'none';
+    }
     renderConnectBox();
     render();
   }catch(e){
@@ -515,7 +557,7 @@ async function loadFromGitHub(){
     document.getElementById('connectPanelTitle').textContent = "Couldn't load your schedule";
     document.getElementById('connectPanelText').textContent = e.message;
     document.getElementById('connectActions').style.display = 'flex';
-    document.getElementById('enableEditBtn').style.display = adminMode ? '' : 'none';
+    document.getElementById('enableEditBtn').style.display = 'none';
     render();
   }
 }
@@ -534,7 +576,14 @@ function buildSheetAOA(){
 }
 
 async function persistToFile(){
-  if(!editingEnabled || !ghToken) return;
+  if(!editingEnabled || !ghToken){
+    // Never fail silently: a Master whose token/session lapsed needs to know
+    // the change did NOT save, instead of believing it did.
+    alert('This change was NOT saved — editing isn\'t enabled yet. Click "Enable editing" and enter your GitHub token, then redo this change.');
+    setSaving('lost');
+    promptEnableEditing();
+    return false;
+  }
   setSaving('saving');
   const aoa = buildSheetAOA();
   const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -568,10 +617,21 @@ async function persistToFile(){
     }
     currentSha = json.content.sha;
     setSaving('saved');
+    return true;
   }catch(e){
     alert('Could not save to GitHub: ' + e.message);
     setSaving('lost');
+    return false;
   }
+}
+
+// Master's edit UI should never dead-end silently: if they try to Add/Edit/
+// Delete before editing is enabled, surface the token panel immediately
+// instead of letting the action quietly go nowhere.
+function promptEnableEditing(){
+  if(!isMaster) return;
+  document.getElementById('tokenPanel').style.display = 'block';
+  document.getElementById('tokenInput').focus();
 }
 
 /* ---------------- Form / CRUD ---------------- */
@@ -656,6 +716,13 @@ document.getElementById('subjectForm').addEventListener('submit', async (e) => {
     document.getElementById('formError').style.display = 'block';
     return;
   }
+  if(!isMaster) return; // Master-only mutation, enforced here as well as in the UI.
+  if(!editingEnabled || !ghToken){ promptEnableEditing(); return; }
+
+  // Keep a snapshot so we can roll back if the GitHub write fails — a Master
+  // should never end up staring at a schedule that looks saved but isn't.
+  const snapshot = subjects.slice();
+
   if(editingId){
     const original = subjects.find(s => s.id === editingId);
     const originalDay = original ? original.day : null;
@@ -673,11 +740,14 @@ document.getElementById('subjectForm').addEventListener('submit', async (e) => {
     activeDay = rows[0].day;
   }
   closeForm();
-  await persistToFile();
+  const ok = await persistToFile();
+  if(ok === false) subjects = snapshot;
   render();
 });
 
 function startEdit(id){
+  if(!isMaster) return;
+  if(!editingEnabled || !ghToken){ promptEnableEditing(); return; }
   const s = subjects.find(x => x.id === id);
   if(!s) return;
   editingId = id;
@@ -704,9 +774,13 @@ function startEdit(id){
 }
 
 async function deleteEntry(id){
+  if(!isMaster) return;
+  if(!editingEnabled || !ghToken){ promptEnableEditing(); return; }
   if(!confirm('Remove this class from your schedule?')) return;
+  const snapshot = subjects.slice();
   subjects = subjects.filter(s => s.id !== id);
-  await persistToFile();
+  const ok = await persistToFile();
+  if(ok === false) subjects = snapshot;
   render();
 }
 window.startEdit = startEdit;
@@ -745,7 +819,7 @@ function renderDayPanel(){
           ${s.notes?`<br>${escapeHtml(s.notes)}`:''}
         </div>
       </div>
-      ${(adminMode && editingEnabled) ? `<div class="row-actions">
+      ${isMaster ? `<div class="row-actions">
         <button class="btn-ghost" onclick="startEdit('${s.id}')">Edit</button>
         <button class="btn-text" onclick="deleteEntry('${s.id}')" style="color:var(--pencil-red);">Delete</button>
       </div>` : '<div></div>'}
@@ -867,12 +941,16 @@ setInterval(updateCountdown, 1000);
 
 /* ---------------- Token panel wiring ---------------- */
 document.getElementById('retryLoadBtn').addEventListener('click', loadFromGitHub);
-document.getElementById('enableEditBtn').addEventListener('click', openTokenPanel);
+document.getElementById('enableEditBtn').addEventListener('click', () => {
+  document.getElementById('tokenPanel').style.display = 'block';
+  document.getElementById('tokenInput').focus();
+});
 document.getElementById('cancelTokenBtn').addEventListener('click', () => {
   document.getElementById('tokenPanel').style.display = 'none';
 });
 document.getElementById('tokenForm').addEventListener('submit', (e) => {
   e.preventDefault();
+  if(!isMaster){ document.getElementById('tokenPanel').style.display = 'none'; return; }
   const val = document.getElementById('tokenInput').value.trim();
   if(!val) return;
   ghToken = val;
@@ -882,19 +960,25 @@ document.getElementById('tokenForm').addEventListener('submit', (e) => {
   }
   document.getElementById('tokenPanel').style.display = 'none';
   document.getElementById('tokenInput').value = '';
-  document.getElementById('addToggleBtn').style.display = adminMode ? '' : 'none';
   document.getElementById('addToggleBtn').disabled = false;
   renderConnectBox();
-  renderDayPanel();
-  renderTodayHero();
 });
 
 /* ---------------- Boot ---------------- */
-try{
-  const saved = localStorage.getItem('gh_pat_school_scheduler');
-  if(saved){ ghToken = saved; editingEnabled = true; }
-}catch(e){}
-loadFromGitHub();
+if(!session){
+  document.getElementById('accessLockedPanel').style.display = 'block';
+  document.getElementById('connectPanel').style.display = 'none';
+  document.getElementById('schedulerContent').style.display = 'none';
+} else {
+  renderSessionStrip();
+  if(isMaster){
+    try{
+      const saved = localStorage.getItem('gh_pat_school_scheduler');
+      if(saved){ ghToken = saved; editingEnabled = true; }
+    }catch(e){}
+  }
+  loadFromGitHub();
+}
 </script>
 </body>
 </html>
