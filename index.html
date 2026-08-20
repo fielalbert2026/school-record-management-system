@@ -222,8 +222,8 @@
   <div class="masthead">
     <p class="brand-eyebrow">Personal · Accessible · Yours</p>
     <h1>Personalized School Record<br>Management System</h1>
-    <p class="tagline">One home base for the school year — your class schedule and your reviewers(SOON), kept in local files instead of scattered across apps.</p>
-    <div class="id-strip"><span class="dot"></span> Running from local files — no accounts, no server</div>
+    <p class="tagline">One home base for the school year — your class schedule and your reviewers(SOON), synced and shared with everyone signed in.</p>
+    <div class="id-strip"><span class="dot"></span> Sign in with your school ID — accessible from any device</div>
     <div class="session-strip" id="sessionStrip"></div>
   </div>
 
@@ -307,24 +307,23 @@
   </div>
 
   <div class="note-panel">
-    <strong>How this works.</strong> Each module is its own file that reads and writes a local data file directly — the Scheduler uses <code>Subject_Scheduler.xlsx</code> sitting in this same folder. Keep this dashboard, the module files, and their data files together so the links between them keep working.
+    <strong>How this works.</strong> Each module is its own page that reads and writes a shared data file over the GitHub API — the Scheduler uses <code>Subject_Scheduler.xlsx</code> in this repo. Anyone with the link and a valid school ID can sign in and view it; edits from Master accounts sync for everyone, on any device.
   </div>
   </div>
 
-  <footer>Personalized School Record Management System · local-first, module by module</footer>
+  <footer>Personalized School Record Management System · shared, module by module</footer>
 </div>
 
 <script>
 /* ---------------- Sign-in ----------------
- * Client-side only — no server, no session tokens, no cookies.
  * The ID is hashed (SHA-256 + a fixed, non-secret salt) before it's ever
  * compared, and only the hash is checked against Valid_Users. This keeps
  * a plain ID↔Name mapping out of casual view, but since this is a public
- * static site, the hashing logic itself is public too — it is NOT a
- * substitute for a real access-control boundary. The one real credential
- * in this app is the GitHub token used by "Enable editing" in the
- * Subject Scheduler module, which is unrelated to this sign-in and is
- * never touched or auto-filled by it.
+ * site, the hashing logic itself is public too — it is NOT a substitute
+ * for a real access-control boundary. The one real credential in this app
+ * is the GitHub token used by "Enable editing" in the Subject Scheduler
+ * module, which is unrelated to this sign-in and is never touched or
+ * auto-filled by it.
  */
 const GH = { owner:'fielalbert2026', repo:'school_record_management_system', branch:'main', path:'Subject_Scheduler.xlsx' };
 const AUTH_SALT = "SRMS-Santino67-67-v1";       // salt for the lookup hash only

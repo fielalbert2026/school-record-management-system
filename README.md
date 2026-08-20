@@ -1,9 +1,11 @@
-# &#x20;Personalized School Record Management System
+# Personalized School Record Management System
 
-A local-first dashboard for managing your school schedule. `Subject\_Scheduler.xlsx`
+A shared dashboard for managing your school schedule. `Subject_Scheduler.xlsx`
 lives in this GitHub repo and acts as the database — the dashboard loads it
-automatically over the GitHub API, no file picker required, and (once you
-enable editing) writes changes straight back to it as commits.
+automatically over the GitHub API, no file picker required, and (once
+editing is enabled) writes changes straight back to it as commits. Anyone
+with the site link and a valid school ID can sign in and view it, from any
+device.
 
 ## Structure
 
@@ -140,10 +142,13 @@ conflict, reload the latest version automatically, and ask you to redo your
 last change — this avoids silently overwriting someone else's edit (even if
 that "someone else" is just your other tab).
 
-## Running it locally
+## Opening it directly (without a host)
 
 Just open `index.html` in a browser — reading works immediately since it
 talks to the public GitHub API directly; no server or local setup needed.
+This is mainly useful for testing changes before pushing them; day to day,
+share the hosted URL (GitHub Pages or Vercel) so everyone signs in from the
+same place instead of a local copy.
 
 ## Publishing / updating this repo
 
@@ -198,19 +203,36 @@ Master actions no longer fail quietly.
 
 ## Adding a new Master user
 
-`generate_master.html` is an offline, owner-only tool (open it locally or
-add it to the repo like the other pages — it's not linked from the hub on
-purpose) that generates everything a new `Valid_Users` Master row needs:
+`generate_master.html` is an owner-only credential tool — everything happens
+in your browser, nothing is sent anywhere, but it's meant to be run whenever
+you need it (not shipped to end users). It supports two ways to bring on a
+new Master:
+
+* **Auto-generate (recommended default).** The tool generates a random
+  20-character passphrase for you.
+* **Set it yourself.** Type your own passphrase and hand it off however you
+  like. It must be **at least 12 characters** and use **at least 2 character
+  types** (lowercase, uppercase, digits, symbols) — the tool won't let you
+  generate a row until both are met, since a short or single-class
+  passphrase is the one thing standing between an offline attacker and a
+  Master account once they have the public sheet. There's a live strength
+  meter and a "Show" toggle on both fields so you can check what you typed
+  before generating.
+
+Either way:
 
 1. Enter the new person's School ID and name.
-2. It generates a random passphrase, a `Master_Salt`, and derives
-   `Master_Verifier` and the AES-GCM-encrypted `Name_IV`/`Name_Enc` — using
-   the exact same PBKDF2-HMAC-SHA256 (300,000 iterations) scheme as
-   `index.html`'s sign-in check, so the row it produces verifies correctly.
+2. It derives `Master_Salt`, `Master_Verifier`, and the AES-GCM-encrypted
+   `Name_IV`/`Name_Enc` from the passphrase — using the exact same
+   PBKDF2-HMAC-SHA256 (300,000 iterations) scheme as `index.html`'s sign-in
+   check, so the row it produces verifies correctly regardless of which mode
+   you used.
 3. Copy the generated row into `Valid_Users`, commit, and hand the
    passphrase to that person through a separate channel from their ID.
 
-The passphrase is shown once, in your browser only, and is never written
+The passphrase — generated or typed — is shown once, in your browser only,
+and is never written anywhere; the tool doesn't remember it after you leave
+or refresh the page.
 anywhere — if you lose it before saving it, generate a fresh one.
 
 ## Modules
