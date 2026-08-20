@@ -188,13 +188,22 @@
   .ann-panel h3{font-family:'Fraunces',serif; margin:0 0 14px; color:var(--ink); font-size:17px;}
   .ann-panel label{display:block; font-family:'IBM Plex Mono',monospace; font-size:11px; text-transform:uppercase;
     letter-spacing:.06em; color:var(--muted); margin:0 0 6px;}
-  .ann-panel input[type="text"], .ann-panel textarea{
+  .ann-panel input[type="text"], .ann-panel input[type="date"], .ann-panel textarea{
     width:100%; font-family:'Inter',sans-serif; font-size:14px; padding:10px 12px;
     border:1.5px solid var(--paper-line); border-radius:7px; background:#FFFEFC; color:var(--ink);
     margin-bottom:14px; resize:vertical;
   }
-  .ann-panel input[type="text"]:focus, .ann-panel textarea:focus{outline:none; border-color:var(--ink);}
+  .ann-panel input[type="text"]:focus, .ann-panel input[type="date"]:focus, .ann-panel textarea:focus{outline:none; border-color:var(--ink);}
   .ann-panel .actions{display:flex; gap:10px; flex-wrap:wrap;}
+  .field-row-2{display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:end;}
+  @media (max-width:520px){ .field-row-2{grid-template-columns:1fr;} }
+  .pin-field{margin-bottom:14px;}
+  .pin-checkbox-label{
+    display:flex; align-items:center; gap:8px; font-family:'Inter',sans-serif; font-size:13.5px;
+    color:var(--graphite); text-transform:none; letter-spacing:normal; cursor:pointer;
+    border:1.5px solid var(--paper-line); border-radius:7px; padding:10px 12px; background:#FFFEFC;
+  }
+  .pin-checkbox-label input{margin:0; width:auto;}
   #annFormError{color:var(--pencil-red); font-size:12.5px; display:none; margin:-6px 0 14px;}
 
   .ann-list{display:flex; flex-direction:column; gap:14px; margin-bottom:44px;}
@@ -202,6 +211,16 @@
     background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius);
     box-shadow:var(--shadow); padding:22px 24px;
   }
+  .ann-card.pinned{border-color:var(--highlighter); box-shadow:0 0 0 1px var(--highlighter), var(--shadow);}
+  .ann-card.expired{opacity:.6;}
+  .ann-badges{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;}
+  .ann-badge{
+    font-family:'IBM Plex Mono',monospace; font-size:10.5px; text-transform:uppercase; letter-spacing:.04em;
+    padding:3px 9px; border-radius:20px; font-weight:600;
+  }
+  .ann-badge.pinned{background:var(--highlighter); color:var(--highlighter-ink);}
+  .ann-badge.expired{background:#EDEAE2; color:var(--muted);}
+  .ann-badge.expiring{background:var(--sage-bg); color:var(--sage);}
   .ann-card h3{font-family:'Fraunces',serif; font-size:17px; color:var(--ink); margin:0 0 8px;}
   .ann-card p{font-size:13.5px; color:var(--graphite); line-height:1.6; margin:0 0 14px; white-space:pre-wrap;}
   .ann-foot{
@@ -270,6 +289,18 @@
     <input id="annTitleInput" type="text" placeholder="e.g. Term 2 schedule is live" maxlength="120">
     <label for="annMessageInput">Message</label>
     <textarea id="annMessageInput" rows="4" placeholder="What changed, and anything people should do about it."></textarea>
+    <div class="field-row-2">
+      <div>
+        <label for="annExpiresInput">Expires on (optional)</label>
+        <input id="annExpiresInput" type="date">
+      </div>
+      <div class="pin-field">
+        <label class="pin-checkbox-label">
+          <input type="checkbox" id="annPinnedInput">
+          <span>📌 Pin to top</span>
+        </label>
+      </div>
+    </div>
     <div id="annFormError">Please fill in both a title and a message.</div>
     <div class="actions">
       <button class="btn-primary" id="annSubmitBtn" type="button">Post announcement</button>
@@ -471,31 +502,68 @@ function fmtDate(iso){
     return new Date(iso).toLocaleString(undefined, {year:'numeric', month:'short', day:'numeric', hour:'numeric', minute:'2-digit'});
   }catch(e){ return iso || ''; }
 }
+function fmtDateOnly(iso){
+  try{
+    return new Date(iso).toLocaleDateString(undefined, {year:'numeric', month:'short', day:'numeric'});
+  }catch(e){ return iso || ''; }
+}
+function isExpired(a){
+  return !!a.expiresAt && new Date(a.expiresAt).getTime() < Date.now();
+}
+// Sort: pinned-and-active first (newest first), then unpinned-active
+// (newest first), then expired last regardless of pin (newest first).
+function sortAnnouncements(list){
+  return list.slice().sort((a,b) => {
+    const aExp = isExpired(a), bExp = isExpired(b);
+    if(aExp !== bExp) return aExp ? 1 : -1;
+    if(!aExp && a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+    return new Date(b.updatedAt) - new Date(a.updatedAt);
+  });
+}
 
+// Reads by header name, not fixed column position, so older sheets (or
+// manual edits that reorder columns) still parse correctly.
 function parseAnnouncements(wb){
   const ws = wb.Sheets[ANN_SHEET];
   if(!ws) return [];
   const aoa = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
   const headerIdx = aoa.findIndex(r => r[0] === 'ID');
   if(headerIdx === -1) return [];
+  const headers = aoa[headerIdx];
+  const col = name => headers.indexOf(name);
+  const idCol=col('ID'), titleCol=col('Title'), msgCol=col('Message'), authorCol=col('Author');
+  const createdCol=col('CreatedAt'), updatedCol=col('UpdatedAt'), dateCol=col('Date'); // Date = legacy column
+  const expiresCol=col('ExpiresAt'), pinnedCol=col('Pinned');
   return aoa.slice(headerIdx+1)
-    .filter(r => r[0])
-    .map(r => ({id:r[0], title:r[1]||'', message:r[2]||'', author:r[3]||'', date:r[4]||''}))
-    .sort((a,b) => new Date(b.date) - new Date(a.date));
+    .filter(r => r[idCol])
+    .map(r => {
+      const updated = (updatedCol > -1 && r[updatedCol]) || (dateCol > -1 && r[dateCol]) || '';
+      const created = (createdCol > -1 && r[createdCol]) || updated;
+      return {
+        id: r[idCol],
+        title: r[titleCol] || '',
+        message: r[msgCol] || '',
+        author: r[authorCol] || '',
+        createdAt: created,
+        updatedAt: updated,
+        expiresAt: (expiresCol > -1 && r[expiresCol]) || '',
+        pinned: pinnedCol > -1 ? (r[pinnedCol] === true || r[pinnedCol] === 'TRUE') : false,
+      };
+    });
 }
 
 function buildAnnouncementsSheet(){
-  const sorted = announcements.slice().sort((a,b) => new Date(b.date) - new Date(a.date));
-  const rows = sorted.map(a => [a.id, a.title, a.message, a.author, a.date]);
+  const sorted = sortAnnouncements(announcements);
+  const rows = sorted.map(a => [a.id, a.title, a.message, a.author, a.createdAt, a.updatedAt, a.expiresAt || '', !!a.pinned]);
   const aoa = [
     ["Announcements — Personalized School Record Management System"],
     ["Managed by Master users from the dashboard. Do not edit IDs by hand."],
     [],
-    ["ID","Title","Message","Author","Date"],
+    ["ID","Title","Message","Author","CreatedAt","UpdatedAt","ExpiresAt","Pinned"],
     ...rows
   ];
   const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols'] = [{wch:16},{wch:30},{wch:60},{wch:22},{wch:22}];
+  ws['!cols'] = [{wch:16},{wch:30},{wch:60},{wch:22},{wch:22},{wch:22},{wch:22},{wch:8}];
   return ws;
 }
 
@@ -521,18 +589,31 @@ function renderAnnouncements(){
     list.innerHTML = '<div class="ann-empty">No announcements yet.</div>';
     return;
   }
-  list.innerHTML = announcements.map(a => `
-    <div class="ann-card">
+  const sorted = sortAnnouncements(announcements);
+  list.innerHTML = sorted.map(a => {
+    const expired = isExpired(a);
+    const badges = [
+      a.pinned && !expired ? '<span class="ann-badge pinned">📌 Pinned</span>' : '',
+      expired ? '<span class="ann-badge expired">Expired</span>' : '',
+      (!expired && a.expiresAt) ? `<span class="ann-badge expiring">Expires ${escapeHtml(fmtDateOnly(a.expiresAt))}</span>` : ''
+    ].filter(Boolean).join('');
+    return `
+    <div class="ann-card${a.pinned && !expired ? ' pinned' : ''}${expired ? ' expired' : ''}">
+      ${badges ? `<div class="ann-badges">${badges}</div>` : ''}
       <h3>${escapeHtml(a.title)}</h3>
       <p>${escapeHtml(a.message)}</p>
       <div class="ann-foot">
-        <div class="ann-attrib">Updated by <b>${escapeHtml(a.author)}</b> · ${escapeHtml(fmtDate(a.date))}</div>
+        <div class="ann-attrib">
+          Posted ${escapeHtml(fmtDate(a.createdAt))}
+          ${a.updatedAt && a.updatedAt !== a.createdAt ? ` · updated by <b>${escapeHtml(a.author)}</b> ${escapeHtml(fmtDate(a.updatedAt))}` : ` by <b>${escapeHtml(a.author)}</b>`}
+        </div>
         ${isMaster && annEditingEnabled ? `<div class="ann-actions">
           <button class="btn-text" onclick="startAnnEdit('${a.id}')">Edit</button>
           <button class="btn-text" onclick="deleteAnnouncement('${a.id}')" style="color:var(--pencil-red);">Delete</button>
         </div>` : ''}
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 async function loadAnnouncements(){
@@ -558,6 +639,8 @@ function closeAnnForm(){
   document.getElementById('annFormPanel').classList.remove('open');
   document.getElementById('annTitleInput').value = '';
   document.getElementById('annMessageInput').value = '';
+  document.getElementById('annExpiresInput').value = '';
+  document.getElementById('annPinnedInput').checked = false;
   document.getElementById('annFormError').style.display = 'none';
   document.getElementById('annFormTitle').textContent = 'New announcement';
   document.getElementById('annSubmitBtn').textContent = 'Post announcement';
@@ -570,6 +653,8 @@ function startAnnEdit(id){
   annEditingId = id;
   document.getElementById('annTitleInput').value = a.title;
   document.getElementById('annMessageInput').value = a.message;
+  document.getElementById('annExpiresInput').value = a.expiresAt ? a.expiresAt.slice(0,10) : '';
+  document.getElementById('annPinnedInput').checked = !!a.pinned;
   document.getElementById('annFormTitle').textContent = 'Edit announcement';
   document.getElementById('annSubmitBtn').textContent = 'Save changes';
   document.getElementById('annFormPanel').classList.add('open');
@@ -597,18 +682,23 @@ document.getElementById('annSubmitBtn').addEventListener('click', async () => {
   }
   const title = document.getElementById('annTitleInput').value.trim();
   const message = document.getElementById('annMessageInput').value.trim();
+  const expiresRaw = document.getElementById('annExpiresInput').value; // 'YYYY-MM-DD' or ''
+  const pinned = document.getElementById('annPinnedInput').checked;
   if(!title || !message){
     document.getElementById('annFormError').style.display = 'block';
     return;
   }
+  // Expiry is end-of-day on the chosen date, so the announcement stays
+  // visible through the entire day the owner picked.
+  const expiresAt = expiresRaw ? new Date(expiresRaw + 'T23:59:59').toISOString() : '';
   const snapshot = announcements.slice();
   const now = new Date().toISOString();
   if(annEditingId){
     announcements = announcements.map(a => a.id === annEditingId
-      ? {...a, title, message, author:session.name, date:now}
+      ? {...a, title, message, author:session.name, updatedAt:now, expiresAt, pinned}
       : a);
   } else {
-    announcements.unshift({id:uid(), title, message, author:session.name, date:now});
+    announcements.unshift({id:uid(), title, message, author:session.name, createdAt:now, updatedAt:now, expiresAt, pinned});
   }
   closeAnnForm();
   renderAnnouncements();

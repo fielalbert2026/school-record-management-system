@@ -174,13 +174,24 @@ signed in can read it; only Master accounts can post, edit, or delete.
   the Scheduler module already uses. Entering the token in either page
   ("Remember on this device") makes it available in both, since they share
   the same `localStorage` key.
-* Each entry stores `ID, Title, Message, Author, Date`. `Author`/`Date` are
-  overwritten with whoever (and whenever) last saved that entry — this is
-  what the "Updated by …" line at the bottom of each card reflects. It's a
-  last-editor record, not necessarily the original poster.
+* Each entry stores `ID, Title, Message, Author, CreatedAt, UpdatedAt,
+  ExpiresAt, Pinned`.
+  * `CreatedAt` is set once and never changes. `Author`/`UpdatedAt` reflect
+    whoever last saved that entry — that's what the "updated by …" line
+    on a card means when it appears.
+  * `ExpiresAt` is optional. Past that date the card gets an "Expired"
+    badge, dims, and sorts to the bottom of the list — it isn't deleted or
+    hidden, so a Master can still find and remove or extend it.
+  * `Pinned` puts an entry at the top of the list (above other active
+    entries, but still below anything expired — an expired pin doesn't
+    outrank a live announcement). Pinned cards get a highlighted border
+    and a 📌 badge.
 * Same conflict handling as the Scheduler: a 409 on save means someone else
   wrote first, so the page reloads the latest version and asks you to redo
   the change rather than silently overwriting it.
+* The parser reads columns by header name, not fixed position — so if this
+  sheet ever gets columns reordered or extra columns added by hand, sign-in
+  and rendering still work as long as the header names above are intact.
 
 ## Master editing — what changed
 
