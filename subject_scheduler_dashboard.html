@@ -434,7 +434,7 @@ function renderSessionStrip(){
   const strip = document.getElementById('sessionStrip');
   strip.style.display = 'inline-flex';
   const roleClass = isMaster ? 'master' : 'guest';
-  const auditLink = isMaster ? ' <a href="audit_log.html" style="margin-left:8px; font-size:12px; text-decoration:underline;">Audit Log</a>' : '';
+  const auditLink = session.isOwner ? ' <a href="audit_log.html" style="margin-left:8px; font-size:12px; text-decoration:underline;">Audit Log</a>' : '';
   strip.innerHTML = `Signed in as <b>${escapeHtml(session.name)}</b> <span class="role-pill ${roleClass}">${escapeHtml(session.role)}</span>${auditLink} <button id="logoutBtn" type="button">Log out</button>`;
   document.getElementById('logoutBtn').addEventListener('click', async () => {
     if(isMaster){
@@ -457,12 +457,20 @@ let editingEnabled = false;
  * this page already makes, rather than firing extra GitHub calls. See
  * README for what this does and doesn't guarantee.
  */
+function phTimestamp(){
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone:'Asia/Manila', hour12:false,
+    year:'numeric', month:'2-digit', day:'2-digit',
+    hour:'2-digit', minute:'2-digit', second:'2-digit'
+  }).formatToParts(new Date()).reduce((acc,p) => { acc[p.type]=p.value; return acc; }, {});
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}+08:00`;
+}
 const AUDIT_SHEET = 'Audit_Log';
 const AUDIT_QUEUE_KEY = 'srms_pending_audit';
 function queueAudit(action, details){
   let q = [];
   try{ q = JSON.parse(sessionStorage.getItem(AUDIT_QUEUE_KEY) || '[]'); }catch(e){}
-  q.push({ ts:new Date().toISOString(), actor: session ? session.name : '(unknown)', role: session ? session.role : '', action, details: details || '' });
+  q.push({ ts:phTimestamp(), actor: session ? session.name : '(unknown)', role: session ? session.role : '', action, details: details || '' });
   try{ sessionStorage.setItem(AUDIT_QUEUE_KEY, JSON.stringify(q)); }catch(e){}
 }
 function drainAuditQueue(){
@@ -639,7 +647,7 @@ async function persistToFile(actionLabel, actionDetails){
   workbook.Sheets[SHEET_NAME] = ws;
   if(!workbook.SheetNames.includes(SHEET_NAME)) workbook.SheetNames.unshift(SHEET_NAME);
   const pending = drainAuditQueue();
-  if(actionLabel) pending.push({ ts:new Date().toISOString(), actor:session.name, role:session.role, action:actionLabel, details:actionDetails||'' });
+  if(actionLabel) pending.push({ ts:phTimestamp(), actor:session.name, role:session.role, action:actionLabel, details:actionDetails||'' });
   appendAuditToWorkbook(workbook, pending);
   const wbout = XLSX.write(workbook, {bookType:'xlsx', type:'array'});
   const contentB64 = arrayBufferToB64(wbout);

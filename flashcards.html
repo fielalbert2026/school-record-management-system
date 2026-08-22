@@ -53,6 +53,7 @@
   .review-text{ font-family:'Fraunces',serif; font-size:22px; color:var(--ink); line-height:1.5; }
   .blank{ display:inline-block; min-width:64px; border-bottom:2.5px solid var(--muted); color:transparent; }
   .blank.revealed{ color:var(--pencil-red); border-bottom-color:var(--pencil-red); font-weight:700; }
+  .review-side-label{ font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); margin-bottom:6px; }
   .review-back{ font-size:19px; color:var(--sage); margin-top:14px; font-weight:600; }
   .review-controls{ display:flex; justify-content:center; gap:10px; margin-top:20px; flex-wrap:wrap; }
   .empty{ text-align:center; color:#A79F8C; font-size:14px; padding:34px 10px; }
@@ -191,7 +192,7 @@ function renderSessionStrip(){
   const strip = document.getElementById('sessionStrip');
   strip.style.display = 'inline-flex';
   const roleClass = isMaster ? 'master' : 'guest';
-  const auditLink = isMaster ? ' <a href="audit_log.html" style="margin-left:8px; font-size:12px; text-decoration:underline;">Audit Log</a>' : '';
+  const auditLink = session.isOwner ? ' <a href="audit_log.html" style="margin-left:8px; font-size:12px; text-decoration:underline;">Audit Log</a>' : '';
   strip.innerHTML = `Signed in as <b>${escapeHtml(session.name)}</b> <span class="role-pill ${roleClass}">${escapeHtml(session.role)}</span>${auditLink} <button id="logoutBtn" type="button" style="border:none;background:none;text-decoration:underline;cursor:pointer;font-size:12.5px;margin-left:4px;">Log out</button>`;
   document.getElementById('logoutBtn').addEventListener('click', async () => {
     if(isMaster){
@@ -218,12 +219,20 @@ let editingCardId = null;
 let currentType = 'basic';
 
 /* ---------------- Audit log — same scheme as the other modules ---------------- */
+function phTimestamp(){
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone:'Asia/Manila', hour12:false,
+    year:'numeric', month:'2-digit', day:'2-digit',
+    hour:'2-digit', minute:'2-digit', second:'2-digit'
+  }).formatToParts(new Date()).reduce((acc,p) => { acc[p.type]=p.value; return acc; }, {});
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}+08:00`;
+}
 const AUDIT_SHEET = 'Audit_Log';
 const AUDIT_QUEUE_KEY = 'srms_pending_audit';
 function queueAudit(action, details){
   let q = [];
   try{ q = JSON.parse(sessionStorage.getItem(AUDIT_QUEUE_KEY) || '[]'); }catch(e){}
-  q.push({ ts:new Date().toISOString(), actor: session ? session.name : '(unknown)', role: session ? session.role : '', action, details: details || '' });
+  q.push({ ts:phTimestamp(), actor: session ? session.name : '(unknown)', role: session ? session.role : '', action, details: details || '' });
   try{ sessionStorage.setItem(AUDIT_QUEUE_KEY, JSON.stringify(q)); }catch(e){}
 }
 function drainAuditQueue(){
@@ -333,7 +342,7 @@ async function persistCards(actionLabel, actionDetails){
   workbook.Sheets[CARDS_SHEET] = ws;
   if(!workbook.SheetNames.includes(CARDS_SHEET)) workbook.SheetNames.push(CARDS_SHEET);
   const pending = drainAuditQueue();
-  if(actionLabel) pending.push({ ts:new Date().toISOString(), actor:session.name, role:session.role, action:actionLabel, details:actionDetails||'' });
+  if(actionLabel) pending.push({ ts:phTimestamp(), actor:session.name, role:session.role, action:actionLabel, details:actionDetails||'' });
   appendAuditToWorkbook(workbook, pending);
   const wbout = XLSX.write(workbook, {bookType:'xlsx', type:'array'});
   try{
@@ -431,8 +440,9 @@ function renderReview(){
     area.innerHTML = `<div class="review-face"><div class="review-text">${shown.replace(/\n/g,'<br>')}</div></div>`;
   } else {
     area.innerHTML = `<div class="review-face"><div>
+      <div class="review-side-label">Front</div>
       <div class="review-text">${escapeHtml(c.front).replace(/\n/g,'<br>')}</div>
-      ${revealed ? `<div class="review-back">${escapeHtml(c.back).replace(/\n/g,'<br>')}</div>` : ''}
+      ${revealed ? `<div class="review-side-label" style="margin-top:16px;">Back</div><div class="review-back">${escapeHtml(c.back).replace(/\n/g,'<br>')}</div>` : ''}
     </div></div>`;
   }
   controls.innerHTML = `

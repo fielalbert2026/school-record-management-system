@@ -339,7 +339,7 @@
       <div class="mod-index">Module 03</div>
       <div class="mod-icon">🧾</div>
       <h2 class="mod-title">Audit Log</h2>
-      <p class="mod-desc">Read-only history of sign-ins and changes made across the system. Visible to Master accounts only.</p>
+      <p class="mod-desc">Read-only history of sign-ins and changes made across the system. Visible only to the account owner.</p>
       <div class="mod-foot">
         <span class="mod-cta">Open module</span>
       </div>
@@ -371,6 +371,22 @@ const AUTH_SALT = "SRMS-Santino67-67-v1";       // salt for the lookup hash only
 const GUEST_ENC_SALT  = "SRMS-Santino67-67-v1-name";  // Guest name-key salt (fast path — view-only, low stakes)
 const PBKDF2_ITER = 300000; // Master verification/name-key derivation — deliberately slow to raise brute-force cost
 const SESSION_KEY = 'srms_session';
+// The only school ID allowed to view the Audit Log, regardless of role.
+// Compared against the raw ID typed at login, before it's ever hashed.
+const OWNER_SCHOOL_ID = '24050009';
+// All audit-log timestamps are generated in Philippines time (UTC+8) so the
+// log reads naturally for the one person allowed to see it, regardless of
+// what timezone the browser or server happens to be in. Built as a
+// zero-padded ISO-like string (not toLocaleString's format) specifically so
+// it still sorts correctly as plain text in the Audit Log viewer.
+function phTimestamp(){
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone:'Asia/Manila', hour12:false,
+    year:'numeric', month:'2-digit', day:'2-digit',
+    hour:'2-digit', minute:'2-digit', second:'2-digit'
+  }).formatToParts(new Date()).reduce((acc,p) => { acc[p.type]=p.value; return acc; }, {});
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}+08:00`;
+}
 
 async function hashId(id){
   const enc = new TextEncoder().encode(AUTH_SALT + String(id).trim());
@@ -424,7 +440,7 @@ const AUDIT_QUEUE_KEY = 'srms_pending_audit';
 function queueAudit(action, details){
   let q = [];
   try{ q = JSON.parse(sessionStorage.getItem(AUDIT_QUEUE_KEY) || '[]'); }catch(e){}
-  q.push({ ts:new Date().toISOString(), actor: session ? session.name : '(unknown)', role: session ? session.role : '', action, details: details || '' });
+  q.push({ ts:phTimestamp(), actor: session ? session.name : '(unknown)', role: session ? session.role : '', action, details: details || '' });
   try{ sessionStorage.setItem(AUDIT_QUEUE_KEY, JSON.stringify(q)); }catch(e){}
 }
 function drainAuditQueue(){
@@ -551,7 +567,7 @@ function renderSignedIn(s){
   isMaster = session.role === 'Master';
   document.getElementById('signinPanel').style.display = 'none';
   document.getElementById('hubContent').classList.add('show');
-  document.getElementById('auditLogCard').style.display = isMaster ? '' : 'none';
+  document.getElementById('auditLogCard').style.display = session.isOwner ? '' : 'none';
   const strip = document.getElementById('sessionStrip');
   strip.classList.add('show');
   const roleClass = isMaster ? 'master' : 'guest';
@@ -812,7 +828,7 @@ async function persistAnnouncements(actionLabel, actionDetails){
     wb.Sheets[ANN_SHEET] = buildAnnouncementsSheet();
     if(!wb.SheetNames.includes(ANN_SHEET)) wb.SheetNames.push(ANN_SHEET);
     const pending = drainAuditQueue();
-    if(actionLabel) pending.push({ ts:new Date().toISOString(), actor:session.name, role:session.role, action:actionLabel, details:actionDetails||'' });
+    if(actionLabel) pending.push({ ts:phTimestamp(), actor:session.name, role:session.role, action:actionLabel, details:actionDetails||'' });
     appendAuditToWorkbook(wb, pending);
     const wbout = XLSX.write(wb, {bookType:'xlsx', type:'array'});
     const contentB64 = bytesToB64Local(wbout);
@@ -891,14 +907,14 @@ document.getElementById('signinForm').addEventListener('submit', async (e) => {
         const encKey = await pbkdf2Bits(`${idVal}:${passVal}:enc`, salt, PBKDF2_ITER);
         const key = await crypto.subtle.importKey('raw', encKey, {name:'AES-GCM'}, false, ['decrypt']);
         const plainBuf = await crypto.subtle.decrypt({name:'AES-GCM', iv:b64ToBytes(match[1])}, key, b64ToBytes(match[2]));
-        session = { name: new TextDecoder().decode(plainBuf), role: 'Master' };
+        session = { name: new TextDecoder().decode(plainBuf), role: 'Master', isOwner: idVal === OWNER_SCHOOL_ID };
       } else {
         // Wrong passphrase for a real Master row — still falls through to the
         // generic failure below, identical to an unrecognized ID.
       }
     } else if(match){
       // Guest row — fast path, no passphrase involved.
-      session = { name: await decryptNameGuest(idVal, match[1], match[2]), role: match[3] || 'Guest' };
+      session = { name: await decryptNameGuest(idVal, match[1], match[2]), role: match[3] || 'Guest', isOwner: idVal === OWNER_SCHOOL_ID };
       // Burn a comparable amount of time to a real Master check so a Guest
       // login and a wrong-passphrase Master attempt don't time differently.
       await pbkdf2Bits(`dummy:${idVal}`, new Uint8Array(16), PBKDF2_ITER);

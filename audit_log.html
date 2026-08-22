@@ -75,6 +75,7 @@
       Login/logout entries are best-effort: they're written the next time that Master's browser makes
       any save, since only an active GitHub token can commit anything here. Guest activity isn't logged —
       Guests never hold a token, so there's nothing that could write it.
+      All timestamps are recorded in Philippines time (UTC+8).
     </p>
     <div class="toolbar">
       <input id="searchInput" type="text" placeholder="Search actor, action, or details…" style="flex:1; min-width:220px;">
@@ -164,7 +165,7 @@ function renderTable(){
     <thead><tr><th>Timestamp</th><th>Actor</th><th>Role</th><th>Action</th><th>Details</th></tr></thead>
     <tbody>
       ${filtered.map(e => `<tr>
-        <td class="ts">${escapeHtml(e.ts)}</td>
+        <td class="ts">${escapeHtml((e.ts||'').replace('T',' ').replace('+08:00',' PHT'))}</td>
         <td>${escapeHtml(e.actor)}</td>
         <td>${escapeHtml(e.role)}</td>
         <td class="action">${escapeHtml(e.action)}</td>
@@ -180,9 +181,9 @@ document.getElementById('roleFilter').addEventListener('change', renderTable);
 if(!session){
   document.getElementById('accessLockedPanel').style.display = 'block';
   document.getElementById('loadPanel').style.display = 'none';
-} else if(!isMaster){
-  document.getElementById('lockedTitle').textContent = 'Master access required';
-  document.getElementById('lockedText').textContent = "The audit log is only visible to Master accounts.";
+} else if(!session.isOwner){
+  document.getElementById('lockedTitle').textContent = 'Restricted';
+  document.getElementById('lockedText').textContent = "The audit log is only visible to the account owner.";
   document.getElementById('accessLockedPanel').style.display = 'block';
   document.getElementById('loadPanel').style.display = 'none';
   renderSessionStrip();
