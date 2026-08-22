@@ -434,8 +434,13 @@ function renderSessionStrip(){
   const strip = document.getElementById('sessionStrip');
   strip.style.display = 'inline-flex';
   const roleClass = isMaster ? 'master' : 'guest';
-  strip.innerHTML = `Signed in as <b>${escapeHtml(session.name)}</b> <span class="role-pill ${roleClass}">${escapeHtml(session.role)}</span> <button id="logoutBtn" type="button">Log out</button>`;
-  document.getElementById('logoutBtn').addEventListener('click', () => {
+  const auditLink = isMaster ? ' <a href="audit_log.html" style="margin-left:8px; font-size:12px; text-decoration:underline;">Audit Log</a>' : '';
+  strip.innerHTML = `Signed in as <b>${escapeHtml(session.name)}</b> <span class="role-pill ${roleClass}">${escapeHtml(session.role)}</span>${auditLink} <button id="logoutBtn" type="button">Log out</button>`;
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    if(isMaster){
+      if(editingEnabled && ghToken){ await persistToFile('Logout', ''); }
+      else { queueAudit('Logout', ''); }
+    }
     sessionStorage.removeItem(SESSION_KEY);
     window.location.href = 'index.html';
   });
@@ -446,6 +451,48 @@ const GH = { owner:'fielalbert2026', repo:'school_record_management_system', bra
 let ghToken = null;
 let currentSha = null;
 let editingEnabled = false;
+
+/* ---------------- Audit log (best-effort, piggybacked on Master saves) ----
+ * Same scheme as index.html: queued events ride along in the next commit
+ * this page already makes, rather than firing extra GitHub calls. See
+ * README for what this does and doesn't guarantee.
+ */
+const AUDIT_SHEET = 'Audit_Log';
+const AUDIT_QUEUE_KEY = 'srms_pending_audit';
+function queueAudit(action, details){
+  let q = [];
+  try{ q = JSON.parse(sessionStorage.getItem(AUDIT_QUEUE_KEY) || '[]'); }catch(e){}
+  q.push({ ts:new Date().toISOString(), actor: session ? session.name : '(unknown)', role: session ? session.role : '', action, details: details || '' });
+  try{ sessionStorage.setItem(AUDIT_QUEUE_KEY, JSON.stringify(q)); }catch(e){}
+}
+function drainAuditQueue(){
+  let q = [];
+  try{ q = JSON.parse(sessionStorage.getItem(AUDIT_QUEUE_KEY) || '[]'); }catch(e){}
+  try{ sessionStorage.removeItem(AUDIT_QUEUE_KEY); }catch(e){}
+  return q;
+}
+function appendAuditToWorkbook(wb, entries){
+  if(!entries.length) return;
+  const headers = ['Timestamp','Actor','Role','Action','Details'];
+  let rows = [];
+  if(wb.SheetNames.includes(AUDIT_SHEET)){
+    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[AUDIT_SHEET], {header:1, defval:''});
+    const hIdx = aoa.findIndex(r => r[0] === 'Timestamp');
+    if(hIdx !== -1) rows = aoa.slice(hIdx+1).filter(r => r.some(c => c!==undefined && c!==''));
+  }
+  rows = rows.concat(entries.map(e => [e.ts, e.actor, e.role, e.action, e.details]));
+  const aoaOut = [
+    ['Audit Log — Personalized School Record Management System'],
+    ['Read-only history of sign-ins and changes. Visible to Master accounts only, and not editable through any app UI.'],
+    [],
+    headers,
+    ...rows
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(aoaOut);
+  ws['!cols'] = [22,20,10,20,42].map(w=>({wch:w}));
+  wb.Sheets[AUDIT_SHEET] = ws;
+  if(!wb.SheetNames.includes(AUDIT_SHEET)) wb.SheetNames.push(AUDIT_SHEET);
+}
 
 function renderConnectBox(){
   const box = document.getElementById('connectBox');
@@ -575,7 +622,7 @@ function buildSheetAOA(){
   ];
 }
 
-async function persistToFile(){
+async function persistToFile(actionLabel, actionDetails){
   if(!editingEnabled || !ghToken){
     // Never fail silently: a Master whose token/session lapsed needs to know
     // the change did NOT save, instead of believing it did.
@@ -591,6 +638,9 @@ async function persistToFile(){
   if(!workbook) workbook = freshWorkbook();
   workbook.Sheets[SHEET_NAME] = ws;
   if(!workbook.SheetNames.includes(SHEET_NAME)) workbook.SheetNames.unshift(SHEET_NAME);
+  const pending = drainAuditQueue();
+  if(actionLabel) pending.push({ ts:new Date().toISOString(), actor:session.name, role:session.role, action:actionLabel, details:actionDetails||'' });
+  appendAuditToWorkbook(workbook, pending);
   const wbout = XLSX.write(workbook, {bookType:'xlsx', type:'array'});
   const contentB64 = arrayBufferToB64(wbout);
   try{
@@ -723,6 +773,8 @@ document.getElementById('subjectForm').addEventListener('submit', async (e) => {
   // should never end up staring at a schedule that looks saved but isn't.
   const snapshot = subjects.slice();
 
+  const wasEditing = !!editingId;
+  const label = base.code + (base.name ? ` — ${base.name}` : '');
   if(editingId){
     const original = subjects.find(s => s.id === editingId);
     const originalDay = original ? original.day : null;
@@ -740,7 +792,7 @@ document.getElementById('subjectForm').addEventListener('submit', async (e) => {
     activeDay = rows[0].day;
   }
   closeForm();
-  const ok = await persistToFile();
+  const ok = await persistToFile(wasEditing ? 'Edit Subject' : 'Add Subject', label);
   if(ok === false) subjects = snapshot;
   render();
 });
@@ -777,9 +829,10 @@ async function deleteEntry(id){
   if(!isMaster) return;
   if(!editingEnabled || !ghToken){ promptEnableEditing(); return; }
   if(!confirm('Remove this class from your schedule?')) return;
+  const target = subjects.find(s => s.id === id);
   const snapshot = subjects.slice();
   subjects = subjects.filter(s => s.id !== id);
-  const ok = await persistToFile();
+  const ok = await persistToFile('Delete Subject', target ? `${target.code} — ${target.name}` : id);
   if(ok === false) subjects = snapshot;
   render();
 }

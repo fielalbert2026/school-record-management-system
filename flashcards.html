@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flashcards — Personalized School Record Management System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --ink:#1D2B4F; --ink-soft:#2A3D6B; --paper:#F7F4EE; --paper-line:#DCD3C0; --card:#FFFEFC;
+    --graphite:#4A4A48; --muted:#8A8577; --highlighter:#E8B93E; --highlighter-ink:#6B4E00;
+    --pencil-red:#C0392B; --sage:#5E8567; --sage-bg:#E9F0EA; --radius:10px;
+    --shadow:0 1px 2px rgba(29,43,79,.06), 0 6px 18px rgba(29,43,79,.06);
+  }
+  *{box-sizing:border-box;}
+  body{ margin:0; background:var(--paper); background-image:linear-gradient(var(--paper-line) 1px, transparent 1px); background-size:100% 36px; color:var(--graphite); font-family:'Inter',system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
+  .wrap{max-width:900px; margin:0 auto; padding:32px 26px 90px;}
+  a{color:inherit;}
+  button{ font-family:'Inter',sans-serif; font-weight:600; font-size:13.5px; border-radius:7px; border:1.5px solid var(--ink); padding:9px 16px; cursor:pointer; background:transparent; color:var(--ink); transition:transform .12s ease, background .15s ease, opacity .15s ease; }
+  button:hover{transform:translateY(-1px);}
+  button:disabled{opacity:.45; cursor:not-allowed; transform:none;}
+  .btn-primary{background:var(--ink); color:var(--paper);}
+  .btn-primary:hover{background:var(--ink-soft);}
+  .btn-highlight{background:var(--highlighter); border-color:var(--highlighter); color:var(--highlighter-ink);}
+  .btn-highlight:hover{background:#f0c453;}
+  .btn-ghost{border-color:var(--paper-line); color:var(--graphite); background:#fff;}
+  .btn-text{border:none; background:none; padding:2px 6px; font-size:12.5px; text-decoration:underline;}
+  .back-link{ font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--muted); text-decoration:none; border-bottom:1px solid transparent; }
+  .back-link:hover{color:var(--ink); border-bottom-color:var(--ink);}
+  header{display:flex; align-items:flex-start; justify-content:space-between; gap:20px; flex-wrap:wrap; margin-bottom:22px;}
+  .brand-eyebrow{ font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--sage); margin:8px 0 6px; }
+  h1{ font-family:'Fraunces',serif; font-weight:700; font-size:clamp(26px,4vw,38px); margin:0; color:var(--ink); line-height:1.05; }
+  .session-strip{ display:none; align-items:center; gap:8px; font-size:12.5px; color:var(--muted); background:var(--card); border:1px solid var(--paper-line); border-radius:20px; padding:6px 14px; margin-top:10px; }
+  .role-pill{ text-transform:uppercase; letter-spacing:.06em; font-size:10px; padding:3px 9px; border-radius:20px; }
+  .role-pill.master{background:var(--sage-bg); color:var(--sage);}
+  .role-pill.guest{background:#EFEAE0; color:var(--muted);}
+  #accessLockedPanel, #loadPanel, #connectPanel, #tokenPanel{ background:#fff; border:1.5px dashed var(--paper-line); border-radius:var(--radius); padding:26px; text-align:center; margin-bottom:28px; }
+  #accessLockedPanel h2, #loadPanel h2, #connectPanel h2, #tokenPanel h2{ font-family:'Fraunces',serif; color:var(--ink); margin:0 0 6px; font-size:20px; }
+  #accessLockedPanel p, #loadPanel p, #connectPanel p, #tokenPanel p{ color:var(--muted); font-size:13.5px; margin:0 0 18px; max-width:480px; margin-left:auto; margin-right:auto; }
+  .actions{display:flex; gap:10px; justify-content:center; flex-wrap:wrap; align-items:center;}
+  #tokenPanel input[type="password"]{ font-family:'IBM Plex Mono',monospace; font-size:13px; padding:9px 10px; border:1.5px solid var(--paper-line); border-radius:6px; background:#FFFEFC; color:var(--ink); }
+
+  .section-toolbar{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:10px;}
+  .section-toolbar h2{font-family:'Fraunces',serif; font-size:19px; color:var(--ink); margin:0;}
+  select{ font-family:'Inter',sans-serif; font-size:13.5px; padding:8px 10px; border:1.5px solid var(--paper-line); border-radius:6px; background:#FFFEFC; color:var(--ink); }
+
+  /* Review card */
+  .review-wrap{ background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius); box-shadow:var(--shadow); padding:30px 26px; margin-bottom:24px; }
+  .review-meta{ display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--muted); }
+  .review-face{ min-height:140px; display:flex; align-items:center; justify-content:center; text-align:center; padding:20px; }
+  .review-text{ font-family:'Fraunces',serif; font-size:22px; color:var(--ink); line-height:1.5; }
+  .blank{ display:inline-block; min-width:64px; border-bottom:2.5px solid var(--muted); color:transparent; }
+  .blank.revealed{ color:var(--pencil-red); border-bottom-color:var(--pencil-red); font-weight:700; }
+  .review-back{ font-size:19px; color:var(--sage); margin-top:14px; font-weight:600; }
+  .review-controls{ display:flex; justify-content:center; gap:10px; margin-top:20px; flex-wrap:wrap; }
+  .empty{ text-align:center; color:#A79F8C; font-size:14px; padding:34px 10px; }
+
+  /* Manage panel */
+  .panel{ background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius); box-shadow:var(--shadow); padding:22px; margin-bottom:24px; display:none; }
+  .panel.open{display:block;}
+  .type-toggle{ display:flex; gap:8px; margin-bottom:14px; }
+  .type-toggle button{ flex:1; }
+  .type-toggle button.active{ background:var(--ink); color:var(--paper); }
+  .field{display:flex; flex-direction:column; gap:5px; margin-bottom:12px;}
+  label{ font-size:11.5px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+  input, textarea{ font-family:'Inter',sans-serif; font-size:14px; padding:9px 10px; border:1.5px solid var(--paper-line); border-radius:6px; background:#FFFEFC; color:var(--ink); width:100%; }
+  textarea{min-height:70px; resize:vertical;}
+  .hint{font-size:12px; color:var(--muted); margin-top:-6px; margin-bottom:8px;}
+  #cardFormError{color:var(--pencil-red); font-size:13px; display:none; margin-bottom:10px;}
+  .form-actions{display:flex; justify-content:flex-end; gap:10px;}
+
+  .card-list{display:flex; flex-direction:column; gap:0;}
+  .card-row{ display:grid; grid-template-columns:1fr auto; gap:10px; align-items:center; padding:12px 4px; border-bottom:1px dashed var(--paper-line); }
+  .card-row:last-child{border-bottom:none;}
+  .card-row .deck-pill{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--sage); background:var(--sage-bg); padding:2px 6px; border-radius:4px; margin-right:6px; }
+  .card-row .front-snip{font-size:13.5px; color:var(--ink);}
+  .row-actions{display:flex; gap:4px;}
+  .row-actions button{padding:5px 8px; font-size:12px; border-radius:5px;}
+
+  footer{text-align:center; color:#A79F8C; font-size:12px; margin-top:36px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <a href="index.html" class="back-link">← Personalized School Record Management System</a>
+      <p class="brand-eyebrow">Module 02 · Flashcard Reviewer</p>
+      <h1>Flashcards</h1>
+      <div class="session-strip" id="sessionStrip"></div>
+    </div>
+    <div id="connectBox"></div>
+  </header>
+
+  <div id="accessLockedPanel" style="display:none;">
+    <h2>Sign in required</h2>
+    <p>Sign in with your school ID on the hub page to open the Flashcards module.</p>
+    <a href="index.html"><button class="btn-primary" type="button">Go to sign in</button></a>
+  </div>
+
+  <div id="connectPanel">
+    <h2 id="connectPanelTitle">Loading decks…</h2>
+    <p id="connectPanelText">Fetching flashcards from GitHub.</p>
+    <div class="actions" id="connectActions" style="display:none;">
+      <button class="btn-ghost" id="retryLoadBtn">Retry load</button>
+    </div>
+  </div>
+
+  <div id="tokenPanel" style="display:none;">
+    <h2>Enable editing</h2>
+    <p>Paste a GitHub Personal Access Token with <b>Contents: Read and write</b> access to this one repo. It's kept only in this browser — never written into the site's code or the repo itself. If you've already entered one on another module, it's remembered here too.</p>
+    <form id="tokenForm" class="actions" style="flex-wrap:wrap;">
+      <input id="tokenInput" type="password" placeholder="github_pat_…" style="flex:1; min-width:220px;" autocomplete="off">
+      <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--muted); font-weight:500;">
+        <input type="checkbox" id="rememberTokenChk"> Remember on this device
+      </label>
+      <button type="submit" class="btn-primary">Save token</button>
+      <button type="button" class="btn-ghost" id="cancelTokenBtn">Cancel</button>
+    </form>
+  </div>
+
+  <div id="content" style="display:none;">
+    <div class="section-toolbar">
+      <h2>Review</h2>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <select id="deckSelect"></select>
+        <button class="btn-ghost" id="shuffleBtn">Shuffle</button>
+      </div>
+    </div>
+    <div class="review-wrap">
+      <div class="review-meta">
+        <span id="reviewPos">0 of 0</span>
+        <span id="reviewType"></span>
+      </div>
+      <div id="reviewArea"></div>
+      <div class="review-controls" id="reviewControls"></div>
+    </div>
+
+    <div class="section-toolbar">
+      <h2>Manage cards</h2>
+      <button class="btn-highlight" id="addCardToggleBtn" style="display:none;">+ Add card</button>
+    </div>
+
+    <div class="panel" id="cardFormPanel">
+      <h3 id="cardFormTitle" style="font-family:'Fraunces',serif; margin:0 0 14px; color:var(--ink); font-size:17px;">Add a card</h3>
+      <div class="type-toggle">
+        <button type="button" id="typeBasicBtn" class="active">Front / Back</button>
+        <button type="button" id="typeClozeBtn">Fill in the blank</button>
+      </div>
+      <div class="field"><label for="f_deck">Deck</label><input id="f_deck" placeholder="e.g. Biology — Cell Structure"></div>
+
+      <div id="basicFields">
+        <div class="field"><label for="f_front">Front</label><textarea id="f_front" placeholder="What powers a cell?"></textarea></div>
+        <div class="field"><label for="f_back">Back</label><textarea id="f_back" placeholder="Mitochondria"></textarea></div>
+      </div>
+      <div id="clozeFields" style="display:none;">
+        <div class="field">
+          <label for="f_cloze">Sentence</label>
+          <textarea id="f_cloze" placeholder="The mitochondria is the [[powerhouse]] of the cell."></textarea>
+        </div>
+        <div class="hint">Wrap the word or phrase to hide in double brackets, like <code>[[powerhouse]]</code>.</div>
+      </div>
+
+      <div id="cardFormError">Fill in a deck, and either both Front/Back, or a sentence with one [[blank]] marked.</div>
+      <div class="form-actions">
+        <button type="button" class="btn-ghost" id="cancelCardBtn">Cancel</button>
+        <button type="button" class="btn-primary" id="submitCardBtn">Add card</button>
+      </div>
+    </div>
+
+    <div id="masterListWrap"></div>
+  </div>
+
+  <footer>Personalized School Record Management System · Flashcards</footer>
+</div>
+
+<script>
+const SESSION_KEY = 'srms_session';
+function getSession(){ try{ return JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); }catch(e){ return null; } }
+const session = getSession();
+const isMaster = !!session && session.role === 'Master';
+
+function escapeHtml(str){
+  return (str||'').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function renderSessionStrip(){
+  if(!session) return;
+  const strip = document.getElementById('sessionStrip');
+  strip.style.display = 'inline-flex';
+  const roleClass = isMaster ? 'master' : 'guest';
+  const auditLink = isMaster ? ' <a href="audit_log.html" style="margin-left:8px; font-size:12px; text-decoration:underline;">Audit Log</a>' : '';
+  strip.innerHTML = `Signed in as <b>${escapeHtml(session.name)}</b> <span class="role-pill ${roleClass}">${escapeHtml(session.role)}</span>${auditLink} <button id="logoutBtn" type="button" style="border:none;background:none;text-decoration:underline;cursor:pointer;font-size:12.5px;margin-left:4px;">Log out</button>`;
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    if(isMaster){
+      if(editingEnabled && ghToken){ await persistCards('Logout', ''); }
+      else { queueAudit('Logout', ''); }
+    }
+    sessionStorage.removeItem(SESSION_KEY);
+    window.location.href = 'index.html';
+  });
+}
+
+/* ---------------- GitHub-backed storage (shared file with Scheduler) ---------------- */
+const GH = { owner:'fielalbert2026', repo:'school_record_management_system', branch:'main', path:'Subject_Scheduler.xlsx' };
+const CARDS_SHEET = 'Flashcards';
+const TOKEN_KEY = 'gh_pat_school_scheduler';
+const CLOZE_MARKER = '_____';
+let ghToken = null;
+let editingEnabled = false;
+let workbook = null;
+let currentSha = null;
+let connected = false;
+let cards = [];
+let editingCardId = null;
+let currentType = 'basic';
+
+/* ---------------- Audit log — same scheme as the other modules ---------------- */
+const AUDIT_SHEET = 'Audit_Log';
+const AUDIT_QUEUE_KEY = 'srms_pending_audit';
+function queueAudit(action, details){
+  let q = [];
+  try{ q = JSON.parse(sessionStorage.getItem(AUDIT_QUEUE_KEY) || '[]'); }catch(e){}
+  q.push({ ts:new Date().toISOString(), actor: session ? session.name : '(unknown)', role: session ? session.role : '', action, details: details || '' });
+  try{ sessionStorage.setItem(AUDIT_QUEUE_KEY, JSON.stringify(q)); }catch(e){}
+}
+function drainAuditQueue(){
+  let q = [];
+  try{ q = JSON.parse(sessionStorage.getItem(AUDIT_QUEUE_KEY) || '[]'); }catch(e){}
+  try{ sessionStorage.removeItem(AUDIT_QUEUE_KEY); }catch(e){}
+  return q;
+}
+function appendAuditToWorkbook(wb, entries){
+  if(!entries.length) return;
+  const headers = ['Timestamp','Actor','Role','Action','Details'];
+  let rows = [];
+  if(wb.SheetNames.includes(AUDIT_SHEET)){
+    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[AUDIT_SHEET], {header:1, defval:''});
+    const hIdx = aoa.findIndex(r => r[0] === 'Timestamp');
+    if(hIdx !== -1) rows = aoa.slice(hIdx+1).filter(r => r.some(c => c!==undefined && c!==''));
+  }
+  rows = rows.concat(entries.map(e => [e.ts, e.actor, e.role, e.action, e.details]));
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['Audit Log — Personalized School Record Management System'],
+    ['Read-only history of sign-ins and changes. Visible to Master accounts only, and not editable through any app UI.'],
+    [], headers, ...rows
+  ]);
+  ws['!cols'] = [22,20,10,20,42].map(w=>({wch:w}));
+  wb.Sheets[AUDIT_SHEET] = ws;
+  if(!wb.SheetNames.includes(AUDIT_SHEET)) wb.SheetNames.push(AUDIT_SHEET);
+}
+
+function uid(){ return 'card_' + Date.now() + '_' + Math.random().toString(36).slice(2,8); }
+function b64ToArrayBuffer(b64){
+  const bin = atob(b64.replace(/\n/g,''));
+  const bytes = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+  return bytes.buffer;
+}
+function arrayBufferToB64(buf){
+  const bytes = new Uint8Array(buf);
+  let bin=''; const chunk=0x8000;
+  for(let i=0;i<bytes.length;i+=chunk) bin += String.fromCharCode.apply(null, bytes.subarray(i,i+chunk));
+  return btoa(bin);
+}
+
+function parseCardsFromWorkbook(){
+  if(!workbook.SheetNames.includes(CARDS_SHEET)){ cards = []; return; }
+  const aoa = XLSX.utils.sheet_to_json(workbook.Sheets[CARDS_SHEET], {header:1, defval:''});
+  const hIdx = aoa.findIndex(r => r[0] === 'ID');
+  const rows = hIdx === -1 ? [] : aoa.slice(hIdx+1).filter(r => r.some(c => c!==undefined && c!==''));
+  cards = rows.map(r => ({
+    id: r[0]||uid(), deck:r[1]||'', type:r[2]||'basic', front:r[3]||'', back:r[4]||'',
+    createdBy:r[5]||'', createdAt:r[6]||'', updatedAt:r[7]||''
+  }));
+}
+function buildCardsAOA(){
+  const headers = ['ID','Deck','Type','Front','Back','CreatedBy','CreatedAt','UpdatedAt'];
+  const rows = cards.map(c => [c.id,c.deck,c.type,c.front,c.back,c.createdBy,c.createdAt,c.updatedAt]);
+  return [
+    ['Flashcards — Personalized School Record Management System'],
+    ['Master accounts add/edit/delete cards here; anyone signed in can review them.'],
+    [], headers, ...rows
+  ];
+}
+
+async function loadFromGitHub(){
+  const panel = document.getElementById('connectPanel');
+  panel.style.display = 'block';
+  document.getElementById('connectPanelTitle').textContent = 'Loading decks…';
+  document.getElementById('connectPanelText').textContent = `Fetching ${GH.path} from ${GH.owner}/${GH.repo}.`;
+  document.getElementById('connectActions').style.display = 'none';
+  try{
+    const url = `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${encodeURIComponent(GH.path)}?ref=${GH.branch}`;
+    const headers = ghToken ? {Authorization:`Bearer ${ghToken}`} : {};
+    const res = await fetch(url, {headers});
+    if(!res.ok){
+      if(res.status === 404) throw new Error(`${GH.path} not found in ${GH.owner}/${GH.repo} on branch ${GH.branch}.`);
+      if(res.status === 401) throw new Error('That token was rejected — check it was copied correctly.');
+      throw new Error(`GitHub responded with ${res.status}.`);
+    }
+    const json = await res.json();
+    currentSha = json.sha;
+    workbook = XLSX.read(b64ToArrayBuffer(json.content), {type:'array'});
+    parseCardsFromWorkbook();
+    connected = true;
+    panel.style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+    document.getElementById('addCardToggleBtn').style.display = isMaster ? '' : 'none';
+    renderDeckSelect();
+    renderMasterList();
+    startReview();
+  }catch(e){
+    connected = false;
+    document.getElementById('connectPanelTitle').textContent = "Couldn't load flashcards";
+    document.getElementById('connectPanelText').textContent = e.message;
+    document.getElementById('connectActions').style.display = 'flex';
+  }
+}
+
+async function persistCards(actionLabel, actionDetails){
+  if(!isMaster) return false;
+  if(!editingEnabled || !ghToken){
+    alert('This change was NOT saved — editing isn\'t enabled yet. Click "Enable editing" and enter your GitHub token, then redo this change.');
+    promptEnableEditing();
+    return false;
+  }
+  const ws = XLSX.utils.aoa_to_sheet(buildCardsAOA());
+  ws['!cols'] = [16,26,10,40,40,16,20,20].map(w=>({wch:w}));
+  if(!workbook) workbook = XLSX.utils.book_new();
+  workbook.Sheets[CARDS_SHEET] = ws;
+  if(!workbook.SheetNames.includes(CARDS_SHEET)) workbook.SheetNames.push(CARDS_SHEET);
+  const pending = drainAuditQueue();
+  if(actionLabel) pending.push({ ts:new Date().toISOString(), actor:session.name, role:session.role, action:actionLabel, details:actionDetails||'' });
+  appendAuditToWorkbook(workbook, pending);
+  const wbout = XLSX.write(workbook, {bookType:'xlsx', type:'array'});
+  try{
+    const url = `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${encodeURIComponent(GH.path)}`;
+    const res = await fetch(url, {
+      method:'PUT',
+      headers:{Authorization:`Bearer ${ghToken}`, 'Content-Type':'application/json'},
+      body:JSON.stringify({ message:`Flashcards: ${actionLabel||'update'} — ${new Date().toISOString()}`, content:arrayBufferToB64(wbout), sha:currentSha, branch:GH.branch })
+    });
+    const json = await res.json();
+    if(!res.ok){
+      if(res.status === 409){
+        alert('Someone (or another tab/device) saved a newer version since you loaded this page. Reloading the latest version now — please redo your last change.');
+        await loadFromGitHub();
+        return false;
+      }
+      throw new Error(json.message || `GitHub responded with ${res.status}`);
+    }
+    currentSha = json.content.sha;
+    return true;
+  }catch(e){
+    alert('Could not save to GitHub: ' + e.message);
+    return false;
+  }
+}
+
+/* ---------------- Token panel ---------------- */
+function promptEnableEditing(){
+  if(!isMaster) return;
+  document.getElementById('tokenPanel').style.display = 'block';
+  document.getElementById('tokenInput').focus();
+}
+document.getElementById('cancelTokenBtn').addEventListener('click', () => {
+  document.getElementById('tokenPanel').style.display = 'none';
+});
+document.getElementById('retryLoadBtn').addEventListener('click', loadFromGitHub);
+document.getElementById('tokenForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const val = document.getElementById('tokenInput').value.trim();
+  if(!val) return;
+  ghToken = val;
+  editingEnabled = true;
+  if(document.getElementById('rememberTokenChk').checked){
+    try{ localStorage.setItem(TOKEN_KEY, val); }catch(err){}
+  }
+  document.getElementById('tokenPanel').style.display = 'none';
+  document.getElementById('tokenInput').value = '';
+  renderMasterList();
+});
+
+/* ---------------- Deck select + review ---------------- */
+let reviewDeck = '__all__';
+let reviewOrder = [];
+let reviewIdx = 0;
+let revealed = false;
+
+function renderDeckSelect(){
+  const sel = document.getElementById('deckSelect');
+  const decks = [...new Set(cards.map(c => c.deck).filter(Boolean))].sort();
+  sel.innerHTML = `<option value="__all__">All decks (${cards.length})</option>` +
+    decks.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)} (${cards.filter(c=>c.deck===d).length})</option>`).join('');
+  sel.value = reviewDeck;
+}
+document.getElementById('deckSelect').addEventListener('change', (e) => { reviewDeck = e.target.value; startReview(); });
+document.getElementById('shuffleBtn').addEventListener('click', () => { startReview(true); });
+
+function startReview(shuffle){
+  const pool = reviewDeck === '__all__' ? cards.slice() : cards.filter(c => c.deck === reviewDeck);
+  reviewOrder = pool.map(c => c.id);
+  if(shuffle){ for(let i=reviewOrder.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [reviewOrder[i],reviewOrder[j]]=[reviewOrder[j],reviewOrder[i]]; } }
+  reviewIdx = 0;
+  revealed = false;
+  renderReview();
+}
+
+function renderReview(){
+  const area = document.getElementById('reviewArea');
+  const controls = document.getElementById('reviewControls');
+  const pos = document.getElementById('reviewPos');
+  const typeLbl = document.getElementById('reviewType');
+  if(reviewOrder.length === 0){
+    pos.textContent = '0 of 0';
+    typeLbl.textContent = '';
+    area.innerHTML = '<div class="empty">No cards in this deck yet.</div>';
+    controls.innerHTML = '';
+    return;
+  }
+  const c = cards.find(x => x.id === reviewOrder[reviewIdx]);
+  pos.textContent = `${reviewIdx+1} of ${reviewOrder.length}`;
+  typeLbl.textContent = c.type === 'cloze' ? 'Fill in the blank' : 'Front / Back';
+  if(c.type === 'cloze'){
+    const shown = revealed
+      ? c.front.replace(CLOZE_MARKER, `<span class="blank revealed">${escapeHtml(c.back)}</span>`)
+      : c.front.replace(CLOZE_MARKER, `<span class="blank">${CLOZE_MARKER}</span>`);
+    area.innerHTML = `<div class="review-face"><div class="review-text">${shown.replace(/\n/g,'<br>')}</div></div>`;
+  } else {
+    area.innerHTML = `<div class="review-face"><div>
+      <div class="review-text">${escapeHtml(c.front).replace(/\n/g,'<br>')}</div>
+      ${revealed ? `<div class="review-back">${escapeHtml(c.back).replace(/\n/g,'<br>')}</div>` : ''}
+    </div></div>`;
+  }
+  controls.innerHTML = `
+    <button class="btn-ghost" id="prevBtn" ${reviewIdx===0?'disabled':''}>← Prev</button>
+    ${revealed ? '' : '<button class="btn-highlight" id="showBtn">Show Answer</button>'}
+    <button class="btn-ghost" id="nextBtn" ${reviewIdx>=reviewOrder.length-1?'disabled':''}>Next →</button>`;
+  const showBtn = document.getElementById('showBtn');
+  if(showBtn) showBtn.addEventListener('click', () => { revealed = true; renderReview(); });
+  document.getElementById('prevBtn').addEventListener('click', () => { if(reviewIdx>0){ reviewIdx--; revealed=false; renderReview(); } });
+  document.getElementById('nextBtn').addEventListener('click', () => { if(reviewIdx<reviewOrder.length-1){ reviewIdx++; revealed=false; renderReview(); } });
+}
+
+/* ---------------- Master: add/edit/delete cards ---------------- */
+const formPanel = document.getElementById('cardFormPanel');
+document.getElementById('addCardToggleBtn').addEventListener('click', () => {
+  if(!editingEnabled || !ghToken){ promptEnableEditing(); return; }
+  if(formPanel.classList.contains('open') && !editingCardId){ closeCardForm(); }
+  else { openCardForm(); }
+});
+function openCardForm(){ formPanel.classList.add('open'); document.getElementById('f_deck').focus(); }
+function closeCardForm(){
+  formPanel.classList.remove('open');
+  editingCardId = null;
+  currentType = 'basic';
+  setTypeUI('basic');
+  document.getElementById('f_deck').value = '';
+  document.getElementById('f_front').value = '';
+  document.getElementById('f_back').value = '';
+  document.getElementById('f_cloze').value = '';
+  document.getElementById('cardFormError').style.display = 'none';
+  document.getElementById('cardFormTitle').textContent = 'Add a card';
+  document.getElementById('submitCardBtn').textContent = 'Add card';
+}
+document.getElementById('cancelCardBtn').addEventListener('click', closeCardForm);
+
+function setTypeUI(type){
+  currentType = type;
+  document.getElementById('typeBasicBtn').classList.toggle('active', type==='basic');
+  document.getElementById('typeClozeBtn').classList.toggle('active', type==='cloze');
+  document.getElementById('basicFields').style.display = type==='basic' ? 'block' : 'none';
+  document.getElementById('clozeFields').style.display = type==='cloze' ? 'block' : 'none';
+}
+document.getElementById('typeBasicBtn').addEventListener('click', () => setTypeUI('basic'));
+document.getElementById('typeClozeBtn').addEventListener('click', () => setTypeUI('cloze'));
+
+document.getElementById('submitCardBtn').addEventListener('click', async () => {
+  const deck = document.getElementById('f_deck').value.trim();
+  let front = '', back = '';
+  if(currentType === 'basic'){
+    front = document.getElementById('f_front').value.trim();
+    back = document.getElementById('f_back').value.trim();
+    if(!deck || !front || !back){
+      document.getElementById('cardFormError').textContent = 'Fill in Deck, Front, and Back.';
+      document.getElementById('cardFormError').style.display = 'block';
+      return;
+    }
+  } else {
+    const raw = document.getElementById('f_cloze').value.trim();
+    const m = raw.match(/\[\[(.+?)\]\]/);
+    if(!deck || !raw || !m){
+      document.getElementById('cardFormError').textContent = 'Fill in Deck and a sentence with exactly one [[blank]] marked.';
+      document.getElementById('cardFormError').style.display = 'block';
+      return;
+    }
+    back = m[1].trim();
+    front = raw.replace(m[0], CLOZE_MARKER);
+  }
+  const now = new Date().toISOString();
+  const wasEditing = !!editingCardId;
+  const snapshot = cards.slice();
+  const label = deck + (currentType==='cloze' ? ' — cloze' : '');
+  if(editingCardId){
+    cards = cards.map(c => c.id===editingCardId ? {...c, deck, type:currentType, front, back, updatedAt:now} : c);
+  } else {
+    cards.push({ id:uid(), deck, type:currentType, front, back, createdBy:session.name, createdAt:now, updatedAt:now });
+  }
+  closeCardForm();
+  renderDeckSelect();
+  renderMasterList();
+  startReview();
+  const ok = await persistCards(wasEditing ? 'Edit Flashcard' : 'Add Flashcard', label);
+  if(!ok){ cards = snapshot; renderDeckSelect(); renderMasterList(); startReview(); }
+});
+
+function startCardEdit(id){
+  if(!editingEnabled || !ghToken){ promptEnableEditing(); return; }
+  const c = cards.find(x => x.id === id);
+  if(!c) return;
+  editingCardId = id;
+  document.getElementById('f_deck').value = c.deck;
+  setTypeUI(c.type);
+  if(c.type === 'cloze'){
+    document.getElementById('f_cloze').value = c.front.replace(CLOZE_MARKER, `[[${c.back}]]`);
+  } else {
+    document.getElementById('f_front').value = c.front;
+    document.getElementById('f_back').value = c.back;
+  }
+  document.getElementById('cardFormTitle').textContent = 'Edit card';
+  document.getElementById('submitCardBtn').textContent = 'Save changes';
+  openCardForm();
+}
+window.startCardEdit = startCardEdit;
+
+async function deleteCard(id){
+  if(!editingEnabled || !ghToken){ promptEnableEditing(); return; }
+  if(!confirm('Delete this card?')) return;
+  const target = cards.find(c => c.id === id);
+  const snapshot = cards.slice();
+  cards = cards.filter(c => c.id !== id);
+  renderDeckSelect();
+  renderMasterList();
+  startReview();
+  const ok = await persistCards('Delete Flashcard', target ? (target.deck+' — '+target.front.slice(0,40)) : id);
+  if(!ok){ cards = snapshot; renderDeckSelect(); renderMasterList(); startReview(); }
+}
+window.deleteCard = deleteCard;
+
+function renderMasterList(){
+  const wrap = document.getElementById('masterListWrap');
+  if(!isMaster){ wrap.innerHTML = ''; return; }
+  if(cards.length === 0){ wrap.innerHTML = '<div class="empty">No cards yet — add your first one above.</div>'; return; }
+  const sorted = cards.slice().sort((a,b) => (a.deck||'').localeCompare(b.deck||''));
+  wrap.innerHTML = `<div class="card-list">${sorted.map(c => `
+    <div class="card-row">
+      <div class="front-snip"><span class="deck-pill">${escapeHtml(c.deck)}</span>${escapeHtml(c.type==='cloze' ? c.front.replace(CLOZE_MARKER,'⬚') : c.front).slice(0,90)}</div>
+      <div class="row-actions">
+        <button class="btn-ghost" onclick="startCardEdit('${c.id}')">Edit</button>
+        <button class="btn-text" onclick="deleteCard('${c.id}')" style="color:var(--pencil-red);">Delete</button>
+      </div>
+    </div>`).join('')}</div>`;
+}
+
+/* ---------------- Boot ---------------- */
+if(!session){
+  document.getElementById('accessLockedPanel').style.display = 'block';
+  document.getElementById('connectPanel').style.display = 'none';
+} else {
+  renderSessionStrip();
+  try{
+    const saved = localStorage.getItem(TOKEN_KEY);
+    if(saved && isMaster){ ghToken = saved; editingEnabled = true; }
+  }catch(e){}
+  loadFromGitHub();
+}
+</script>
+</body>
+</html>

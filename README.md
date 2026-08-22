@@ -11,13 +11,15 @@ device.
 
 ```
 index.html                         Landing page / module hub
-subject\_scheduler\_dashboard.html   Module 01 — Subject Scheduler
-Subject\_Scheduler.xlsx             Your schedule data (the "database")
+subject_scheduler_dashboard.html   Module 01 — Subject Scheduler
+flashcards.html                    Module 02 — Flashcards
+audit_log.html                     Module 03 — Audit Log (Master only)
+Subject_Scheduler.xlsx             All app data (the "database")
 ```
 
-Keep all three files in the same repo — the hub links to the scheduler by
-relative path, and the scheduler is hardcoded to read/write
-`fielalbert2026/school\_record\_management\_system` on branch `main`.
+Keep all five files in the same repo — the hub links to the other pages by
+relative path, and every page is hardcoded to read/write
+`fielalbert2026/school_record_management_system` on branch `main`.
 
 ## Signing in
 
@@ -244,14 +246,86 @@ Either way:
 The passphrase — generated or typed — is shown once, in your browser only,
 and is never written anywhere; the tool doesn't remember it after you leave
 or refresh the page.
-anywhere — if you lose it before saving it, generate a fresh one.
+
+## Audit Log
+
+`audit_log.html` is a read-only history of sign-ins and changes, visible to
+Master accounts only.
+
+* **Stored as its own sheet** (`Audit_Log`) in `Subject_Scheduler.xlsx`,
+  alongside everything else — columns `Timestamp, Actor, Role, Action,
+  Details`.
+* **No edit or delete controls exist for it, anywhere.** That's deliberate:
+  a log that can be edited from the app isn't trustworthy as a log. (The
+  underlying xlsx sheet could still be hand-edited by anyone with repo write
+  access, same caveat as everything else in this file — see the sign-in
+  section above for why this system is upfront about that instead of
+  pretending otherwise.)
+* **What gets logged:** every Master mutation — Add/Edit/Delete Subject,
+  Add/Edit/Delete Announcement, Add/Edit/Delete Flashcard — plus Master
+  Login/Logout.
+* **How it's written, and why login/logout are "best-effort":** a static
+  site with no backend can only write to GitHub using a Master's own token,
+  and only at the moment they're actively saving something. So:
+  * Every CRUD action rides along in the **same commit** as the save that
+    was already happening — no extra GitHub calls.
+  * Login and logout queue locally (in `sessionStorage`) the instant they
+    happen, then get flushed into the log the next time that Master's
+    browser makes any real save — either a scheduler/announcement/flashcard
+    change, or logout itself if a token is already active by then.
+  * If a Master signs in, browses, and signs out **without ever entering a
+    token that session**, that login/logout simply never reaches GitHub —
+    there's no credential available that could write it. This is a real
+    gap, not a bug to be fixed later; closing it fully would need a backend
+    with its own service credential, which this project intentionally
+    doesn't have.
+  * **Guest activity is never logged, at all.** Guests never hold a GitHub
+    token by design (that's what keeps them view-only), so there's no
+    credential available to write a Guest's login anywhere. If tracking
+    Guest access ever becomes a real requirement, that's a "add a small
+    backend" conversation, not a static-site one.
+
+## Flashcards
+
+`flashcards.html` — Master accounts build decks, anyone signed in can study
+them.
+
+* **Stored as its own sheet** (`Flashcards`) in `Subject_Scheduler.xlsx` —
+  columns `ID, Deck, Type, Front, Back, CreatedBy, CreatedAt, UpdatedAt`.
+  Same GitHub-commit flow as the Scheduler and Announcements: Masters need
+  the same token (shared via the same `localStorage` key, so entering it on
+  one module unlocks editing on all of them) and every add/edit/delete is
+  logged to the Audit Log in the same commit.
+* **Two card types, one schema:**
+  * **Front / Back** — the classic case. Front shows first; "Show Answer"
+    reveals Back.
+  * **Fill in the blank** — a Master types the full sentence and wraps the
+    word to hide in double brackets, e.g.
+    `The mitochondria is the [[powerhouse]] of the cell.` On save, that's
+    split into `Front` (the sentence with the bracketed part replaced by a
+    blank marker) and `Back` (just the hidden word) — no separate columns
+    needed, and editing a cloze card reconstructs the `[[bracket]]` form
+    from those two fields automatically.
+* **Decks are just a free-text field**, not a separate sheet — typing an
+  existing deck name adds the card to it; typing a new one creates it.
+  The reviewer's deck dropdown is built from whatever distinct deck names
+  currently exist.
+* **Reviewing** picks a deck (or "All decks"), optionally shuffles, and
+  steps through cards one at a time with Prev/Next — "Show Answer" reveals
+  the back (or fills in the blank) without immediately advancing, so you
+  can actually test recall before moving on. This is a straightforward
+  browse-and-reveal flow, not spaced-repetition scheduling — there's no
+  per-card "how well did you know this" tracking yet.
 
 ## Modules
 
 * **Subject Scheduler** (live) — weekly class schedule with professors,
-rooms, Google Classroom and Google Meet links, School Year (SY) and Term,
-a live "Today" view with Now/Next/Later/Done status, and a live countdown
-to your next class.
-* **Flashcard Reviewer** (coming soon) — spaced-repetition decks for quiz
-review.
+  rooms, Google Classroom and Google Meet links, School Year (SY) and Term,
+  a live "Today" view with Now/Next/Later/Done status, and a live countdown
+  to your next class.
+* **Flashcard Reviewer** (live) — Front/Back and fill-in-the-blank decks;
+  Masters build them, anyone signed in can study them.
+* **Audit Log** (live, Master-only) — read-only history of sign-ins and
+  changes across the system.
+
 

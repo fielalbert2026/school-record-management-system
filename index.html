@@ -325,15 +325,25 @@
       </div>
     </a>
 
-    <div class="mod-card soon">
+    <a href="flashcards.html" class="mod-card live">
       <div class="mod-index">Module 02</div>
       <div class="mod-icon">🗂</div>
       <h2 class="mod-title">Flashcard Reviewer</h2>
-      <p class="mod-desc">Spaced-repetition flashcard decks for quiz reviewers — build, drill, and track recall the way AnkiDroid does.</p>
+      <p class="mod-desc">Review decks — plain front/back cards, or fill-in-the-blank cards. Masters build the decks; anyone signed in can study them.</p>
       <div class="mod-foot">
-        <span class="badge-soon">Coming soon</span>
+        <span class="mod-cta">Open module</span>
       </div>
-    </div>
+    </a>
+
+    <a href="audit_log.html" class="mod-card live" id="auditLogCard" style="display:none;">
+      <div class="mod-index">Module 03</div>
+      <div class="mod-icon">🧾</div>
+      <h2 class="mod-title">Audit Log</h2>
+      <p class="mod-desc">Read-only history of sign-ins and changes made across the system. Visible to Master accounts only.</p>
+      <div class="mod-foot">
+        <span class="mod-cta">Open module</span>
+      </div>
+    </a>
 
   </div>
 
@@ -399,6 +409,84 @@ async function pbkdf2Bits(payload, saltBytes, iterations){
 let cachedWorkbook = null;
 let cachedSha = null;
 
+/* ---------------- Audit log (best-effort, piggybacked on Master saves) ----
+ * Every Master action gets queued locally, then written into the Audit_Log
+ * sheet in the SAME commit as whatever save is already happening — no extra
+ * GitHub calls. Login/logout queue immediately; if a Master never triggers
+ * another save that session, that entry just never reaches GitHub — a
+ * static site with no backend has no other way to guarantee delivery.
+ * Guest activity is never logged: Guests never hold a GitHub token, so
+ * there's nothing that could write it. See README for the full explanation.
+ */
+const AUDIT_SHEET = 'Audit_Log';
+const AUDIT_QUEUE_KEY = 'srms_pending_audit';
+
+function queueAudit(action, details){
+  let q = [];
+  try{ q = JSON.parse(sessionStorage.getItem(AUDIT_QUEUE_KEY) || '[]'); }catch(e){}
+  q.push({ ts:new Date().toISOString(), actor: session ? session.name : '(unknown)', role: session ? session.role : '', action, details: details || '' });
+  try{ sessionStorage.setItem(AUDIT_QUEUE_KEY, JSON.stringify(q)); }catch(e){}
+}
+function drainAuditQueue(){
+  let q = [];
+  try{ q = JSON.parse(sessionStorage.getItem(AUDIT_QUEUE_KEY) || '[]'); }catch(e){}
+  try{ sessionStorage.removeItem(AUDIT_QUEUE_KEY); }catch(e){}
+  return q;
+}
+function appendAuditToWorkbook(wb, entries){
+  if(!entries.length) return;
+  const headers = ['Timestamp','Actor','Role','Action','Details'];
+  let rows = [];
+  if(wb.SheetNames.includes(AUDIT_SHEET)){
+    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[AUDIT_SHEET], {header:1, defval:''});
+    const hIdx = aoa.findIndex(r => r[0] === 'Timestamp');
+    if(hIdx !== -1) rows = aoa.slice(hIdx+1).filter(r => r.some(c => c!==undefined && c!==''));
+  }
+  rows = rows.concat(entries.map(e => [e.ts, e.actor, e.role, e.action, e.details]));
+  const aoaOut = [
+    ['Audit Log — Personalized School Record Management System'],
+    ['Read-only history of sign-ins and changes. Visible to Master accounts only, and not editable through any app UI.'],
+    [],
+    headers,
+    ...rows
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(aoaOut);
+  ws['!cols'] = [22,20,10,20,42].map(w=>({wch:w}));
+  wb.Sheets[AUDIT_SHEET] = ws;
+  if(!wb.SheetNames.includes(AUDIT_SHEET)) wb.SheetNames.push(AUDIT_SHEET);
+}
+function bytesToB64Local(buf){
+  const bytes = new Uint8Array(buf);
+  let bin=''; const chunk=0x8000;
+  for(let i=0;i<bytes.length;i+=chunk) bin += String.fromCharCode.apply(null, bytes.subarray(i,i+chunk));
+  return btoa(bin);
+}
+// Best-effort standalone flush — used for Login/Logout, which happen
+// outside any other save flow. Silently does nothing if no token is
+// available yet (the event stays queued for the next real save instead).
+async function flushAuditNow(action, details){
+  if(action) queueAudit(action, details);
+  if(!annGhToken) return;
+  const pending = drainAuditQueue();
+  if(!pending.length) return;
+  try{
+    const wb = cachedWorkbook || await fetchWorkbookFresh(true);
+    appendAuditToWorkbook(wb, pending);
+    const wbout = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+    const url = `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${encodeURIComponent(GH.path)}`;
+    const res = await fetch(url, {
+      method:'PUT',
+      headers:{Authorization:`Bearer ${annGhToken}`, 'Content-Type':'application/json'},
+      body:JSON.stringify({ message:`Audit: ${action || 'flush'} — ${new Date().toISOString()}`, content:bytesToB64Local(wbout), sha:cachedSha, branch:GH.branch })
+    });
+    const json = await res.json();
+    if(res.ok){ cachedSha = json.content.sha; }
+    // On failure (including 409), we just leave the entries dropped rather
+    // than risk looping — the next real save will still carry the rest of
+    // that session's queued events forward.
+  }catch(e){ /* best-effort — no UI interruption for a background log flush */ }
+}
+
 async function fetchWorkbookFresh(authed){
   const url = `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${encodeURIComponent(GH.path)}?ref=${GH.branch}`;
   const headers = (authed && annGhToken) ? {Authorization:`Bearer ${annGhToken}`} : {};
@@ -463,11 +551,15 @@ function renderSignedIn(s){
   isMaster = session.role === 'Master';
   document.getElementById('signinPanel').style.display = 'none';
   document.getElementById('hubContent').classList.add('show');
+  document.getElementById('auditLogCard').style.display = isMaster ? '' : 'none';
   const strip = document.getElementById('sessionStrip');
   strip.classList.add('show');
   const roleClass = isMaster ? 'master' : 'guest';
   strip.innerHTML = `Signed in as <b>${session.name}</b> <span class="role-pill ${roleClass}">${session.role}</span> <button id="logoutBtn" type="button">Log out</button>`;
-  document.getElementById('logoutBtn').addEventListener('click', () => {
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    if(isMaster){
+      await flushAuditNow('Logout', '');
+    }
     clearSession();
     window.location.reload();
   });
@@ -476,6 +568,7 @@ function renderSignedIn(s){
       const saved = localStorage.getItem(ANN_TOKEN_KEY);
       if(saved){ annGhToken = saved; annEditingEnabled = true; }
     }catch(e){}
+    queueAudit('Login', session.role);
   }
   loadAnnouncements();
 }
@@ -665,10 +758,11 @@ window.startAnnEdit = startAnnEdit;
 async function deleteAnnouncement(id){
   if(!isMaster || !annEditingEnabled) return;
   if(!confirm('Delete this announcement?')) return;
+  const target = announcements.find(a => a.id === id);
   const snapshot = announcements.slice();
   announcements = announcements.filter(a => a.id !== id);
   renderAnnouncements();
-  const ok = await persistAnnouncements();
+  const ok = await persistAnnouncements('Delete Announcement', target ? target.title : id);
   if(!ok){ announcements = snapshot; renderAnnouncements(); }
 }
 window.deleteAnnouncement = deleteAnnouncement;
@@ -693,6 +787,7 @@ document.getElementById('annSubmitBtn').addEventListener('click', async () => {
   const expiresAt = expiresRaw ? new Date(expiresRaw + 'T23:59:59').toISOString() : '';
   const snapshot = announcements.slice();
   const now = new Date().toISOString();
+  const wasEditing = !!annEditingId;
   if(annEditingId){
     announcements = announcements.map(a => a.id === annEditingId
       ? {...a, title, message, author:session.name, updatedAt:now, expiresAt, pinned}
@@ -702,11 +797,11 @@ document.getElementById('annSubmitBtn').addEventListener('click', async () => {
   }
   closeAnnForm();
   renderAnnouncements();
-  const ok = await persistAnnouncements();
+  const ok = await persistAnnouncements(wasEditing ? 'Edit Announcement' : 'Add Announcement', title);
   if(!ok){ announcements = snapshot; renderAnnouncements(); }
 });
 
-async function persistAnnouncements(){
+async function persistAnnouncements(actionLabel, actionDetails){
   if(!isMaster || !annEditingEnabled || !annGhToken){
     alert('This change was NOT saved — editing isn\'t enabled. Click "Enable editing" and enter your GitHub token, then redo this change.');
     return false;
@@ -716,12 +811,11 @@ async function persistAnnouncements(){
     const wb = cachedWorkbook;
     wb.Sheets[ANN_SHEET] = buildAnnouncementsSheet();
     if(!wb.SheetNames.includes(ANN_SHEET)) wb.SheetNames.push(ANN_SHEET);
+    const pending = drainAuditQueue();
+    if(actionLabel) pending.push({ ts:new Date().toISOString(), actor:session.name, role:session.role, action:actionLabel, details:actionDetails||'' });
+    appendAuditToWorkbook(wb, pending);
     const wbout = XLSX.write(wb, {bookType:'xlsx', type:'array'});
-    const contentB64 = (function(buf){
-      const bytes = new Uint8Array(buf); let bin=''; const chunk=0x8000;
-      for(let i=0;i<bytes.length;i+=chunk) bin += String.fromCharCode.apply(null, bytes.subarray(i,i+chunk));
-      return btoa(bin);
-    })(wbout);
+    const contentB64 = bytesToB64Local(wbout);
     const url = `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${encodeURIComponent(GH.path)}`;
     const res = await fetch(url, {
       method:'PUT',

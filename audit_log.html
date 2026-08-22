@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audit Log — Personalized School Record Management System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --ink:#1D2B4F; --ink-soft:#2A3D6B; --paper:#F7F4EE; --paper-line:#DCD3C0; --card:#FFFEFC;
+    --graphite:#4A4A48; --muted:#8A8577; --highlighter:#E8B93E; --highlighter-ink:#6B4E00;
+    --pencil-red:#C0392B; --sage:#5E8567; --sage-bg:#E9F0EA; --radius:10px;
+    --shadow:0 1px 2px rgba(29,43,79,.06), 0 6px 18px rgba(29,43,79,.06);
+  }
+  *{box-sizing:border-box;}
+  body{ margin:0; background:var(--paper); background-image:linear-gradient(var(--paper-line) 1px, transparent 1px); background-size:100% 36px; color:var(--graphite); font-family:'Inter',system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
+  .wrap{max-width:1100px; margin:0 auto; padding:32px 26px 90px;}
+  a{color:inherit;}
+  button{ font-family:'Inter',sans-serif; font-weight:600; font-size:13.5px; border-radius:7px; border:1.5px solid var(--ink); padding:9px 16px; cursor:pointer; background:transparent; color:var(--ink); }
+  .btn-primary{background:var(--ink); color:var(--paper);}
+  .btn-ghost{border-color:var(--paper-line); color:var(--graphite); background:#fff;}
+  .back-link{ font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--muted); text-decoration:none; border-bottom:1px solid transparent; }
+  .back-link:hover{color:var(--ink); border-bottom-color:var(--ink);}
+  header{display:flex; align-items:flex-start; justify-content:space-between; gap:20px; flex-wrap:wrap; margin-bottom:22px;}
+  .brand-eyebrow{ font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--sage); margin:8px 0 6px; }
+  h1{ font-family:'Fraunces',serif; font-weight:700; font-size:clamp(26px,4vw,38px); margin:0; color:var(--ink); line-height:1.05; }
+  .session-strip{ display:none; align-items:center; gap:8px; font-size:12.5px; color:var(--muted); background:var(--card); border:1px solid var(--paper-line); border-radius:20px; padding:6px 14px; margin-top:10px; }
+  .role-pill{ text-transform:uppercase; letter-spacing:.06em; font-size:10px; padding:3px 9px; border-radius:20px; }
+  .role-pill.master{background:var(--sage-bg); color:var(--sage);}
+  .role-pill.guest{background:#EFEAE0; color:var(--muted);}
+  #accessLockedPanel, #loadPanel{ background:#fff; border:1.5px dashed var(--paper-line); border-radius:var(--radius); padding:26px; text-align:center; margin-bottom:28px; }
+  #accessLockedPanel h2, #loadPanel h2{ font-family:'Fraunces',serif; color:var(--ink); margin:0 0 6px; font-size:20px; }
+  #accessLockedPanel p, #loadPanel p{ color:var(--muted); font-size:13.5px; margin:0 0 18px; max-width:480px; margin-left:auto; margin-right:auto; }
+  .toolbar{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between; margin-bottom:16px; }
+  .toolbar input, .toolbar select{ font-family:'Inter',sans-serif; font-size:13px; padding:8px 10px; border:1.5px solid var(--paper-line); border-radius:6px; background:#FFFEFC; color:var(--ink); }
+  .note{ font-size:12px; color:var(--muted); }
+  table{ width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow); }
+  thead th{ text-align:left; font-family:'IBM Plex Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); background:#F4F0E7; padding:10px 14px; border-bottom:1px solid var(--paper-line); }
+  tbody td{ padding:10px 14px; font-size:13px; border-bottom:1px dashed var(--paper-line); vertical-align:top; }
+  tbody tr:last-child td{border-bottom:none;}
+  td.ts{ font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--muted); white-space:nowrap; }
+  td.action{font-weight:600; color:var(--ink);}
+  .empty{ text-align:center; color:#A79F8C; font-size:14px; padding:34px 10px; background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius); }
+  footer{text-align:center; color:#A79F8C; font-size:12px; margin-top:36px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <a href="index.html" class="back-link">← Personalized School Record Management System</a>
+      <p class="brand-eyebrow">Module 03 · Master Only</p>
+      <h1>Audit Log</h1>
+      <div class="session-strip" id="sessionStrip"></div>
+    </div>
+  </header>
+
+  <div id="accessLockedPanel" style="display:none;">
+    <h2 id="lockedTitle">Sign in required</h2>
+    <p id="lockedText">Sign in with your school ID on the hub page to open this module.</p>
+    <a href="index.html"><button class="btn-primary" type="button">Go to sign in</button></a>
+  </div>
+
+  <div id="loadPanel">
+    <h2>Loading audit log…</h2>
+    <p id="loadText">Fetching the log from GitHub.</p>
+  </div>
+
+  <div id="content" style="display:none;">
+    <p class="note" style="margin-bottom:16px;">
+      Read-only history of sign-ins and changes. This view has no edit or delete controls by design —
+      logging accuracy depends on the log never being editable from inside the app itself.
+      Login/logout entries are best-effort: they're written the next time that Master's browser makes
+      any save, since only an active GitHub token can commit anything here. Guest activity isn't logged —
+      Guests never hold a token, so there's nothing that could write it.
+    </p>
+    <div class="toolbar">
+      <input id="searchInput" type="text" placeholder="Search actor, action, or details…" style="flex:1; min-width:220px;">
+      <select id="roleFilter">
+        <option value="">All roles</option>
+        <option value="Master">Master only</option>
+      </select>
+    </div>
+    <div id="tableWrap"></div>
+  </div>
+
+  <footer>Personalized School Record Management System · Audit Log</footer>
+</div>
+
+<script>
+const SESSION_KEY = 'srms_session';
+function getSession(){ try{ return JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); }catch(e){ return null; } }
+const session = getSession();
+const isMaster = !!session && session.role === 'Master';
+
+function escapeHtml(str){
+  return (str||'').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function renderSessionStrip(){
+  if(!session) return;
+  const strip = document.getElementById('sessionStrip');
+  strip.style.display = 'inline-flex';
+  const roleClass = isMaster ? 'master' : 'guest';
+  strip.innerHTML = `Signed in as <b>${escapeHtml(session.name)}</b> <span class="role-pill ${roleClass}">${escapeHtml(session.role)}</span> <button id="logoutBtn" type="button" style="border:none;background:none;text-decoration:underline;cursor:pointer;font-size:12.5px;margin-left:4px;">Log out</button>`;
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    sessionStorage.removeItem(SESSION_KEY);
+    window.location.href = 'index.html';
+  });
+}
+
+const GH = { owner:'fielalbert2026', repo:'school_record_management_system', branch:'main', path:'Subject_Scheduler.xlsx' };
+const AUDIT_SHEET = 'Audit_Log';
+let entries = [];
+
+function b64ToArrayBuffer(b64){
+  const bin = atob(b64.replace(/\n/g,''));
+  const bytes = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+  return bytes.buffer;
+}
+
+async function loadAuditLog(){
+  try{
+    const url = `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${encodeURIComponent(GH.path)}?ref=${GH.branch}`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error(`GitHub responded with ${res.status}.`);
+    const json = await res.json();
+    const buf = b64ToArrayBuffer(json.content);
+    const wb = XLSX.read(buf, {type:'array'});
+    if(!wb.SheetNames.includes(AUDIT_SHEET)){
+      entries = [];
+    } else {
+      const aoa = XLSX.utils.sheet_to_json(wb.Sheets[AUDIT_SHEET], {header:1, defval:''});
+      const hIdx = aoa.findIndex(r => r[0] === 'Timestamp');
+      const rows = hIdx === -1 ? [] : aoa.slice(hIdx+1).filter(r => r.some(c => c!==undefined && c!==''));
+      entries = rows.map(r => ({ ts:r[0]||'', actor:r[1]||'', role:r[2]||'', action:r[3]||'', details:r[4]||'' }))
+                    .sort((a,b) => (b.ts||'').localeCompare(a.ts||''));
+    }
+    document.getElementById('loadPanel').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+    renderTable();
+  }catch(e){
+    document.getElementById('loadText').textContent = "Couldn't load the audit log: " + e.message;
+  }
+}
+
+function renderTable(){
+  const q = (document.getElementById('searchInput').value || '').toLowerCase();
+  const roleFilter = document.getElementById('roleFilter').value;
+  const filtered = entries.filter(e => {
+    if(roleFilter && e.role !== roleFilter) return false;
+    if(!q) return true;
+    return (e.actor+' '+e.action+' '+e.details).toLowerCase().includes(q);
+  });
+  const wrap = document.getElementById('tableWrap');
+  if(filtered.length === 0){
+    wrap.innerHTML = '<div class="empty">No matching log entries.</div>';
+    return;
+  }
+  wrap.innerHTML = `<table>
+    <thead><tr><th>Timestamp</th><th>Actor</th><th>Role</th><th>Action</th><th>Details</th></tr></thead>
+    <tbody>
+      ${filtered.map(e => `<tr>
+        <td class="ts">${escapeHtml(e.ts)}</td>
+        <td>${escapeHtml(e.actor)}</td>
+        <td>${escapeHtml(e.role)}</td>
+        <td class="action">${escapeHtml(e.action)}</td>
+        <td>${escapeHtml(e.details)}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+document.getElementById('searchInput').addEventListener('input', renderTable);
+document.getElementById('roleFilter').addEventListener('change', renderTable);
+
+/* ---------------- Boot ---------------- */
+if(!session){
+  document.getElementById('accessLockedPanel').style.display = 'block';
+  document.getElementById('loadPanel').style.display = 'none';
+} else if(!isMaster){
+  document.getElementById('lockedTitle').textContent = 'Master access required';
+  document.getElementById('lockedText').textContent = "The audit log is only visible to Master accounts.";
+  document.getElementById('accessLockedPanel').style.display = 'block';
+  document.getElementById('loadPanel').style.display = 'none';
+  renderSessionStrip();
+} else {
+  renderSessionStrip();
+  loadAuditLog();
+}
+</script>
+</body>
+</html>
