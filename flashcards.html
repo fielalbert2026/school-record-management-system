@@ -53,9 +53,13 @@
   .review-text{ font-family:'Fraunces',serif; font-size:22px; color:var(--ink); line-height:1.5; }
   .blank{ display:inline-block; min-width:64px; border-bottom:2.5px solid var(--muted); color:transparent; }
   .blank.revealed{ color:var(--pencil-red); border-bottom-color:var(--pencil-red); font-weight:700; }
-  .review-side-label{ font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); margin-bottom:6px; }
   .review-back{ font-size:19px; color:var(--sage); margin-top:14px; font-weight:600; }
-  .review-controls{ display:flex; justify-content:center; gap:10px; margin-top:20px; flex-wrap:wrap; }
+  .review-controls{ display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-top:20px; }
+  .review-controls .review-show-btn{ grid-column:1 / -1; justify-self:center; padding:10px 28px; }
+  .review-controls .grade-btn{ width:100%; white-space:nowrap; padding:10px 8px; font-size:12.5px; }
+  @media (max-width:560px){
+    .review-controls{ grid-template-columns:1fr; }
+  }
   .empty{ text-align:center; color:#A79F8C; font-size:14px; padding:34px 10px; }
 
   /* Manage panel */
@@ -150,11 +154,11 @@
         <button type="button" id="typeBasicBtn" class="active">Front / Back</button>
         <button type="button" id="typeClozeBtn">Fill in the blank</button>
       </div>
-      <div class="field"><label for="f_deck">Deck</label><input id="f_deck" placeholder="e.g. DM101-Planning"></div>
+      <div class="field"><label for="f_deck">Deck</label><input id="f_deck" list="deckDatalist" placeholder="e.g. Biology — Cell Structure"><datalist id="deckDatalist"></datalist></div>
 
       <div id="basicFields">
-        <div class="field"><label for="f_front">Front</label><textarea id="f_front" placeholder="Sino ang Sigbin sa iyong mga kaybigan?"></textarea></div>
-        <div class="field"><label for="f_back">Back</label><textarea id="f_back" placeholder="Hahaha"></textarea></div>
+        <div class="field"><label for="f_front">Front</label><textarea id="f_front" placeholder="What powers a cell?"></textarea></div>
+        <div class="field"><label for="f_back">Back</label><textarea id="f_back" placeholder="Mitochondria"></textarea></div>
       </div>
       <div id="clozeFields" style="display:none;">
         <div class="field">
@@ -275,6 +279,28 @@ function arrayBufferToB64(buf){
   return btoa(bin);
 }
 
+// Deck names are free-typed, so near-duplicates like "General - Test1" vs
+// "General- Test1" are easy to create by accident. deckKey() reduces a name
+// to a comparison-only form (trimmed, single-spaced, consistent spacing
+// around hyphens, case-insensitive); canonicalizeDeck() then snaps a typed
+// name onto whichever exact spelling already exists for that key, so the
+// stored data itself converges instead of just papering over it on screen.
+function deckKey(s){ return (s||'').trim().toLowerCase().replace(/\s+/g,' ').replace(/\s*-\s*/g,' - '); }
+function cleanDeckSpelling(s){ return (s||'').trim().replace(/\s+/g,' ').replace(/\s*-\s*/g,' - '); }
+function canonicalizeDeck(input){
+  const key = deckKey(input);
+  const existing = cards.find(c => deckKey(c.deck) === key);
+  return existing ? existing.deck : cleanDeckSpelling(input);
+}
+function normalizeDecksInPlace(){
+  const canonical = {};
+  cards.forEach(c => {
+    const key = deckKey(c.deck);
+    if(!(key in canonical)) canonical[key] = cleanDeckSpelling(c.deck);
+    c.deck = canonical[key];
+  });
+}
+
 function parseCardsFromWorkbook(){
   if(!workbook.SheetNames.includes(CARDS_SHEET)){ cards = []; return; }
   const aoa = XLSX.utils.sheet_to_json(workbook.Sheets[CARDS_SHEET], {header:1, defval:''});
@@ -284,6 +310,7 @@ function parseCardsFromWorkbook(){
     id: r[0]||uid(), deck:r[1]||'', type:r[2]||'basic', front:r[3]||'', back:r[4]||'',
     createdBy:r[5]||'', createdAt:r[6]||'', updatedAt:r[7]||''
   }));
+  normalizeDecksInPlace();
 }
 function buildCardsAOA(){
   const headers = ['ID','Deck','Type','Front','Back','CreatedBy','CreatedAt','UpdatedAt'];
@@ -393,11 +420,18 @@ document.getElementById('tokenForm').addEventListener('submit', (e) => {
   renderMasterList();
 });
 
-/* ---------------- Deck select + review ---------------- */
+/* ---------------- Deck select + review ----------------
+ * This is a drill loop, not spaced-repetition scheduling: cards keep coming
+ * back around until you close the tab or reshuffle. "Again" and "Hard" both
+ * requeue the card into the shuffle — Again lands sooner, Hard lands later
+ * in the current pass. "Don't Show (10 min)" pulls it out of rotation for
+ * 10 real minutes, then it rejoins automatically.
+ */
 let reviewDeck = '__all__';
-let reviewOrder = [];
-let reviewIdx = 0;
+let queue = [];
+let snoozed = []; // [{id, dueAt}]
 let revealed = false;
+let stats = {again:0, hard:0, snoozed:0, seen:0};
 
 function renderDeckSelect(){
   const sel = document.getElementById('deckSelect');
@@ -405,33 +439,60 @@ function renderDeckSelect(){
   sel.innerHTML = `<option value="__all__">All decks (${cards.length})</option>` +
     decks.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)} (${cards.filter(c=>c.deck===d).length})</option>`).join('');
   sel.value = reviewDeck;
+  document.getElementById('deckDatalist').innerHTML = decks.map(d => `<option value="${escapeHtml(d)}">`).join('');
 }
 document.getElementById('deckSelect').addEventListener('change', (e) => { reviewDeck = e.target.value; startReview(); });
 document.getElementById('shuffleBtn').addEventListener('click', () => { startReview(true); });
 
+function shuffleArr(arr){
+  for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
+  return arr;
+}
 function startReview(shuffle){
   const pool = reviewDeck === '__all__' ? cards.slice() : cards.filter(c => c.deck === reviewDeck);
-  reviewOrder = pool.map(c => c.id);
-  if(shuffle){ for(let i=reviewOrder.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [reviewOrder[i],reviewOrder[j]]=[reviewOrder[j],reviewOrder[i]]; } }
-  reviewIdx = 0;
+  queue = pool.map(c => c.id);
+  if(shuffle !== false) shuffleArr(queue);
+  snoozed = [];
   revealed = false;
+  stats = {again:0, hard:0, snoozed:0, seen:0};
   renderReview();
 }
+
+// Every 15s, pull any snoozed cards whose 10 minutes are up back into the
+// queue at a random spot, and re-render if that changes what's on screen.
+setInterval(() => {
+  if(!snoozed.length) return;
+  const now = Date.now();
+  const ready = snoozed.filter(s => s.dueAt <= now);
+  if(!ready.length) return;
+  snoozed = snoozed.filter(s => s.dueAt > now);
+  ready.forEach(s => {
+    const pos = Math.floor(Math.random() * (queue.length + 1));
+    queue.splice(pos, 0, s.id);
+  });
+  if(document.getElementById('content').style.display !== 'none') renderReview();
+}, 15000);
 
 function renderReview(){
   const area = document.getElementById('reviewArea');
   const controls = document.getElementById('reviewControls');
   const pos = document.getElementById('reviewPos');
   const typeLbl = document.getElementById('reviewType');
-  if(reviewOrder.length === 0){
-    pos.textContent = '0 of 0';
+  if(queue.length === 0){
     typeLbl.textContent = '';
-    area.innerHTML = '<div class="empty">No cards in this deck yet.</div>';
+    if(snoozed.length){
+      const soonestMin = Math.max(1, Math.ceil((Math.min(...snoozed.map(s=>s.dueAt)) - Date.now())/60000));
+      pos.textContent = `${stats.seen} reviewed this session`;
+      area.innerHTML = `<div class="empty">All caught up for now — ${snoozed.length} card${snoozed.length===1?'':'s'} snoozed, back in about ${soonestMin} min.</div>`;
+    } else {
+      pos.textContent = '0 remaining';
+      area.innerHTML = '<div class="empty">No cards in this deck yet.</div>';
+    }
     controls.innerHTML = '';
     return;
   }
-  const c = cards.find(x => x.id === reviewOrder[reviewIdx]);
-  pos.textContent = `${reviewIdx+1} of ${reviewOrder.length}`;
+  const c = cards.find(x => x.id === queue[0]);
+  pos.textContent = `${queue.length} remaining · Again ${stats.again} · Hard ${stats.hard} · Snoozed ${stats.snoozed}`;
   typeLbl.textContent = c.type === 'cloze' ? 'Fill in the blank' : 'Front / Back';
   if(c.type === 'cloze'){
     const shown = revealed
@@ -440,19 +501,41 @@ function renderReview(){
     area.innerHTML = `<div class="review-face"><div class="review-text">${shown.replace(/\n/g,'<br>')}</div></div>`;
   } else {
     area.innerHTML = `<div class="review-face"><div>
-      <div class="review-side-label">Front</div>
       <div class="review-text">${escapeHtml(c.front).replace(/\n/g,'<br>')}</div>
-      ${revealed ? `<div class="review-side-label" style="margin-top:16px;">Back</div><div class="review-back">${escapeHtml(c.back).replace(/\n/g,'<br>')}</div>` : ''}
+      ${revealed ? `<div class="review-back">${escapeHtml(c.back).replace(/\n/g,'<br>')}</div>` : ''}
     </div></div>`;
   }
-  controls.innerHTML = `
-    <button class="btn-ghost" id="prevBtn" ${reviewIdx===0?'disabled':''}>← Prev</button>
-    ${revealed ? '' : '<button class="btn-highlight" id="showBtn">Show Answer</button>'}
-    <button class="btn-ghost" id="nextBtn" ${reviewIdx>=reviewOrder.length-1?'disabled':''}>Next →</button>`;
-  const showBtn = document.getElementById('showBtn');
-  if(showBtn) showBtn.addEventListener('click', () => { revealed = true; renderReview(); });
-  document.getElementById('prevBtn').addEventListener('click', () => { if(reviewIdx>0){ reviewIdx--; revealed=false; renderReview(); } });
-  document.getElementById('nextBtn').addEventListener('click', () => { if(reviewIdx<reviewOrder.length-1){ reviewIdx++; revealed=false; renderReview(); } });
+  if(!revealed){
+    controls.innerHTML = `<button class="btn-highlight review-show-btn" id="showBtn">Show Answer</button>`;
+    document.getElementById('showBtn').addEventListener('click', () => { revealed = true; stats.seen++; renderReview(); });
+  } else {
+    controls.innerHTML = `
+      <button class="btn-ghost grade-btn" id="againBtn">Again</button>
+      <button class="btn-ghost grade-btn" id="hardBtn">Hard</button>
+      <button class="btn-ghost grade-btn" id="snoozeBtn">Don't Show (10 min)</button>`;
+    document.getElementById('againBtn').addEventListener('click', () => gradeCurrent('again'));
+    document.getElementById('hardBtn').addEventListener('click', () => gradeCurrent('hard'));
+    document.getElementById('snoozeBtn').addEventListener('click', () => gradeCurrent('snooze'));
+  }
+}
+
+function gradeCurrent(grade){
+  const id = queue.shift();
+  revealed = false;
+  if(grade === 'again'){
+    stats.again++;
+    const pos = Math.floor(Math.random() * Math.min(3, queue.length + 1));
+    queue.splice(pos, 0, id);
+  } else if(grade === 'hard'){
+    stats.hard++;
+    const backHalfStart = Math.floor(queue.length / 2);
+    const pos = backHalfStart + Math.floor(Math.random() * (queue.length - backHalfStart + 1));
+    queue.splice(pos, 0, id);
+  } else if(grade === 'snooze'){
+    stats.snoozed++;
+    snoozed.push({ id, dueAt: Date.now() + 10*60*1000 });
+  }
+  renderReview();
 }
 
 /* ---------------- Master: add/edit/delete cards ---------------- */
@@ -489,7 +572,7 @@ document.getElementById('typeBasicBtn').addEventListener('click', () => setTypeU
 document.getElementById('typeClozeBtn').addEventListener('click', () => setTypeUI('cloze'));
 
 document.getElementById('submitCardBtn').addEventListener('click', async () => {
-  const deck = document.getElementById('f_deck').value.trim();
+  const deck = canonicalizeDeck(document.getElementById('f_deck').value);
   let front = '', back = '';
   if(currentType === 'basic'){
     front = document.getElementById('f_front').value.trim();

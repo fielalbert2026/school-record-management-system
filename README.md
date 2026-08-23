@@ -319,16 +319,41 @@ them.
     blank marker) and `Back` (just the hidden word) — no separate columns
     needed, and editing a cloze card reconstructs the `[[bracket]]` form
     from those two fields automatically.
-* **Decks are just a free-text field**, not a separate sheet — typing an
-  existing deck name adds the card to it; typing a new one creates it.
-  The reviewer's deck dropdown is built from whatever distinct deck names
-  currently exist.
-* **Reviewing** picks a deck (or "All decks"), optionally shuffles, and
-  steps through cards one at a time with Prev/Next — "Show Answer" reveals
-  the back (or fills in the blank) without immediately advancing, so you
-  can actually test recall before moving on. This is a straightforward
-  browse-and-reveal flow, not spaced-repetition scheduling — there's no
-  per-card "how well did you know this" tracking yet.
+* **Decks are a free-text field, not a separate sheet** — but typed names
+  are normalized so near-duplicates can't quietly pile up. `"General -
+  Test1"`, `"General- Test1"`, and `"General  -  Test1"` are all treated as
+  the same deck: trimmed, whitespace-collapsed, hyphen-spacing
+  standardized, compared case-insensitively. Two things enforce this:
+  * A **datalist** on the Deck field suggests existing deck names as you
+    type, so reusing one is usually just a click.
+  * On save, whatever you typed gets matched against existing decks by that
+    normalized form — if one matches, your card joins the *existing* deck's
+    exact spelling rather than creating a new near-duplicate entry. If nothing
+    matches, your typing is still lightly cleaned up (trimmed, single-spaced)
+    before being stored as the new canonical spelling.
+  * On every load, any decks that already differ only by that kind of
+    whitespace/hyphen noise are silently merged in memory to the
+    first-seen spelling — so even old duplicate data heals itself the next
+    time anyone opens the page and saves anything.
+* **Reviewing is a repeating drill, not spaced-repetition scheduling.** Pick
+  a deck (or "All decks") and optionally shuffle. Each card shows a plain
+  **Show Answer** button; once revealed, three buttons replace it:
+  * **Again** — the card rejoins the shuffle very soon (within the next
+    couple of cards).
+  * **Hard** — the card rejoins later in the current pass.
+  * **Don't Show (10 min)** — the card leaves rotation entirely and
+    automatically rejoins after 10 real minutes (checked every 15 seconds
+    in the background, so it reappears on its own without needing a
+    manual refresh).
+
+  Every card you grade keeps coming back around — there's no "I know this,
+  remove it" option by design, so a review session is just "keep drilling
+  until you close the tab or pick a different deck/shuffle." A small counter
+  above the card (`N remaining · Again N · Hard N · Snoozed N`) tracks the
+  current session's activity; it isn't written anywhere, so it resets the
+  moment you reshuffle, switch decks, or reload the page. If everything is
+  currently snoozed, the card area shows how many are waiting and roughly
+  when the next one is due instead of an empty screen.
 
 ## Modules
 
