@@ -7,6 +7,11 @@ editing is enabled) writes changes straight back to it as commits. Anyone
 with the site link and a valid school ID can sign in and view it, from any
 device.
 
+# Verbiage needs to Preserve
+
+- Always check phrases and verbiage updates on all html files as I make changes on those without notice
+- I want to overwrite all and keep changes using my own modified one
+
 ## Structure
 
 ```
