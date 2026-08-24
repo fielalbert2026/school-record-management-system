@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<script>(function(){try{var t=localStorage.getItem('srms_theme')||'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Subject Scheduler — Personalized School Record Management System</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -23,7 +24,27 @@
     --sage-bg:#E9F0EA;
     --radius:10px;
     --shadow:0 1px 2px rgba(29,43,79,.06), 0 6px 18px rgba(29,43,79,.06);
+    /* Fixed regardless of theme — the Today panel is a deliberate dark
+       "spotlight" accent, not a themeable surface, so it shouldn't invert. */
+    --accent-panel:#1D2B4F;
+    --accent-panel-text:#F7F4EE;
   }
+  [data-theme="dark"]{
+    --ink:#EDE8DB;
+    --ink-soft:#D9D0BC;
+    --paper:#12141C;
+    --paper-line:#2B2F3D;
+    --card:#1B1E28;
+    --graphite:#D6D1C4;
+    --muted:#9A947F;
+    --highlighter:#E8B93E;
+    --highlighter-ink:#3A2900;
+    --pencil-red:#E2685A;
+    --sage:#84AC8E;
+    --sage-bg:#1E2B22;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.35);
+  }
+  #themeToggleBtn:hover{ transform:scale(1.08); }
   *{box-sizing:border-box;}
   body{
     margin:0;
@@ -98,7 +119,7 @@
 
   /* ---------- Today hero ---------- */
   #todayHero{
-    background:var(--ink); color:var(--paper); border-radius:var(--radius);
+    background:var(--accent-panel); color:var(--accent-panel-text); border-radius:var(--radius);
     padding:22px 24px; margin-bottom:28px; box-shadow:var(--shadow); display:none;
   }
   #todayHero.show{display:block;}
@@ -266,13 +287,14 @@
 </style>
 </head>
 <body>
+<button id="themeToggleBtn" type="button" aria-label="Toggle dark mode" title="Toggle dark mode" style="position:fixed; top:14px; right:14px; z-index:9999; width:42px; height:42px; border-radius:50%; border:none; background:var(--ink); color:var(--paper); display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,.25), 0 6px 16px rgba(0,0,0,.2); padding:0; transition:transform .15s ease;">🌙</button>
 <div class="wrap">
 
   <header>
     <div>
-      <a href="index.html" class="back-link">← School Record Management System</a>
+      <a href="index.html" class="back-link">← Personalized School Record Management System</a>
       <p class="brand-eyebrow">Module 01 · Academic Schedule</p>
-      <h1>Scheduler</h1>
+      <h1>Subject Scheduler</h1>
       <div class="session-strip" id="sessionStrip" style="display:none;"></div>
     </div>
     <div class="connect-box" id="connectBox"></div>
@@ -280,7 +302,7 @@
 
   <div id="accessLockedPanel" style="display:none;">
     <h2>Sign in required</h2>
-    <p>Sign in with your school ID on the hub page to open the Scheduler.</p>
+    <p>Sign in with your school ID on the hub page to open the Subject Scheduler.</p>
     <a href="index.html"><button class="btn-primary" type="button">Go to sign in</button></a>
   </div>
 
@@ -295,18 +317,19 @@
 
   <div id="tokenPanel" style="display:none;">
     <h2>Enable editing</h2>
-    <p>Paste a GitHub Personal Access Token with <b>Contents: Read and write</b> access to this one repo. It's kept only in this browser — never written into the site's code or the repo itself.</p>
+    <p>Confirm your school ID and passphrase to enable saving. No GitHub account or token needed — this just re-checks who you are, the same way signing in did.</p>
     <form id="tokenForm" class="actions" style="flex-wrap:wrap;">
-      <input id="tokenInput" type="password" placeholder="github_pat_…" style="flex:1; min-width:220px;" autocomplete="off">
+      <input id="editIdInput" type="text" placeholder="School ID" style="flex:1; min-width:140px;" autocomplete="off">
+      <input id="editPassInput" type="password" placeholder="Passphrase" style="flex:1; min-width:140px;" autocomplete="off">
       <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--muted); font-weight:500;">
         <input type="checkbox" id="rememberTokenChk"> Remember on this device
       </label>
-      <button type="submit" class="btn-primary">Save token</button>
+      <button type="submit" class="btn-primary">Enable</button>
       <button type="button" class="btn-ghost" id="cancelTokenBtn">Cancel</button>
     </form>
+    <p id="tokenFormError" style="font-size:12.5px; color:var(--pencil-red); margin-top:10px; margin-bottom:0; display:none;"></p>
     <p style="font-size:12px; color:var(--muted); margin-top:12px; margin-bottom:0;">
-      Create one at github.com → Settings → Developer settings → Fine-grained tokens →
-      scope it to just this repository, permission "Contents: Read and write", with an expiry date.
+      This unlocks editing everywhere (Scheduler, Flashcards, Announcements) — no need to repeat it per module.
     </p>
   </div>
 
@@ -371,6 +394,18 @@
 </div>
 
 <script>
+
+/* ---------------- Theme toggle (light/dark) ---------------- */
+function getTheme(){ try{ return localStorage.getItem('srms_theme') || 'light'; }catch(e){ return 'light'; } }
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme', t);
+  try{ localStorage.setItem('srms_theme', t); }catch(e){}
+  const btn = document.getElementById('themeToggleBtn');
+  if(btn) btn.textContent = t === 'dark' ? '☀️' : '🌙';
+}
+function toggleTheme(){ applyTheme(getTheme() === 'dark' ? 'light' : 'dark'); }
+applyTheme(getTheme());
+document.getElementById('themeToggleBtn').addEventListener('click', toggleTheme);
 const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 const HEADERS = ["Subject Code","Subject Name","Professor","Day","Start Time","End Time","Room / Platform","Google Classroom Link","Google Meet Link","SY","Term / Semester","Notes"];
 const COL_WIDTHS = [12,24,20,12,11,11,18,30,22,12,16,24];
@@ -578,6 +613,22 @@ function arrayBufferToB64(buf){
   return btoa(bin);
 }
 
+// Writes go through our own /api/save serverless function instead of
+// straight to GitHub — it holds the real GitHub credential server-side, so
+// no Master ever needs their own GitHub account or token. ghToken here is
+// the short-lived signed session issued by /api/verify-master, not a
+// GitHub credential itself.
+async function saveViaProxy(editTok, contentB64, sha, message){
+  const res = await fetch('/api/save', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ editToken:editTok, contentB64, sha, message })
+  });
+  const json = await res.json();
+  if(!res.ok) throw Object.assign(new Error(json.error || `Save failed (${res.status})`), {status:res.status});
+  return json.sha;
+}
+
 async function loadFromGitHub(){
   const panel = document.getElementById('connectPanel');
   panel.style.display = 'block';
@@ -586,11 +637,9 @@ async function loadFromGitHub(){
   document.getElementById('connectActions').style.display = 'none';
   try{
     const url = `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${encodeURIComponent(GH.path)}?ref=${GH.branch}`;
-    const headers = ghToken ? {Authorization:`Bearer ${ghToken}`} : {};
-    const res = await fetch(url, {headers});
+    const res = await fetch(url);
     if(!res.ok){
       if(res.status === 404) throw new Error(`${GH.path} not found in ${GH.owner}/${GH.repo} on branch ${GH.branch}.`);
-      if(res.status === 401) throw new Error('That token was rejected — check it was copied correctly and has Contents access to this repo.');
       throw new Error(`GitHub responded with ${res.status}.`);
     }
     const json = await res.json();
@@ -632,9 +681,9 @@ function buildSheetAOA(){
 
 async function persistToFile(actionLabel, actionDetails){
   if(!editingEnabled || !ghToken){
-    // Never fail silently: a Master whose token/session lapsed needs to know
-    // the change did NOT save, instead of believing it did.
-    alert('This change was NOT saved — editing isn\'t enabled yet. Click "Enable editing" and enter your GitHub token, then redo this change.');
+    // Never fail silently: a Master whose session lapsed needs to know the
+    // change did NOT save, instead of believing it did.
+    alert('This change was NOT saved — editing isn\'t enabled yet. Click "Enable editing" and confirm your passphrase, then redo this change.');
     setSaving('lost');
     promptEnableEditing();
     return false;
@@ -652,32 +701,25 @@ async function persistToFile(actionLabel, actionDetails){
   const wbout = XLSX.write(workbook, {bookType:'xlsx', type:'array'});
   const contentB64 = arrayBufferToB64(wbout);
   try{
-    const url = `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${encodeURIComponent(GH.path)}`;
-    const res = await fetch(url, {
-      method:'PUT',
-      headers:{Authorization:`Bearer ${ghToken}`, 'Content-Type':'application/json'},
-      body:JSON.stringify({
-        message:`Update schedule — ${new Date().toISOString()}`,
-        content:contentB64,
-        sha:currentSha,
-        branch:GH.branch
-      })
-    });
-    const json = await res.json();
-    if(!res.ok){
-      if(res.status === 409){
-        alert("Someone (or another tab/device) saved a newer version of the schedule since you loaded it. Reloading the latest version now — please redo your last change.");
-        setSaving('lost');
-        await loadFromGitHub();
-        return;
-      }
-      throw new Error(json.message || `GitHub responded with ${res.status}`);
-    }
-    currentSha = json.content.sha;
+    currentSha = await saveViaProxy(ghToken, contentB64, currentSha, 'Update schedule');
     setSaving('saved');
     return true;
   }catch(e){
-    alert('Could not save to GitHub: ' + e.message);
+    if(e.status === 409){
+      alert("Someone (or another tab/device) saved a newer version of the schedule since you loaded it. Reloading the latest version now — please redo your last change.");
+      setSaving('lost');
+      await loadFromGitHub();
+      return false;
+    }
+    if(e.status === 401){
+      alert('Your editing session expired. Click "Enable editing" and confirm your passphrase again, then redo this change.');
+      editingEnabled = false; ghToken = null;
+      try{ localStorage.removeItem('gh_pat_school_scheduler'); }catch(err){}
+      setSaving('lost');
+      renderConnectBox();
+      return false;
+    }
+    alert('Could not save: ' + e.message);
     setSaving('lost');
     return false;
   }
@@ -1008,21 +1050,45 @@ document.getElementById('enableEditBtn').addEventListener('click', () => {
 });
 document.getElementById('cancelTokenBtn').addEventListener('click', () => {
   document.getElementById('tokenPanel').style.display = 'none';
+  document.getElementById('tokenFormError').style.display = 'none';
 });
-document.getElementById('tokenForm').addEventListener('submit', (e) => {
+document.getElementById('tokenForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   if(!isMaster){ document.getElementById('tokenPanel').style.display = 'none'; return; }
-  const val = document.getElementById('tokenInput').value.trim();
-  if(!val) return;
-  ghToken = val;
-  editingEnabled = true;
-  if(document.getElementById('rememberTokenChk').checked){
-    try{ localStorage.setItem('gh_pat_school_scheduler', val); }catch(e){}
+  const id = document.getElementById('editIdInput').value.trim();
+  const pass = document.getElementById('editPassInput').value;
+  const errEl = document.getElementById('tokenFormError');
+  errEl.style.display = 'none';
+  if(!id || !pass) return;
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  try{
+    const res = await fetch('/api/verify-master', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ id, passphrase: pass })
+    });
+    const json = await res.json();
+    if(!res.ok){
+      errEl.textContent = json.error || 'Could not verify — check your ID and passphrase.';
+      errEl.style.display = 'block';
+      return;
+    }
+    ghToken = json.editToken;
+    editingEnabled = true;
+    if(document.getElementById('rememberTokenChk').checked){
+      try{ localStorage.setItem('gh_pat_school_scheduler', json.editToken); }catch(err){}
+    }
+    document.getElementById('tokenPanel').style.display = 'none';
+    document.getElementById('editIdInput').value = '';
+    document.getElementById('editPassInput').value = '';
+    document.getElementById('addToggleBtn').disabled = false;
+    renderConnectBox();
+  }catch(err){
+    errEl.textContent = 'Could not reach the server — try again.';
+    errEl.style.display = 'block';
+  }finally{
+    submitBtn.disabled = false;
   }
-  document.getElementById('tokenPanel').style.display = 'none';
-  document.getElementById('tokenInput').value = '';
-  document.getElementById('addToggleBtn').disabled = false;
-  renderConnectBox();
 });
 
 /* ---------------- Boot ---------------- */

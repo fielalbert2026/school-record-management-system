@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<script>(function(){try{var t=localStorage.getItem('srms_theme')||'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Personalized School Record Management System</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,6 +25,22 @@
     --radius:10px;
     --shadow:0 1px 2px rgba(29,43,79,.06), 0 6px 18px rgba(29,43,79,.06);
   }
+  [data-theme="dark"]{
+    --ink:#EDE8DB;
+    --ink-soft:#D9D0BC;
+    --paper:#12141C;
+    --paper-line:#2B2F3D;
+    --card:#1B1E28;
+    --graphite:#D6D1C4;
+    --muted:#9A947F;
+    --highlighter:#E8B93E;
+    --highlighter-ink:#3A2900;
+    --pencil-red:#E2685A;
+    --sage:#84AC8E;
+    --sage-bg:#1E2B22;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.35);
+  }
+  #themeToggleBtn:hover{ transform:scale(1.08); }
   *{box-sizing:border-box;}
   body{
     margin:0;
@@ -233,15 +250,18 @@
   .ann-attrib b{color:var(--ink); font-weight:600;}
   .ann-actions{display:flex; gap:6px;}
   .ann-empty{color:var(--muted); font-size:13.5px; padding:18px 4px; text-align:center;}
+  .ann-toggle-btn{ display:block; width:100%; margin-top:4px; padding:10px; font-size:12.5px; border-color:var(--paper-line); color:var(--muted); background:var(--card); }
+  .ann-toggle-btn:hover{ color:var(--ink); border-color:var(--ink); }
 </style>
 </head>
 <body>
+<button id="themeToggleBtn" type="button" aria-label="Toggle dark mode" title="Toggle dark mode" style="position:fixed; top:14px; right:14px; z-index:9999; width:42px; height:42px; border-radius:50%; border:none; background:var(--ink); color:var(--paper); display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,.25), 0 6px 16px rgba(0,0,0,.2); padding:0; transition:transform .15s ease;">🌙</button>
 <div class="wrap">
 
   <div class="masthead">
     <p class="brand-eyebrow">Personal · Accessible · Yours</p>
-    <h1>School Record<br>Management System</h1>
-    <p class="tagline">A centralized school hub, providing selected students with convenient access to schedules and academic resources.</p>
+    <h1>Personalized School Record<br>Management System</h1>
+    <p class="tagline">One home base for the school year — your class schedule and your reviewers(SOON), synced and shared with everyone signed in.</p>
     <div class="id-strip"><span class="dot"></span> Sign in with your school ID — accessible from any device</div>
     <div class="session-strip" id="sessionStrip"></div>
   </div>
@@ -263,18 +283,19 @@
 
   <div id="tokenPanel" style="display:none;">
     <h2>Enable editing</h2>
-    <p>Paste a GitHub Personal Access Token with <b>Contents: Read and write</b> access to this one repo. It's kept only in this browser — never written into the site's code or the repo itself.</p>
-    <form id="tokenForm" class="actions">
-      <input id="tokenInput" type="password" placeholder="github_pat_…" style="flex:1; min-width:220px;" autocomplete="off">
+    <p>Confirm your school ID and passphrase to enable saving. No GitHub account or token needed — this just re-checks who you are, the same way signing in did.</p>
+    <form id="tokenForm" class="actions" style="flex-wrap:wrap;">
+      <input id="editIdInput" type="text" placeholder="School ID" style="flex:1; min-width:140px;" autocomplete="off">
+      <input id="editPassInput" type="password" placeholder="Passphrase" style="flex:1; min-width:140px;" autocomplete="off">
       <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--muted); font-weight:500;">
         <input type="checkbox" id="rememberTokenChk"> Remember on this device
       </label>
-      <button type="submit" class="btn-primary">Save token</button>
+      <button type="submit" class="btn-primary">Enable</button>
       <button type="button" class="btn-ghost" id="cancelTokenBtn">Cancel</button>
     </form>
+    <p id="tokenFormError" style="font-size:12.5px; color:var(--pencil-red); margin-top:10px; margin-bottom:0; display:none;"></p>
     <p style="font-size:12px; color:var(--muted); margin-top:12px; margin-bottom:0;">
-      Need one for the Scheduler too? The same token works for both — this repo only has one Contents scope.
-      Create it at github.com → Settings → Developer settings → Fine-grained tokens.
+      This unlocks editing everywhere (Scheduler, Flashcards, Announcements) — no need to repeat it per module.
     </p>
   </div>
 
@@ -318,10 +339,10 @@
     <a href="subject_scheduler_dashboard.html" class="mod-card live">
       <div class="mod-index">Module 01</div>
       <div class="mod-icon">🗓</div>
-      <h2 class="mod-title">Weekly Class Schedule</h2>
+      <h2 class="mod-title">Subject Scheduler</h2>
       <p class="mod-desc">Your weekly class schedule — professors, rooms, Classroom and Meet links, plus a live "today" view of what's now and next.</p>
       <div class="mod-foot">
-        <span class="mod-cta">See Schedule</span>
+        <span class="mod-cta">Open module</span>
       </div>
     </a>
 
@@ -348,22 +369,26 @@
   </div>
 
   <div class="note-panel">
-    <strong style="color: red;">DISCLAIMER:</strong>This web-based system is intended to centralize academic 
-    resources, organize school-related information, and help reduce 
-    confusion regarding certain academic matters. Access is strictly limited 
-    to selected individuals, and all resources are provided for guidance and 
-    learning purposes only—not as a means of cheating, plagiarism, or 
-    academic dishonesty. The owner does not tolerate cheating under any 
-    circumstances and expects all users to use the system responsibly and 
-    ethically. As this is a test project, the website may be placed under 
-    maintenance or temporarily restricted during Major Examinations to prevent misuse.
+    <strong>How this works.</strong> Each module is its own page that reads and writes a shared data file over the GitHub API — the Scheduler uses <code>Subject_Scheduler.xlsx</code> in this repo. Anyone with the link and a valid school ID can sign in and view it; edits from Master accounts sync for everyone, on any device.
   </div>
   </div>
 
-  <footer>Personalized School Record Management System · Centralized and Shared, module by module</footer>
+  <footer>Personalized School Record Management System · shared, module by module</footer>
 </div>
 
 <script>
+
+/* ---------------- Theme toggle (light/dark) ---------------- */
+function getTheme(){ try{ return localStorage.getItem('srms_theme') || 'light'; }catch(e){ return 'light'; } }
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme', t);
+  try{ localStorage.setItem('srms_theme', t); }catch(e){}
+  const btn = document.getElementById('themeToggleBtn');
+  if(btn) btn.textContent = t === 'dark' ? '☀️' : '🌙';
+}
+function toggleTheme(){ applyTheme(getTheme() === 'dark' ? 'light' : 'dark'); }
+applyTheme(getTheme());
+document.getElementById('themeToggleBtn').addEventListener('click', toggleTheme);
 /* ---------------- Sign-in ----------------
  * The ID is hashed (SHA-256 + a fixed, non-secret salt) before it's ever
  * compared, and only the hash is checked against Valid_Users. This keeps
@@ -485,8 +510,23 @@ function bytesToB64Local(buf){
   for(let i=0;i<bytes.length;i+=chunk) bin += String.fromCharCode.apply(null, bytes.subarray(i,i+chunk));
   return btoa(bin);
 }
+// Writes go through our own /api/save serverless function instead of
+// straight to GitHub — it holds the real GitHub credential server-side, so
+// no Master ever needs their own GitHub account or token. editToken is the
+// short-lived signed session issued by /api/verify-master at "Enable
+// editing" time, not a GitHub credential itself.
+async function saveViaProxy(editTok, contentB64, sha, message){
+  const res = await fetch('/api/save', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ editToken:editTok, contentB64, sha, message })
+  });
+  const json = await res.json();
+  if(!res.ok) throw Object.assign(new Error(json.error || `Save failed (${res.status})`), {status:res.status});
+  return json.sha;
+}
 // Best-effort standalone flush — used for Login/Logout, which happen
-// outside any other save flow. Silently does nothing if no token is
+// outside any other save flow. Silently does nothing if no edit session is
 // available yet (the event stays queued for the next real save instead).
 async function flushAuditNow(action, details){
   if(action) queueAudit(action, details);
@@ -494,27 +534,23 @@ async function flushAuditNow(action, details){
   const pending = drainAuditQueue();
   if(!pending.length) return;
   try{
-    const wb = cachedWorkbook || await fetchWorkbookFresh(true);
+    const wb = cachedWorkbook || await fetchWorkbookFresh();
     appendAuditToWorkbook(wb, pending);
     const wbout = XLSX.write(wb, {bookType:'xlsx', type:'array'});
-    const url = `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${encodeURIComponent(GH.path)}`;
-    const res = await fetch(url, {
-      method:'PUT',
-      headers:{Authorization:`Bearer ${annGhToken}`, 'Content-Type':'application/json'},
-      body:JSON.stringify({ message:`Audit: ${action || 'flush'} — ${new Date().toISOString()}`, content:bytesToB64Local(wbout), sha:cachedSha, branch:GH.branch })
-    });
-    const json = await res.json();
-    if(res.ok){ cachedSha = json.content.sha; }
-    // On failure (including 409), we just leave the entries dropped rather
-    // than risk looping — the next real save will still carry the rest of
-    // that session's queued events forward.
+    const newSha = await saveViaProxy(annGhToken, bytesToB64Local(wbout), cachedSha, `Audit: ${action || 'flush'}`);
+    cachedSha = newSha;
+    // On failure (including a stale-sha conflict), we just leave the
+    // entries dropped rather than risk looping — the next real save will
+    // still carry the rest of that session's queued events forward.
   }catch(e){ /* best-effort — no UI interruption for a background log flush */ }
 }
 
-async function fetchWorkbookFresh(authed){
+async function fetchWorkbookFresh(){
+  // Reads are always unauthenticated now — the repo is public, and no
+  // client-side credential exists anymore that GitHub would even recognize
+  // (annGhToken is our own signed session, not a GitHub token).
   const url = `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${encodeURIComponent(GH.path)}?ref=${GH.branch}`;
-  const headers = (authed && annGhToken) ? {Authorization:`Bearer ${annGhToken}`} : {};
-  const res = await fetch(url, {headers});
+  const res = await fetch(url);
   if(!res.ok) throw new Error(`Could not reach ${GH.path} (GitHub responded ${res.status}).`);
   const json = await res.json();
   const bytes = b64ToBytes(json.content.replace(/\n/g,''));
@@ -525,7 +561,7 @@ async function fetchWorkbookFresh(authed){
 }
 
 async function fetchValidUsers(){
-  const wb = await fetchWorkbookFresh(false);
+  const wb = await fetchWorkbookFresh();
   const ws = wb.Sheets['Valid_Users'];
   const aoa = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
   const headerIdx = aoa.findIndex(r => r[0] === 'Unique_Identifier');
@@ -592,7 +628,11 @@ function renderSignedIn(s){
       const saved = localStorage.getItem(ANN_TOKEN_KEY);
       if(saved){ annGhToken = saved; annEditingEnabled = true; }
     }catch(e){}
-    queueAudit('Login', session.role);
+    // If this Master already has a remembered token on this device, commit
+    // the login entry right away instead of waiting on their next save —
+    // closes the gap where a Master who only ever signs in/out (without
+    // editing anything) would otherwise never show up in the log.
+    flushAuditNow('Login', session.role).catch(() => {});
   }
   loadAnnouncements();
 }
@@ -700,6 +740,9 @@ function renderAnnControls(){
   }
 }
 
+let annExpanded = false;
+const ANN_VISIBLE_COUNT = 3;
+
 function renderAnnouncements(){
   const list = document.getElementById('annList');
   if(announcements.length === 0){
@@ -707,7 +750,9 @@ function renderAnnouncements(){
     return;
   }
   const sorted = sortAnnouncements(announcements);
-  list.innerHTML = sorted.map(a => {
+  const hasMore = sorted.length > ANN_VISIBLE_COUNT;
+  const visible = annExpanded ? sorted : sorted.slice(0, ANN_VISIBLE_COUNT);
+  const cardsHtml = visible.map(a => {
     const expired = isExpired(a);
     const badges = [
       a.pinned && !expired ? '<span class="ann-badge pinned">📌 Pinned</span>' : '',
@@ -731,12 +776,18 @@ function renderAnnouncements(){
       </div>
     </div>`;
   }).join('');
+  const toggleHtml = hasMore
+    ? `<button type="button" class="btn-ghost ann-toggle-btn" id="annToggleBtn">${annExpanded ? 'Show less ▲' : `Show ${sorted.length - ANN_VISIBLE_COUNT} more ▾`}</button>`
+    : '';
+  list.innerHTML = cardsHtml + toggleHtml;
+  const toggleBtn = document.getElementById('annToggleBtn');
+  if(toggleBtn) toggleBtn.addEventListener('click', () => { annExpanded = !annExpanded; renderAnnouncements(); });
 }
 
 async function loadAnnouncements(){
   const list = document.getElementById('annList');
   try{
-    const wb = cachedWorkbook || await fetchWorkbookFresh(annEditingEnabled);
+    const wb = cachedWorkbook || await fetchWorkbookFresh();
     announcements = parseAnnouncements(wb);
     renderAnnControls();
     renderAnnouncements();
@@ -827,11 +878,11 @@ document.getElementById('annSubmitBtn').addEventListener('click', async () => {
 
 async function persistAnnouncements(actionLabel, actionDetails){
   if(!isMaster || !annEditingEnabled || !annGhToken){
-    alert('This change was NOT saved — editing isn\'t enabled. Click "Enable editing" and enter your GitHub token, then redo this change.');
+    alert('This change was NOT saved — editing isn\'t enabled. Click "Enable editing" and confirm your passphrase, then redo this change.');
     return false;
   }
   try{
-    if(!cachedWorkbook) await fetchWorkbookFresh(true);
+    if(!cachedWorkbook) await fetchWorkbookFresh();
     const wb = cachedWorkbook;
     wb.Sheets[ANN_SHEET] = buildAnnouncementsSheet();
     if(!wb.SheetNames.includes(ANN_SHEET)) wb.SheetNames.push(ANN_SHEET);
@@ -840,55 +891,70 @@ async function persistAnnouncements(actionLabel, actionDetails){
     appendAuditToWorkbook(wb, pending);
     const wbout = XLSX.write(wb, {bookType:'xlsx', type:'array'});
     const contentB64 = bytesToB64Local(wbout);
-    const url = `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${encodeURIComponent(GH.path)}`;
-    const res = await fetch(url, {
-      method:'PUT',
-      headers:{Authorization:`Bearer ${annGhToken}`, 'Content-Type':'application/json'},
-      body:JSON.stringify({
-        message:`Update announcements — ${new Date().toISOString()}`,
-        content:contentB64,
-        sha:cachedSha,
-        branch:GH.branch
-      })
-    });
-    const json = await res.json();
-    if(!res.ok){
-      if(res.status === 409){
-        alert('Someone (or another tab/device) saved a newer version since you loaded this page. Reloading the latest version now — please redo your last change.');
-        await fetchWorkbookFresh(true);
-        announcements = parseAnnouncements(cachedWorkbook);
-        renderAnnouncements();
-        return false;
-      }
-      throw new Error(json.message || `GitHub responded with ${res.status}`);
-    }
-    cachedSha = json.content.sha;
+    cachedSha = await saveViaProxy(annGhToken, contentB64, cachedSha, 'Update announcements');
     return true;
   }catch(e){
-    alert('Could not save to GitHub: ' + e.message);
+    if(e.status === 409){
+      alert('Someone (or another tab/device) saved a newer version since you loaded this page. Reloading the latest version now — please redo your last change.');
+      await fetchWorkbookFresh();
+      announcements = parseAnnouncements(cachedWorkbook);
+      renderAnnouncements();
+      return false;
+    }
+    if(e.status === 401){
+      alert('Your editing session expired. Click "Enable editing" and confirm your passphrase again, then redo this change.');
+      annEditingEnabled = false; annGhToken = null;
+      try{ localStorage.removeItem(ANN_TOKEN_KEY); }catch(err){}
+      return false;
+    }
+    alert('Could not save: ' + e.message);
     return false;
   }
 }
 
 document.getElementById('cancelTokenBtn').addEventListener('click', () => {
   document.getElementById('tokenPanel').style.display = 'none';
+  document.getElementById('tokenFormError').style.display = 'none';
 });
 document.getElementById('tokenForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   if(!isMaster){ document.getElementById('tokenPanel').style.display = 'none'; return; }
-  const val = document.getElementById('tokenInput').value.trim();
-  if(!val) return;
-  annGhToken = val;
-  annEditingEnabled = true;
-  if(document.getElementById('rememberTokenChk').checked){
-    try{ localStorage.setItem(ANN_TOKEN_KEY, val); }catch(err){}
+  const id = document.getElementById('editIdInput').value.trim();
+  const pass = document.getElementById('editPassInput').value;
+  const errEl = document.getElementById('tokenFormError');
+  errEl.style.display = 'none';
+  if(!id || !pass) return;
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  try{
+    const res = await fetch('/api/verify-master', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ id, passphrase: pass })
+    });
+    const json = await res.json();
+    if(!res.ok){
+      errEl.textContent = json.error || 'Could not verify — check your ID and passphrase.';
+      errEl.style.display = 'block';
+      return;
+    }
+    annGhToken = json.editToken;
+    annEditingEnabled = true;
+    if(document.getElementById('rememberTokenChk').checked){
+      try{ localStorage.setItem(ANN_TOKEN_KEY, json.editToken); }catch(err){}
+    }
+    document.getElementById('tokenPanel').style.display = 'none';
+    document.getElementById('editIdInput').value = '';
+    document.getElementById('editPassInput').value = '';
+    // Re-fetch so we're working off the freshest sha before any edit.
+    try{ await fetchWorkbookFresh(); announcements = parseAnnouncements(cachedWorkbook); }catch(err){}
+    renderAnnControls();
+    renderAnnouncements();
+  }catch(err){
+    errEl.textContent = 'Could not reach the server — try again.';
+    errEl.style.display = 'block';
+  }finally{
+    submitBtn.disabled = false;
   }
-  document.getElementById('tokenPanel').style.display = 'none';
-  document.getElementById('tokenInput').value = '';
-  // Re-fetch with auth so we're working off the freshest sha before any edit.
-  try{ await fetchWorkbookFresh(true); announcements = parseAnnouncements(cachedWorkbook); }catch(err){}
-  renderAnnControls();
-  renderAnnouncements();
 });
 
 document.getElementById('signinForm').addEventListener('submit', async (e) => {
