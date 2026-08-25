@@ -1,5 +1,11 @@
 # Personalized School Record Management System
 
+> **Verbiage note (standing instruction):** wording/phrasing edits made
+> directly to this file or the HTML files, by hand, take priority — future
+> doc updates should preserve them rather than silently reverting to
+> whatever this file previously said, even if that edit happens without a
+> heads-up first.
+
 A shared dashboard for managing your school schedule. `Subject_Scheduler.xlsx`
 lives in this GitHub repo and acts as the database — the dashboard loads it
 automatically over the GitHub API, no file picker required, and (once
@@ -7,24 +13,25 @@ editing is enabled) writes changes straight back to it as commits. Anyone
 with the site link and a valid school ID can sign in and view it, from any
 device.
 
-# Verbiage needs to Preserve
-
-- Always check phrases and verbiage updates on all html files as I make changes on those without notice
-- I want to overwrite all and keep changes using my own modified one
-
 ## Structure
 
 ```
 index.html                         Landing page / module hub
 subject_scheduler_dashboard.html   Module 01 — Subject Scheduler
 flashcards.html                    Module 02 — Flashcards
-audit_log.html                     Module 03 — Audit Log (Master only)
+audit_log.html                     Module 03 — Audit Log (owner only)
 Subject_Scheduler.xlsx             All app data (the "database")
+api/verify-master.js               Server-side ID+passphrase check → signed edit session
+api/save.js                        Server-side commit to GitHub, using the signed session
+package.json                       Declares the xlsx dependency the two functions above need
 ```
 
-Keep all five files in the same repo — the hub links to the other pages by
-relative path, and every page is hardcoded to read/write
-`fielalbert2026/school_record_management_system` on branch `main`.
+Keep everything in the same repo — the hub links to the other pages by
+relative path, every page is hardcoded to read/write
+`fielalbert2026/school_record_management_system` on branch `main`, and the
+two `api/*.js` files are what make editing work (see "How this actually
+works" below) — this repo needs to be deployed on Vercel, not just GitHub
+Pages, for saving to function.
 
 ## Signing in
 
@@ -48,9 +55,11 @@ The hub (`index.html`) now asks for a school ID before showing the modules.
   "requires targeted computation," it doesn't make the data theoretically
   secret. The Designation column (`Guest`/`Master`) is left in plain text
   since it's low-sensitivity — it's genuinely just two possible values.
-* **The actual security boundary** is unchanged: writing to the file still
-  requires a GitHub Personal Access Token, entered separately, kept only in
-  that browser, and never touched by the sign-in step.
+* **The actual security boundary changed for the better here:** writing to
+  the file now requires re-confirming your passphrase through
+  `/api/verify-master`, which independently re-derives your identity
+  server-side — it doesn't just trust whatever the sign-in step already
+  decided. See "How this actually works" further down for the full picture.
 * Sign-in state lives in `sessionStorage` (cleared when the tab closes) — it
   isn't a cookie or a token sent to any server, so there's nothing here that
   functions like a session token that could be intercepted or replayed
@@ -114,48 +123,87 @@ passphrase, hand it to that person once, and store only its verifier.
 ## How it works
 
 * **Reading is automatic.** On page load, the dashboard fetches
-`Subject\_Scheduler.xlsx` from this repo via the GitHub Contents API and
-parses it — works in any modern browser, no setup needed to just view your
-schedule.
-* **Editing needs a token.** Add/edit/delete are disabled until you click
-**"Enable editing"** and paste a GitHub Personal Access Token. Every save
-from then on is a real commit to this repo.
+`Subject\_Scheduler.xlsx` from this repo via the public GitHub Contents API
+and parses it — works in any modern browser, no setup needed to just view
+your schedule.
+* **Editing needs your passphrase, not a GitHub token.** Click **"Enable
+editing"** and confirm your school ID + passphrase — the same credentials
+you already sign in with. There is no GitHub account, token, or repo
+collaborator step for any Master, ever. Every save is still a real commit
+to this repo; it just happens through a small server-side proxy instead of
+the browser talking to GitHub directly.
 
-### Creating a token
+### How this actually works (and why it changed)
 
-1. On GitHub: **Settings → Developer settings → Personal access tokens →
-Fine-grained tokens → Generate new token.**
-2. **Repository access:** select only this repository (`school\_record\_management\_system`) — not all repos.
-3. **Permissions:** under Repository permissions, set **Contents** to
-**Read and write**. Leave everything else as No access.
-4. Set an expiration (90 days is reasonable — you'll just generate a new one
-when it lapses).
-5. Copy the token and paste it into the dashboard's "Enable editing" prompt.
+Earlier versions of this app had each Master paste their own GitHub
+Personal Access Token, and every browser committed to GitHub directly. That
+turned out to have a real gap: being a `Master` in the app and having
+**write access to this GitHub repo** are two completely different things —
+a Master could see every editing button and still have every save silently
+rejected by GitHub, because they'd never been added as a repo collaborator.
 
-**Keep this in mind:** the token is never written into the site's code or
-committed to the repo — it only lives in your browser (in memory, or in
-`localStorage` on that device if you check "Remember on this device"). Because
-this repo is public, anyone could otherwise read a hardcoded token straight
-out of the page source, which is exactly why it's entered per-browser instead.
-Scoping the token to just this one repo with only Contents access limits what
-someone could do with it even if it ever leaked.
+Now, **one single GitHub credential lives server-side** (as a Vercel
+environment variable, never shipped to any browser), and two small
+serverless functions stand between the app and GitHub:
+
+* **`/api/verify-master`** — re-checks a submitted ID + passphrase against
+  `Valid_Users` using the *exact same* lookup-hash, PBKDF2, and AES-GCM
+  scheme `index.html` already used client-side (ported to Node's built-in
+  `crypto` module, not a separate re-implementation prone to drifting out
+  of sync). On success, it issues a short-lived **signed edit session**
+  (12 hours) — a token this app invented and controls, not a GitHub
+  credential, so it's useless anywhere except this app's own `/api/save`.
+* **`/api/save`** — checks that signed session is valid and not expired,
+  then commits to GitHub using the one server-held credential. No browser
+  ever sees that credential.
+
+**What this means in practice:**
+* Any Master can edit — the moment they're added to `Valid_Users`, that's
+  the whole setup. No GitHub account, no collaborator invite, no per-person
+  token.
+* GitHub's own commit history and the Audit Log both correctly attribute
+  each save to the real person who made it, decrypted server-side from
+  their passphrase the same way the browser already does.
+* **Vercel is required for editing to work** — the two `/api/*` functions
+  only run on a platform that executes serverless functions. If you (or
+  anyone) opens this app via GitHub Pages or straight from a local file,
+  *reading* still works fine (that's a direct, unauthenticated call to
+  GitHub's public API), but "Enable editing" will fail, since GitHub Pages
+  serves static files only and has nowhere to run `/api/verify-master`.
+
+### One-time server setup (only the repo owner needs to do this)
+
+In the Vercel project → **Settings → Environment Variables**, add:
+
+| Name | Value |
+|---|---|
+| `GITHUB_TOKEN` | A GitHub fine-grained Personal Access Token — **your own account only**, scoped to just this repo, permission `Contents: Read and write`. This is the one and only GitHub credential the whole system uses. |
+| `SESSION_SECRET` | Any long random string (e.g. generate one with `openssl rand -hex 32`, or any password generator producing 40+ random characters). Used to sign edit sessions — treat it like a password; if it ever leaks, rotate it and every active edit session is instantly invalidated. |
+
+Redeploy after adding these (Vercel prompts for this automatically, or
+trigger it with an empty commit). That's the entire setup — no other Master
+needs to touch this section, ever.
+
+**Keeping `GITHUB_TOKEN` fresh:** fine-grained tokens expire (90 days is
+typical). When it does, generate a new one the same way and update the
+Vercel environment variable — nothing else needs to change.
 
 ### Multiple devices
 
-Since the schedule now lives on GitHub instead of a local file, you can open
-the dashboard from any device and see the same data. If you edit from two
-tabs/devices at nearly the same time, the second save will detect the
-conflict, reload the latest version automatically, and ask you to redo your
-last change — this avoids silently overwriting someone else's edit (even if
-that "someone else" is just your other tab).
+Since the schedule lives on GitHub, you can open the dashboard from any
+device and see the same data. If two people (or two tabs) save at nearly
+the same moment, the second save detects the conflict, reloads the latest
+version automatically, and asks that person to redo their change — this
+avoids silently overwriting someone else's edit.
 
 ## Opening it directly (without a host)
 
-Just open `index.html` in a browser — reading works immediately since it
-talks to the public GitHub API directly; no server or local setup needed.
-This is mainly useful for testing changes before pushing them; day to day,
-share the hosted URL (GitHub Pages or Vercel) so everyone signs in from the
-same place instead of a local copy.
+Opening `index.html` straight from a local file still works for **reading**
+— it talks to the public GitHub API directly, no server needed to just view
+the schedule. **Editing won't work this way**, since "Enable editing" needs
+the `/api/*` functions, which only run when the site is actually deployed
+on Vercel. For day-to-day use (and for editing to work at all), share the
+Vercel-hosted URL.
 
 ## Publishing / updating this repo
 
@@ -177,18 +225,31 @@ The hub now has an Announcements section, above the module grid. Anyone
 signed in can read it; only Master accounts can post, edit, or delete.
 
 * Stored as its own sheet (`Announcements`) inside `Subject_Scheduler.xlsx`,
-  alongside the schedule and `Valid_Users` — same file, same GitHub PAT flow
-  the Scheduler module already uses. Entering the token in either page
+  alongside the schedule and `Valid_Users` — same file, same editing flow
+  the Scheduler module already uses. Enabling editing on either page
   ("Remember on this device") makes it available in both, since they share
   the same `localStorage` key.
+* **Only the 3 most relevant announcements show by default** (pinned and
+  active ones sort first) — a **"Show N more"** button expands the rest,
+  and collapses back down with "Show less." This is purely a display
+  preference, kept in memory only; it resets each time the page loads.
 * Each entry stores `ID, Title, Message, Author, CreatedAt, UpdatedAt,
   ExpiresAt, Pinned`.
   * `CreatedAt` is set once and never changes. `Author`/`UpdatedAt` reflect
     whoever last saved that entry — that's what the "updated by …" line
     on a card means when it appears.
-  * `ExpiresAt` is optional. Past that date the card gets an "Expired"
-    badge, dims, and sorts to the bottom of the list — it isn't deleted or
-    hidden, so a Master can still find and remove or extend it.
+  * `ExpiresAt` now stores a **date and time**, not just a date — the
+    add/edit form uses a datetime picker, so an announcement can expire at
+    an exact moment instead of always at midnight.
+  * Past that moment the card gets an "Expired" badge and sorts to the
+    bottom of the list, but stays visible for a **2-day grace period**
+    after expiring — long enough that people who check the dashboard every
+    few days don't miss something that just expired. After those 2 days,
+    the card stops appearing on the dashboard entirely. This is a *display*
+    filter only — the row isn't automatically deleted from the sheet, so a
+    Master can still find it and delete it manually if they want it gone
+    from the data too, and nothing is lost if the 2-day window was wrong
+    for a given case.
   * `Pinned` puts an entry at the top of the list (above other active
     entries, but still below anything expired — an expired pin doesn't
     outrank a live announcement). Pinned cards get a highlighted border
@@ -200,24 +261,57 @@ signed in can read it; only Master accounts can post, edit, or delete.
   sheet ever gets columns reordered or extra columns added by hand, sign-in
   and rendering still work as long as the header names above are intact.
 
+## Reminders
+
+Also on the hub, right below Announcements. Same visibility rule as
+everything else here: anyone signed in can see them, only Masters can add,
+edit, or delete.
+
+* Each reminder is `Subject, DateAdded, ExpiresAt, Importance` — `DateAdded`
+  is set automatically when a Master creates it (not user-editable);
+  `ExpiresAt` is a required date+time; `Importance` is one of
+  **Low / Medium / High**.
+* **Color-coded by importance**, not by anything else: Low is gray, Medium
+  is yellow, High is red — the same badge appears on every reminder card so
+  it's scannable at a glance without reading the text.
+* Sorted by importance first (High, then Medium, then Low), and within the
+  same importance, by soonest expiration first — so the thing that's both
+  most urgent and soonest-due always floats to the top.
+* Unlike Announcements, reminders **don't auto-hide after expiring** — an
+  expired reminder just shows "Expired [date]" instead of "Expires [date]"
+  and stays in the list until a Master deletes it. This was a deliberate
+  choice: a reminder past its date is often still worth acting on or at
+  least noticing, where an announcement past its date usually isn't.
+* The Subject field suggests existing subject names from the Scheduler's
+  own sheet as you type (via the browser's native autocomplete), but it's
+  free text — nothing stops you from typing something that isn't an actual
+  scheduled subject.
+* Stored as its own sheet (`Reminders`) in `Subject_Scheduler.xlsx`, saved
+  in the **same commit** as any Announcement change (and vice versa) — both
+  live on the hub and share one save function, so editing either one writes
+  both sheets in a single GitHub commit rather than two separate ones.
+* Every add/edit/delete logs to the Audit Log, same as everywhere else.
+
 ## Master editing — what changed
+
 
 Two bugs are now fixed on the Scheduler module:
 
 1. `persistToFile()` used to fail **silently** if editing wasn't enabled —
    the form would close as if the save worked, but nothing reached GitHub,
    and the change vanished on next reload with zero explanation. It now
-   alerts you immediately and reopens the token prompt.
+   alerts you immediately and reopens the "Enable editing" prompt.
 2. The row-level **Edit**/**Delete** buttons were gated only on being a
    Master, not on editing actually being enabled — so a Master without an
-   active token could open the edit form, "save," and lose the change with
-   no warning. They now check for an active token first and prompt for one
-   if it's missing, and a failed save rolls the in-memory change back
-   instead of leaving the UI out of sync with what's actually on GitHub.
+   active edit session could open the edit form, "save," and lose the
+   change with no warning. They now check for an active session first and
+   prompt for one if it's missing, and a failed save rolls the in-memory
+   change back instead of leaving the UI out of sync with what's actually
+   on GitHub.
 
 None of this touches the actual security boundary — a Master still needs a
-valid GitHub PAT to write anything, same as before. What changed is that
-Master actions no longer fail quietly.
+valid, unexpired edit session (from re-confirming their passphrase) to write
+anything. What changed is that Master actions no longer fail quietly.
 
 ## Adding a new Master user
 
@@ -282,26 +376,30 @@ to a single account — not "Masters in general."
 * **What gets logged:** every Master mutation — Add/Edit/Delete Subject,
   Add/Edit/Delete Announcement, Add/Edit/Delete Flashcard — plus Master
   Login/Logout.
-* **How it's written, and why login/logout are "best-effort":** a static
-  site with no backend can only write to GitHub using a Master's own token,
-  and only at the moment they're actively saving something. So:
+* **How it's written, and why login/logout are still "best-effort":** even
+  with a server-side proxy now doing the actual GitHub write, that proxy
+  only runs when a Master has an **active edit session** (from confirming
+  their passphrase) — signing in alone doesn't create one, by design, so
+  that "signed in" and "editing enabled" stay two distinct, intentional
+  states rather than editing being silently always-on. So:
   * Every CRUD action rides along in the **same commit** as the save that
-    was already happening — no extra GitHub calls.
+    was already happening — no extra requests.
   * Login and logout queue locally (in `sessionStorage`) the instant they
     happen, then get flushed into the log the next time that Master's
     browser makes any real save — either a scheduler/announcement/flashcard
-    change, or logout itself if a token is already active by then.
-  * If a Master signs in, browses, and signs out **without ever entering a
-    token that session**, that login/logout simply never reaches GitHub —
-    there's no credential available that could write it. This is a real
-    gap, not a bug to be fixed later; closing it fully would need a backend
-    with its own service credential, which this project intentionally
-    doesn't have.
-  * **Guest activity is never logged, at all.** Guests never hold a GitHub
-    token by design (that's what keeps them view-only), so there's no
-    credential available to write a Guest's login anywhere. If tracking
-    Guest access ever becomes a real requirement, that's a "add a small
-    backend" conversation, not a static-site one.
+    change, or logout itself if editing is already enabled by then.
+  * If a Master signs in, browses, and signs out **without ever clicking
+    "Enable editing" that session**, that login/logout simply never gets
+    committed — there's no active edit session that could write it. This is
+    an intentional trade-off (not forcing every sign-in through the
+    passphrase-verify round-trip just to log it), not a technical
+    limitation anymore — it could be closed by silently requesting a write
+    session at every login instead of waiting for "Enable editing," if that
+    trade-off is ever worth making.
+  * **Guest activity is never logged, at all.** Guests have no passphrase
+    or write session in this system by design (that's what keeps them
+    view-only), so there's nothing that could authorize writing a Guest's
+    login anywhere.
 
 ## Flashcards
 
@@ -310,10 +408,10 @@ them.
 
 * **Stored as its own sheet** (`Flashcards`) in `Subject_Scheduler.xlsx` —
   columns `ID, Deck, Type, Front, Back, CreatedBy, CreatedAt, UpdatedAt`.
-  Same GitHub-commit flow as the Scheduler and Announcements: Masters need
-  the same token (shared via the same `localStorage` key, so entering it on
-  one module unlocks editing on all of them) and every add/edit/delete is
-  logged to the Audit Log in the same commit.
+  Same commit flow as the Scheduler and Announcements: Masters need the
+  same edit session (shared via the same `localStorage` key, so enabling
+  editing on one module unlocks it on all of them) and every add/edit/delete
+  is logged to the Audit Log in the same commit.
 * **Two card types, one schema:**
   * **Front / Back** — the classic case. Front shows first; "Show Answer"
     reveals Back.
@@ -359,6 +457,21 @@ them.
   moment you reshuffle, switch decks, or reload the page. If everything is
   currently snoozed, the card area shows how many are waiting and roughly
   when the next one is due instead of an empty screen.
+
+## Dark Mode
+
+A small circular toggle (🌙 / ☀️) sits fixed in the top-right corner on every
+page.
+
+* Preference is saved to `localStorage` and applies instantly on every page
+  — no flash of the wrong theme on load, since a tiny inline script sets it
+  before the page even starts rendering.
+* The Scheduler's "Today" panel and live countdown are a fixed dark accent
+  block in both themes on purpose — it's a deliberate spotlight, not a
+  themeable surface, so it doesn't invert to light-on-light in dark mode.
+* Everything else — cards, forms, tables, buttons — is built from the same
+  CSS variables in both themes, so this needed no page-specific redesign,
+  just a second set of values for the same names.
 
 ## Modules
 

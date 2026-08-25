@@ -283,7 +283,7 @@
 
   <div id="tokenPanel" style="display:none;">
     <h2>Enable editing</h2>
-    <p>Confirm your school ID and passphrase to enable saving. No GitHub account or token needed — this just re-checks who you are, the same way signing in did.</p>
+    <p>Confirm your school ID and passphrase to enable saving.</p>
     <form id="tokenForm" class="actions" style="flex-wrap:wrap;">
       <input id="editIdInput" type="text" placeholder="School ID" style="flex:1; min-width:140px;" autocomplete="off">
       <input id="editPassInput" type="password" placeholder="Passphrase" style="flex:1; min-width:140px;" autocomplete="off">
@@ -564,7 +564,7 @@ async function fetchWorkbookFresh(){
   // (annGhToken is our own signed session, not a GitHub token).
   const url = `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${encodeURIComponent(GH.path)}?ref=${GH.branch}`;
   const res = await fetch(url);
-  if(!res.ok) throw new Error(`Could not reach ${GH.path} (GitHub responded ${res.status}).`);
+  if(!res.ok) throw new Error(`Couldn't load right now (${res.status}). Please try again in a moment.`);
   const json = await res.json();
   const bytes = b64ToBytes(json.content.replace(/\n/g,''));
   const wb = XLSX.read(bytes.buffer, {type:'array'});

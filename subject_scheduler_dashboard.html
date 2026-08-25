@@ -307,8 +307,8 @@
   </div>
 
   <div id="connectPanel">
-    <h2 id="connectPanelTitle">Loading your schedule from GitHub…</h2>
-    <p id="connectPanelText">This dashboard reads Subject_Scheduler.xlsx straight from your GitHub repo — no file picker needed. It works read-only right away; enable editing below to save changes back to GitHub.</p>
+    <h2 id="connectPanelTitle">Loading your schedule…</h2>
+    <p id="connectPanelText">This works read-only right away; enable editing below to save changes.</p>
     <div class="actions" id="connectActions" style="display:none;">
       <button class="btn-primary" id="enableEditBtn">Enable editing</button>
       <button class="btn-ghost" id="retryLoadBtn">Retry load</button>
@@ -317,7 +317,7 @@
 
   <div id="tokenPanel" style="display:none;">
     <h2>Enable editing</h2>
-    <p>Confirm your school ID and passphrase to enable saving. No GitHub account or token needed — this just re-checks who you are, the same way signing in did.</p>
+    <p>Confirm your school ID and passphrase to enable saving.</p>
     <form id="tokenForm" class="actions" style="flex-wrap:wrap;">
       <input id="editIdInput" type="text" placeholder="School ID" style="flex:1; min-width:140px;" autocomplete="off">
       <input id="editPassInput" type="password" placeholder="Passphrase" style="flex:1; min-width:140px;" autocomplete="off">
@@ -387,10 +387,10 @@
   </div>
 
   <div class="tabs" id="tabs"></div>
-  <div class="day-panel" id="dayPanel"><div class="empty">Loading your schedule from GitHub…</div></div>
+  <div class="day-panel" id="dayPanel"><div class="empty">Loading your schedule…</div></div>
   </div>
 
-  <footer>Reads and writes directly to your connected .xlsx file · matches the Subject_Scheduler.xlsx column layout · part of the Personalized School Record Management System</footer>
+  <footer>Personalized School Record Management System · Subject Scheduler</footer>
 </div>
 
 <script>
@@ -544,10 +544,10 @@ function renderConnectBox(){
   box.innerHTML = `
     <div class="file-chip">
       <span class="dot" id="saveDot"></span>
-      <span class="name">${GH.owner}/${GH.repo}</span>
+      <span class="name">Live schedule</span>
       <span class="status" id="saveStatus">${editingEnabled ? 'editing enabled' : 'read-only'}</span>
     </div>
-    <button class="btn-ghost" id="reloadBtn">Reload from GitHub</button>
+    <button class="btn-ghost" id="reloadBtn">Refresh</button>
     ${canEdit && !editingEnabled ? '<button class="btn-primary" id="headerEnableEditBtn">Enable editing</button>' : ''}
     ${canEdit && editingEnabled ? '<button class="btn-ghost" id="lockEditBtn">Lock editing</button>' : ''}`;
   document.getElementById('reloadBtn').addEventListener('click', loadFromGitHub);
@@ -565,9 +565,9 @@ function setSaving(state){
   if(!dot || !status) return;
   dot.classList.remove('saving');
   dot.style.background = '';
-  if(state === 'saving'){ dot.classList.add('saving'); status.textContent = 'saving to GitHub…'; }
+  if(state === 'saving'){ dot.classList.add('saving'); status.textContent = 'saving…'; }
   else if(state === 'lost'){ dot.style.background = 'var(--pencil-red)'; status.textContent = 'save failed — see message'; }
-  else if(state === 'saved'){ status.textContent = 'saved to GitHub'; }
+  else if(state === 'saved'){ status.textContent = 'saved'; }
 }
 
 function freshWorkbook(){
@@ -632,15 +632,15 @@ async function saveViaProxy(editTok, contentB64, sha, message){
 async function loadFromGitHub(){
   const panel = document.getElementById('connectPanel');
   panel.style.display = 'block';
-  document.getElementById('connectPanelTitle').textContent = 'Loading your schedule from GitHub…';
-  document.getElementById('connectPanelText').textContent = `Fetching ${GH.path} from ${GH.owner}/${GH.repo}.`;
+  document.getElementById('connectPanelTitle').textContent = 'Loading your schedule…';
+  document.getElementById('connectPanelText').textContent = 'Fetching the latest schedule.';
   document.getElementById('connectActions').style.display = 'none';
   try{
     const url = `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${encodeURIComponent(GH.path)}?ref=${GH.branch}`;
     const res = await fetch(url);
     if(!res.ok){
-      if(res.status === 404) throw new Error(`${GH.path} not found in ${GH.owner}/${GH.repo} on branch ${GH.branch}.`);
-      throw new Error(`GitHub responded with ${res.status}.`);
+      if(res.status === 404) throw new Error(`Couldn't find the schedule data. Please contact the site owner.`);
+      throw new Error(`Couldn't load right now (${res.status}). Please try again in a moment.`);
     }
     const json = await res.json();
     currentSha = json.sha;
@@ -903,7 +903,7 @@ function renderTabs(){
 
 function renderDayPanel(){
   const panel = document.getElementById('dayPanel');
-  if(!connected){ panel.innerHTML = '<div class="empty">Loading your schedule from GitHub…</div>'; return; }
+  if(!connected){ panel.innerHTML = '<div class="empty">Loading your schedule…</div>'; return; }
   const list = subjects.filter(s => s.day === activeDay).sort((a,b) => timeToMinutes(a.start)-timeToMinutes(b.start));
   if(list.length === 0){ panel.innerHTML = `<div class="empty">No classes added for ${activeDay} yet.</div>`; return; }
   const now = new Date();

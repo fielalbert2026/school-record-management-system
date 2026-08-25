@@ -125,7 +125,7 @@
 
   <div id="connectPanel">
     <h2 id="connectPanelTitle">Loading decks…</h2>
-    <p id="connectPanelText">Fetching flashcards from GitHub.</p>
+    <p id="connectPanelText">Fetching flashcards.</p>
     <div class="actions" id="connectActions" style="display:none;">
       <button class="btn-ghost" id="retryLoadBtn">Retry load</button>
     </div>
@@ -133,7 +133,7 @@
 
   <div id="tokenPanel" style="display:none;">
     <h2>Enable editing</h2>
-    <p>Confirm your school ID and passphrase to enable saving. No GitHub account or token needed — this just re-checks who you are, the same way signing in did. If you've already enabled editing on another module, it's remembered here too.</p>
+    <p>Confirm your school ID and passphrase to enable saving. If you've already enabled editing on another module, it's remembered here too.</p>
     <form id="tokenForm" class="actions" style="flex-wrap:wrap;">
       <input id="editIdInput" type="text" placeholder="School ID" style="flex:1; min-width:140px;" autocomplete="off">
       <input id="editPassInput" type="password" placeholder="Passphrase" style="flex:1; min-width:140px;" autocomplete="off">
@@ -375,8 +375,8 @@ async function loadFromGitHub(){
     const url = `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${encodeURIComponent(GH.path)}?ref=${GH.branch}`;
     const res = await fetch(url);
     if(!res.ok){
-      if(res.status === 404) throw new Error(`${GH.path} not found in ${GH.owner}/${GH.repo} on branch ${GH.branch}.`);
-      throw new Error(`GitHub responded with ${res.status}.`);
+      if(res.status === 404) throw new Error(`Couldn't find the flashcards data. Please contact the site owner.`);
+      throw new Error(`Couldn't load right now (${res.status}). Please try again in a moment.`);
     }
     const json = await res.json();
     currentSha = json.sha;
