@@ -93,13 +93,31 @@
   #cardFormError{color:var(--pencil-red); font-size:13px; display:none; margin-bottom:10px;}
   .form-actions{display:flex; justify-content:flex-end; gap:10px;}
 
-  .card-list{display:flex; flex-direction:column; gap:0;}
+  .card-list{display:flex; flex-direction:column; gap:0; padding:0 14px 4px;}
   .card-row{ display:grid; grid-template-columns:1fr auto; gap:10px; align-items:center; padding:12px 4px; border-bottom:1px dashed var(--paper-line); }
   .card-row:last-child{border-bottom:none;}
   .card-row .deck-pill{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--sage); background:var(--sage-bg); padding:2px 6px; border-radius:4px; margin-right:6px; }
   .card-row .front-snip{font-size:13.5px; color:var(--ink);}
-  .row-actions{display:flex; gap:4px;}
+  .card-row label{display:flex; align-items:center; gap:10px; overflow:hidden; cursor:pointer; font-size:inherit; font-weight:inherit; text-transform:none; letter-spacing:normal; color:inherit;}
+  .row-actions{display:flex; gap:4px; flex-shrink:0;}
   .row-actions button{padding:5px 8px; font-size:12px; border-radius:5px;}
+  .note{font-size:12px; color:var(--muted);}
+
+  /* Manage cards — collapsible deck groups + bulk select */
+  .manage-toolbar{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:12px;}
+  #manageSearch{flex:1; min-width:180px;}
+  .bulk-bar{display:none; align-items:center; gap:10px; background:var(--sage-bg); border:1px solid var(--sage); border-radius:8px; padding:7px 12px;}
+  .bulk-bar .note{color:var(--ink);}
+  .bulk-bar button{padding:6px 12px; font-size:12.5px;}
+  .btn-delete-selected{border-color:var(--pencil-red); color:var(--pencil-red); background:#fff;}
+  [data-theme="dark"] .btn-delete-selected{background:transparent;}
+  .deck-group{ background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius); margin-bottom:10px; box-shadow:var(--shadow); overflow:hidden; }
+  .deck-group summary{ list-style:none; cursor:pointer; padding:12px 14px; display:flex; align-items:center; gap:10px; }
+  .deck-group summary::-webkit-details-marker{display:none;}
+  .deck-group summary::before{content:'▸'; display:inline-block; color:var(--muted); font-size:11px; transition:transform .15s ease; width:10px;}
+  .deck-group[open] summary::before{transform:rotate(90deg);}
+  .deck-select-all{margin:0;}
+  .deck-group summary .deck-pill{margin-right:0;}
 
   footer{text-align:center; color:#A79F8C; font-size:12px; margin-top:36px;}
 </style>
@@ -195,6 +213,14 @@
       </div>
     </div>
 
+    <div class="manage-toolbar" id="manageToolbar" style="display:none;">
+      <input id="manageSearch" type="text" placeholder="Search cards by deck, front, or back…">
+      <div class="bulk-bar" id="bulkActions">
+        <span class="note" id="selectedCount">0 selected</span>
+        <button class="btn-ghost" id="clearSelectionBtn" type="button">Clear</button>
+        <button class="btn-delete-selected" id="deleteSelectedBtn" type="button">Delete selected</button>
+      </div>
+    </div>
     <div id="masterListWrap"></div>
   </div>
 
@@ -704,20 +730,135 @@ async function deleteCard(id){
 }
 window.deleteCard = deleteCard;
 
+/* ---------------- Manage cards: categorized + multi-select delete ---------------- */
+let selectedCardIds = new Set();
+let manageSearchQuery = '';
+let openDecks = null; // null = default (all open); otherwise a Set of deck names currently expanded
+
+function cardMatchesSearch(c, q){
+  if(!q) return true;
+  return (c.deck+' '+c.front+' '+c.back).toLowerCase().includes(q);
+}
+
 function renderMasterList(){
   const wrap = document.getElementById('masterListWrap');
-  if(!isMaster){ wrap.innerHTML = ''; return; }
-  if(cards.length === 0){ wrap.innerHTML = '<div class="empty">No cards yet — add your first one above.</div>'; return; }
-  const sorted = cards.slice().sort((a,b) => (a.deck||'').localeCompare(b.deck||''));
-  wrap.innerHTML = `<div class="card-list">${sorted.map(c => `
-    <div class="card-row">
-      <div class="front-snip"><span class="deck-pill">${escapeHtml(c.deck)}</span>${escapeHtml(c.type==='cloze' ? c.front.replace(CLOZE_MARKER,'⬚') : c.front).slice(0,90)}</div>
-      <div class="row-actions">
-        <button class="btn-ghost" onclick="startCardEdit('${c.id}')">Edit</button>
-        <button class="btn-text" onclick="deleteCard('${c.id}')" style="color:var(--pencil-red);">Delete</button>
-      </div>
-    </div>`).join('')}</div>`;
+  const toolbar = document.getElementById('manageToolbar');
+  if(!isMaster){ wrap.innerHTML = ''; toolbar.style.display = 'none'; return; }
+  if(cards.length === 0){
+    wrap.innerHTML = '<div class="empty">No cards yet — add your first one above.</div>';
+    toolbar.style.display = 'none';
+    updateBulkBar();
+    return;
+  }
+  toolbar.style.display = 'flex';
+
+  // Drop any selected ids that no longer exist (e.g. after a delete elsewhere).
+  const liveIds = new Set(cards.map(c => c.id));
+  selectedCardIds.forEach(id => { if(!liveIds.has(id)) selectedCardIds.delete(id); });
+
+  const q = manageSearchQuery.trim().toLowerCase();
+  const filtered = cards.filter(c => cardMatchesSearch(c, q));
+
+  if(filtered.length === 0){
+    wrap.innerHTML = '<div class="empty">No cards match your search.</div>';
+    updateBulkBar();
+    return;
+  }
+
+  const decks = [...new Set(filtered.map(c => c.deck))].sort((a,b) => a.localeCompare(b));
+  wrap.innerHTML = decks.map(deck => {
+    const deckCards = filtered.filter(c => c.deck === deck).sort((a,b) => (a.front||'').localeCompare(b.front||''));
+    const allSelected = deckCards.every(c => selectedCardIds.has(c.id));
+    // Expand a deck by default; once the user has explicitly collapsed/expanded any deck, respect that.
+    const isOpen = openDecks ? openDecks.has(deck) : true;
+    return `<details class="deck-group" data-deck="${escapeHtml(deck)}" ${isOpen ? 'open' : ''}>
+      <summary>
+        <input type="checkbox" class="deck-select-all" data-deck-select="${escapeHtml(deck)}" ${allSelected ? 'checked' : ''} onclick="event.stopPropagation()">
+        <span class="deck-pill">${escapeHtml(deck)}</span>
+        <span class="note">${deckCards.length} card${deckCards.length===1?'':'s'}</span>
+      </summary>
+      <div class="card-list">${deckCards.map(c => `
+        <div class="card-row">
+          <label>
+            <input type="checkbox" class="card-select" data-id="${c.id}" ${selectedCardIds.has(c.id) ? 'checked' : ''}>
+            <span class="front-snip">${escapeHtml(c.type==='cloze' ? c.front.replace(CLOZE_MARKER,'⬚') : c.front).slice(0,90)}</span>
+          </label>
+          <div class="row-actions">
+            <button class="btn-ghost" onclick="startCardEdit('${c.id}')">Edit</button>
+            <button class="btn-text" onclick="deleteCard('${c.id}')" style="color:var(--pencil-red);">Delete</button>
+          </div>
+        </div>`).join('')}</div>
+    </details>`;
+  }).join('');
+
+  // Remember which decks are open/closed across re-renders (e.g. after checking a box).
+  wrap.querySelectorAll('.deck-group').forEach(group => {
+    group.addEventListener('toggle', () => {
+      if(!openDecks) openDecks = new Set(decks); // seed with current default (all open)
+      if(group.open) openDecks.add(group.dataset.deck); else openDecks.delete(group.dataset.deck);
+    });
+  });
+
+  updateBulkBar();
 }
+
+// Event delegation for checkboxes (deck list is rebuilt often, so we bind once on the wrapper).
+document.getElementById('masterListWrap').addEventListener('change', (e) => {
+  const t = e.target;
+  if(t.classList.contains('card-select')){
+    const id = t.dataset.id;
+    if(t.checked) selectedCardIds.add(id); else selectedCardIds.delete(id);
+    const group = t.closest('.deck-group');
+    if(group){
+      const boxes = [...group.querySelectorAll('.card-select')];
+      const allBox = group.querySelector('.deck-select-all');
+      if(allBox) allBox.checked = boxes.length>0 && boxes.every(b => b.checked);
+    }
+    updateBulkBar();
+  } else if(t.classList.contains('deck-select-all')){
+    const group = t.closest('.deck-group');
+    if(group){
+      group.querySelectorAll('.card-select').forEach(cb => {
+        cb.checked = t.checked;
+        if(t.checked) selectedCardIds.add(cb.dataset.id); else selectedCardIds.delete(cb.dataset.id);
+      });
+    }
+    updateBulkBar();
+  }
+});
+
+function updateBulkBar(){
+  const bar = document.getElementById('bulkActions');
+  const n = selectedCardIds.size;
+  document.getElementById('selectedCount').textContent = n + ' selected';
+  bar.style.display = n > 0 ? 'flex' : 'none';
+}
+
+document.getElementById('manageSearch').addEventListener('input', (e) => {
+  manageSearchQuery = e.target.value;
+  renderMasterList();
+});
+document.getElementById('clearSelectionBtn').addEventListener('click', () => {
+  selectedCardIds.clear();
+  renderMasterList();
+});
+document.getElementById('deleteSelectedBtn').addEventListener('click', async () => {
+  if(!editingEnabled || !ghToken){ promptEnableEditing(); return; }
+  const ids = [...selectedCardIds];
+  if(ids.length === 0) return;
+  if(!confirm(`Delete ${ids.length} selected card${ids.length===1?'':'s'}? This can't be undone.`)) return;
+  const idSet = new Set(ids);
+  const snapshot = cards.slice();
+  const removed = cards.filter(c => idSet.has(c.id));
+  cards = cards.filter(c => !idSet.has(c.id));
+  selectedCardIds.clear();
+  renderDeckSelect();
+  renderMasterList();
+  startReview();
+  const deckSummary = [...new Set(removed.map(c => c.deck))].join(', ');
+  const ok = await persistCards('Delete Flashcards (bulk)', `${removed.length} cards — ${deckSummary}`);
+  if(!ok){ cards = snapshot; renderDeckSelect(); renderMasterList(); startReview(); }
+});
 
 /* ---------------- Boot ---------------- */
 if(!session){
