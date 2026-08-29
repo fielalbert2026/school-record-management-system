@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script>(function(){try{var t=localStorage.getItem('srms_theme')||'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Card Drafter — Personalized School Record Management System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root{
+    --ink:#1D2B4F; --ink-soft:#2A3D6B; --paper:#F7F4EE; --paper-line:#DCD3C0; --card:#FFFEFC;
+    --graphite:#4A4A48; --muted:#8A8577; --highlighter:#E8B93E; --highlighter-ink:#6B4E00;
+    --pencil-red:#C0392B; --sage:#5E8567; --sage-bg:#E9F0EA; --radius:10px;
+    --shadow:0 1px 2px rgba(29,43,79,.06), 0 6px 18px rgba(29,43,79,.06);
+  }
+  [data-theme="dark"]{
+    --ink:#EDE8DB; --ink-soft:#D9D0BC; --paper:#12141C; --paper-line:#2B2F3D; --card:#1B1E28;
+    --graphite:#D6D1C4; --muted:#9A947F; --highlighter:#E8B93E; --highlighter-ink:#3A2900;
+    --pencil-red:#E2685A; --sage:#84AC8E; --sage-bg:#1E2B22;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.35);
+  }
+  #themeToggleBtn:hover{ transform:scale(1.08); }
+  *{box-sizing:border-box;}
+  body{ margin:0; background:var(--paper); background-image:linear-gradient(var(--paper-line) 1px, transparent 1px); background-size:100% 36px; color:var(--graphite); font-family:'Inter',system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
+  .wrap{max-width:900px; margin:0 auto; padding:32px 26px 90px;}
+  a{color:inherit;}
+  button{ font-family:'Inter',sans-serif; font-weight:600; font-size:13.5px; border-radius:7px; border:1.5px solid var(--ink); padding:9px 16px; cursor:pointer; background:transparent; color:var(--ink); transition:transform .12s ease, background .15s ease, opacity .15s ease; }
+  button:hover:not(:disabled){transform:translateY(-1px);}
+  button:disabled{opacity:.45; cursor:not-allowed; transform:none;}
+  .btn-primary{background:var(--ink); color:var(--paper);}
+  .btn-primary:hover:not(:disabled){background:var(--ink-soft);}
+  .btn-highlight{background:var(--highlighter); border-color:var(--highlighter); color:var(--highlighter-ink);}
+  .btn-highlight:hover:not(:disabled){background:#f0c453;}
+  .btn-ghost{border-color:var(--paper-line); color:var(--graphite); background:#fff;}
+  .btn-danger{border-color:var(--pencil-red); color:var(--pencil-red); background:#fff;}
+  .btn-sm{padding:5px 10px; font-size:12px;}
+  .back-link{ font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--muted); text-decoration:none; border-bottom:1px solid transparent; }
+  .back-link:hover{color:var(--ink); border-bottom-color:var(--ink);}
+  header{display:flex; align-items:flex-start; justify-content:space-between; gap:20px; flex-wrap:wrap; margin-bottom:22px;}
+  .brand-eyebrow{ font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--sage); margin:8px 0 6px; }
+  h1{ font-family:'Fraunces',serif; font-weight:700; font-size:clamp(26px,4vw,38px); margin:0; color:var(--ink); line-height:1.05; }
+  h2{font-family:'Fraunces',serif; font-size:19px; color:var(--ink); margin:0 0 4px;}
+  .session-strip{ display:none; align-items:center; gap:8px; font-size:12.5px; color:var(--muted); background:var(--card); border:1px solid var(--paper-line); border-radius:20px; padding:6px 14px; margin-top:10px; }
+  .role-pill{ text-transform:uppercase; letter-spacing:.06em; font-size:10px; padding:3px 9px; border-radius:20px; }
+  .role-pill.master{background:var(--sage-bg); color:var(--sage);}
+  .role-pill.guest{background:#EFEAE0; color:var(--muted);}
+  #accessLockedPanel, #connectPanel, #tokenPanel{ background:#fff; border:1.5px dashed var(--paper-line); border-radius:var(--radius); padding:26px; text-align:center; margin-bottom:28px; }
+  #accessLockedPanel h2, #connectPanel h2, #tokenPanel h2{ font-family:'Fraunces',serif; color:var(--ink); margin:0 0 6px; font-size:20px; }
+  #accessLockedPanel p, #connectPanel p, #tokenPanel p{ color:var(--muted); font-size:13.5px; margin:0 0 18px; max-width:480px; margin-left:auto; margin-right:auto; }
+  .actions{display:flex; gap:10px; justify-content:center; flex-wrap:wrap; align-items:center;}
+  #tokenPanel input[type="password"], #tokenPanel input[type="text"]{ font-family:'IBM Plex Mono',monospace; font-size:13px; padding:9px 10px; border:1.5px solid var(--paper-line); border-radius:6px; background:#FFFEFC; color:var(--ink); }
+  .lede{color:var(--muted); font-size:13.5px; max-width:64ch; line-height:1.55;}
+  section.panel{background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius); box-shadow:var(--shadow); padding:22px 24px; margin-top:20px;}
+  .row{display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end;}
+  .field{display:flex; flex-direction:column; gap:5px; min-width:160px; margin-bottom:0;}
+  .field.grow{flex:1;}
+  label{font-size:11.5px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:var(--muted);}
+  input[type=text], input[type=number], select, textarea{
+    font-family:'Inter',sans-serif; font-size:13.5px; padding:9px 10px; border-radius:6px;
+    border:1.5px solid var(--paper-line); background:#FFFEFC; color:var(--ink); width:100%;
+  }
+  input:focus, select:focus, textarea:focus{outline:2px solid var(--sage); outline-offset:1px; border-color:var(--sage);}
+  textarea{resize:vertical; font-family:inherit; line-height:1.45; min-height:44px;}
+  .dropzone{border:1.5px dashed var(--paper-line); border-radius:var(--radius); padding:24px; text-align:center; cursor:pointer; background:#fdfcfa;}
+  .dropzone.drag{border-color:var(--sage); background:var(--sage-bg);}
+  .dropzone .hint{color:var(--muted); font-size:12.5px; margin-top:6px;}
+  .filepill{display:inline-flex; align-items:center; gap:8px; font-family:'IBM Plex Mono',monospace; font-size:12px; background:var(--sage-bg); color:var(--sage); padding:5px 10px; border-radius:6px; margin-top:10px;}
+  [data-theme="dark"] .filepill{color:#c9e2cd;}
+  details.preview{margin-top:12px;}
+  details.preview summary{cursor:pointer; font-size:12.5px; color:var(--muted); font-family:'IBM Plex Mono',monospace;}
+  pre.extract{white-space:pre-wrap; font-size:12px; max-height:220px; overflow:auto; background:#faf8f3; border:1px solid var(--paper-line); border-radius:7px; padding:12px; margin-top:8px; line-height:1.5;}
+  [data-theme="dark"] pre.extract{background:#181a22;}
+  .status{font-size:12.5px; margin-top:10px; color:var(--muted);}
+  .status.err{color:var(--pencil-red);}
+  .status.ok{color:var(--sage);}
+  .progress-track{height:6px; background:var(--paper-line); border-radius:4px; overflow:hidden; margin-top:10px; display:none;}
+  .progress-fill{height:100%; background:var(--highlighter); width:0%; transition:width .25s ease;}
+  .card-item{border:1.5px solid var(--paper-line); border-radius:8px; padding:14px 16px; margin-top:10px; background:#FFFEFC;}
+  .card-item.discarded{opacity:.4;}
+  .card-item .top{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px;}
+  .type-pill{font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--sage); background:var(--sage-bg); padding:2px 7px; border-radius:4px;}
+  .fieldlabel{font-size:11px; color:var(--muted); margin-top:6px;}
+  .counts{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--muted); margin:2px 0 4px;}
+  .empty{ text-align:center; color:#A79F8C; font-size:13.5px; padding:20px 10px; }
+  .export-row{display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;}
+  .warn-box{background:var(--sage-bg); border:1px solid var(--sage); color:var(--ink); font-size:12.5px; padding:10px 12px; border-radius:7px; margin-top:14px; line-height:1.5;}
+  .step-num{display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:50%; background:var(--ink); color:var(--paper); font-family:'IBM Plex Mono',monospace; font-size:11px; margin-right:8px;}
+  footer{text-align:center; color:#A79F8C; font-size:12px; margin-top:36px;}
+</style>
+</head>
+<body>
+<button id="themeToggleBtn" type="button" aria-label="Toggle dark mode" title="Toggle dark mode" style="position:fixed; top:14px; right:14px; z-index:9999; width:42px; height:42px; border-radius:50%; border:none; background:var(--ink); color:var(--paper); display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,.25), 0 6px 16px rgba(0,0,0,.2); padding:0; transition:transform .15s ease;">🌙</button>
+<div class="wrap">
+  <header>
+    <div>
+      <a href="index.html" class="back-link">← Personalized School Record Management System</a>
+      <p class="brand-eyebrow">Module 03 · Card Drafter</p>
+      <h1>Card Drafter</h1>
+      <div class="session-strip" id="sessionStrip"></div>
+    </div>
+  </header>
+
+  <div id="accessLockedPanel" style="display:none;">
+    <h2>Sign in required</h2>
+    <p>Sign in with your school ID on the hub page to open the Card Drafter module.</p>
+    <a href="index.html"><button class="btn-primary" type="button">Go to sign in</button></a>
+  </div>
+
+  <div id="connectPanel">
+    <h2 id="connectPanelTitle">Loading the deck…</h2>
+    <p id="connectPanelText">Fetching the shared Flashcards sheet, so drafts can be checked against what already exists.</p>
+    <div class="actions" id="connectActions" style="display:none;">
+      <button class="btn-ghost" id="retryLoadBtn">Retry load</button>
+    </div>
+  </div>
+
+  <div id="tokenPanel" style="display:none;">
+    <h2>Enable editing</h2>
+    <p>Confirm your school ID and passphrase to enable saving to the shared deck. If you've already enabled editing on another module, it's remembered here too.</p>
+    <form id="tokenForm" class="actions" style="flex-wrap:wrap;">
+      <input id="editIdInput" type="text" placeholder="School ID" style="flex:1; min-width:140px;" autocomplete="off">
+      <input id="editPassInput" type="password" placeholder="Passphrase" style="flex:1; min-width:140px;" autocomplete="off">
+      <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--muted); font-weight:500;">
+        <input type="checkbox" id="rememberTokenChk"> Remember on this device
+      </label>
+      <button type="submit" class="btn-primary">Enable</button>
+      <button type="button" class="btn-ghost" id="cancelTokenBtn">Cancel</button>
+    </form>
+    <p id="tokenFormError" style="font-size:12.5px; color:var(--pencil-red); margin-top:10px; margin-bottom:0; display:none;"></p>
+  </div>
+
+  <div id="content" style="display:none;">
+    <p class="lede">Upload a file from a class, get a batch of draft flashcards, edit anything that's off, then decide what happens to them. Nothing touches the shared deck until you click <strong>Save to shared deck</strong> — that goes through the same sign-in and passphrase check as adding a card by hand.</p>
+
+    <section class="panel">
+      <h2><span class="step-num">1</span>Source material</h2>
+      <div class="dropzone" id="dropzone">
+        <div><strong>Drop a file here</strong> or click to choose one</div>
+        <div class="hint">.pdf · .docx · .txt · .xlsx / .csv — other text-like formats are read as plain text</div>
+        <input type="file" id="fileInput" style="display:none" accept=".pdf,.docx,.txt,.xlsx,.xls,.csv,.md">
+      </div>
+      <div id="filePillWrap"></div>
+      <div class="status" id="parseStatus"></div>
+      <details class="preview" id="previewWrap" style="display:none;">
+        <summary>Preview extracted text</summary>
+        <pre class="extract" id="extractPreview"></pre>
+      </details>
+    </section>
+
+    <section class="panel">
+      <h2><span class="step-num">2</span>Draft options</h2>
+      <div class="row">
+        <div class="field grow">
+          <label for="deckNameInput">Deck</label>
+          <input type="text" id="deckNameInput" list="deckDatalist" placeholder="e.g. IS104 — Week 2-3 SDLC">
+          <datalist id="deckDatalist"></datalist>
+        </div>
+        <div class="field">
+          <label for="cardStyle">Card style</label>
+          <select id="cardStyle">
+            <option value="basic">Q&amp;A</option>
+            <option value="cloze">Cloze (fill-in-blank)</option>
+            <option value="mix" selected>Mix of both</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="targetCount">Target count</label>
+          <input type="number" id="targetCount" value="15" min="3" max="60">
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px;">
+        <div class="field grow">
+          <label for="focusNote">Focus (optional)</label>
+          <input type="text" id="focusNote" placeholder="e.g. prioritize definitions and the SDLC phase names">
+        </div>
+      </div>
+      <div class="row" style="margin-top:16px;">
+        <button class="btn-primary" id="generateBtn" disabled>Draft cards from this file</button>
+        <span class="status" id="genStatus"></span>
+      </div>
+      <div class="progress-track" id="progressTrack"><div class="progress-fill" id="progressFill"></div></div>
+    </section>
+
+    <section class="panel">
+      <h2><span class="step-num">3</span>Review drafts</h2>
+      <p class="lede">Nothing is added anywhere yet. Edit any card in place, uncheck ones you don't want, then approve.</p>
+      <div class="counts" id="pendingCounts"></div>
+      <div id="pendingList"><div class="empty">No drafts yet — generate some above.</div></div>
+      <div class="row" style="margin-top:14px;" id="pendingActions">
+        <button class="btn-ghost btn-sm" id="acceptAllBtn">Check all</button>
+        <button class="btn-ghost btn-sm" id="discardAllBtn">Uncheck all</button>
+        <button class="btn-primary" id="approveBtn">Approve checked</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2><span class="step-num">4</span>Approved, not yet saved — <span id="deckTitle">untitled</span></h2>
+      <div class="counts" id="draftedCounts"></div>
+      <div id="draftedList"><div class="empty">Nothing approved yet.</div></div>
+
+      <div class="row" style="margin-top:14px;">
+        <button class="btn-highlight" id="saveSharedBtn" disabled>Save to shared deck</button>
+        <span class="status" id="saveStatus"></span>
+      </div>
+      <p class="lede" id="masterHint" style="margin-top:6px;"></p>
+
+      <hr style="border:none; border-top:1px solid var(--paper-line); margin:18px 0;">
+      <h2 style="font-size:16px;">Export a personal copy</h2>
+      <p class="lede">Works regardless of role — a local file, independent of the shared deck.</p>
+      <div class="export-row">
+        <button class="btn-ghost" id="exportAnkiBtn" disabled>Download Anki .txt</button>
+        <button class="btn-ghost" id="exportXlsxBtn" disabled>Download .xlsx (Flashcards sheet)</button>
+        <button class="btn-ghost" id="exportCsvBtn" disabled>Copy as CSV rows</button>
+      </div>
+      <div class="status" id="exportStatus"></div>
+
+      <div class="warn-box">Drafting sends only the extracted document text to Claude to write candidate cards — never your school ID, passphrase, or editing token. Saving to the shared deck is a separate step that goes through the same sign-in check as every other change in this app.</div>
+    </section>
+  </div>
+
+  <footer>Personalized School Record Management System · Card Drafter</footer>
+</div>
+
+<script>
+/* ================= Shared scaffolding (same as other modules) ================= */
+function getTheme(){ try{ return localStorage.getItem('srms_theme') || 'light'; }catch(e){ return 'light'; } }
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme', t);
+  try{ localStorage.setItem('srms_theme', t); }catch(e){}
+  const btn = document.getElementById('themeToggleBtn');
+  if(btn) btn.textContent = t === 'dark' ? '☀️' : '🌙';
+}
+function toggleTheme(){ applyTheme(getTheme() === 'dark' ? 'light' : 'dark'); }
+applyTheme(getTheme());
+document.getElementById('themeToggleBtn').addEventListener('click', toggleTheme);
+
+const SESSION_KEY = 'srms_session';
+function getSession(){ try{ return JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); }catch(e){ return null; } }
+const session = getSession();
+const isMaster = !!session && session.role === 'Master';
+
+function escapeHtml(str){
+  return (str||'').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function renderSessionStrip(){
+  if(!session) return;
+  const strip = document.getElementById('sessionStrip');
+  strip.style.display = 'inline-flex';
+  const roleClass = isMaster ? 'master' : 'guest';
+  const auditLink = session.isOwner ? ' <a href="audit_log.html" style="margin-left:8px; font-size:12px; text-decoration:underline;">Audit Log</a>' : '';
+  strip.innerHTML = `Signed in as <b>${escapeHtml(session.name)}</b> <span class="role-pill ${roleClass}">${escapeHtml(session.role)}</span>${auditLink} <button id="logoutBtn" type="button" style="border:none;background:none;text-decoration:underline;cursor:pointer;font-size:12.5px;margin-left:4px;">Log out</button>`;
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    if(isMaster) queueAudit('Logout', '');
+    sessionStorage.removeItem(SESSION_KEY);
+    window.location.href = 'index.html';
+  });
+}
+
+/* ---- GitHub-backed storage — same file, same sheet the Flashcards module writes ---- */
+const GH = { owner:'fielalbert2026', repo:'school_record_management_system', branch:'main', path:'Subject_Scheduler.xlsx' };
+const CARDS_SHEET = 'Flashcards';
+const TOKEN_KEY = 'gh_pat_school_scheduler';
+const CLOZE_MARKER = '_____';
+let ghToken = null;
+let editingEnabled = false;
+let workbook = null;
+let currentSha = null;
+let cards = []; // the LIVE shared deck, loaded from GitHub
+
+function phTimestamp(){
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone:'Asia/Manila', hour12:false,
+    year:'numeric', month:'2-digit', day:'2-digit',
+    hour:'2-digit', minute:'2-digit', second:'2-digit'
+  }).formatToParts(new Date()).reduce((acc,p) => { acc[p.type]=p.value; return acc; }, {});
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}+08:00`;
+}
+const AUDIT_SHEET = 'Audit_Log';
+const AUDIT_QUEUE_KEY = 'srms_pending_audit';
+function queueAudit(action, details){
+  let q = [];
+  try{ q = JSON.parse(sessionStorage.getItem(AUDIT_QUEUE_KEY) || '[]'); }catch(e){}
+  q.push({ ts:phTimestamp(), actor: session ? session.name : '(unknown)', role: session ? session.role : '', action, details: details || '' });
+  try{ sessionStorage.setItem(AUDIT_QUEUE_KEY, JSON.stringify(q)); }catch(e){}
+}
+function drainAuditQueue(){
+  let q = [];
+  try{ q = JSON.parse(sessionStorage.getItem(AUDIT_QUEUE_KEY) || '[]'); }catch(e){}
+  try{ sessionStorage.removeItem(AUDIT_QUEUE_KEY); }catch(e){}
+  return q;
+}
+function appendAuditToWorkbook(wb, entries){
+  if(!entries.length) return;
+  const headers = ['Timestamp','Actor','Role','Action','Details'];
+  let rows = [];
+  if(wb.SheetNames.includes(AUDIT_SHEET)){
+    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[AUDIT_SHEET], {header:1, defval:''});
+    const hIdx = aoa.findIndex(r => r[0] === 'Timestamp');
+    if(hIdx !== -1) rows = aoa.slice(hIdx+1).filter(r => r.some(c => c!==undefined && c!==''));
+  }
+  rows = rows.concat(entries.map(e => [e.ts, e.actor, e.role, e.action, e.details]));
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['Audit Log — Personalized School Record Management System'],
+    ['Read-only history of sign-ins and changes. Visible to Master accounts only, and not editable through any app UI.'],
+    [], headers, ...rows
+  ]);
+  ws['!cols'] = [22,20,10,20,42].map(w=>({wch:w}));
+  wb.Sheets[AUDIT_SHEET] = ws;
+  if(!wb.SheetNames.includes(AUDIT_SHEET)) wb.SheetNames.push(AUDIT_SHEET);
+}
+
+function uid(){ return 'card_' + Date.now() + '_' + Math.random().toString(36).slice(2,8); }
+function b64ToArrayBuffer(b64){
+  const bin = atob(b64.replace(/\n/g,''));
+  const bytes = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+  return bytes.buffer;
+}
+function arrayBufferToB64(buf){
+  const bytes = new Uint8Array(buf);
+  let bin=''; const chunk=0x8000;
+  for(let i=0;i<bytes.length;i+=chunk) bin += String.fromCharCode.apply(null, bytes.subarray(i,i+chunk));
+  return btoa(bin);
+}
+function deckKey(s){ return (s||'').trim().toLowerCase().replace(/\s+/g,' ').replace(/\s*-\s*/g,' - '); }
+function cleanDeckSpelling(s){ return (s||'').trim().replace(/\s+/g,' ').replace(/\s*-\s*/g,' - '); }
+function canonicalizeDeck(input){
+  const key = deckKey(input);
+  const existing = cards.find(c => deckKey(c.deck) === key);
+  return existing ? existing.deck : cleanDeckSpelling(input);
+}
+
+function parseCardsFromWorkbook(){
+  if(!workbook.SheetNames.includes(CARDS_SHEET)){ cards = []; return; }
+  const aoa = XLSX.utils.sheet_to_json(workbook.Sheets[CARDS_SHEET], {header:1, defval:''});
+  const hIdx = aoa.findIndex(r => r[0] === 'ID');
+  const rows = hIdx === -1 ? [] : aoa.slice(hIdx+1).filter(r => r.some(c => c!==undefined && c!==''));
+  cards = rows.map(r => ({
+    id: r[0]||uid(), deck:r[1]||'', type:r[2]||'basic', front:r[3]||'', back:r[4]||'',
+    createdBy:r[5]||'', createdAt:r[6]||'', updatedAt:r[7]||''
+  }));
+}
+function buildCardsAOA(){
+  const headers = ['ID','Deck','Type','Front','Back','CreatedBy','CreatedAt','UpdatedAt'];
+  const rows = cards.map(c => [c.id,c.deck,c.type,c.front,c.back,c.createdBy,c.createdAt,c.updatedAt]);
+  return [
+    ['Flashcards — Personalized School Record Management System'],
+    ['Master accounts add/edit/delete cards here; anyone signed in can review them.'],
+    [], headers, ...rows
+  ];
+}
+
+async function saveViaProxy(editTok, contentB64, sha, message){
+  const res = await fetch('/api/save', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ editToken:editTok, contentB64, sha, message })
+  });
+  const json = await res.json();
+  if(!res.ok) throw Object.assign(new Error(json.error || `Save failed (${res.status})`), {status:res.status});
+  return json.sha;
+}
+
+async function loadFromGitHub(){
+  const panel = document.getElementById('connectPanel');
+  panel.style.display = 'block';
+  document.getElementById('connectPanelTitle').textContent = 'Loading the deck…';
+  document.getElementById('connectPanelText').textContent = `Fetching ${GH.path} from ${GH.owner}/${GH.repo}.`;
+  document.getElementById('connectActions').style.display = 'none';
+  try{
+    const url = `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${encodeURIComponent(GH.path)}?ref=${GH.branch}`;
+    const res = await fetch(url);
+    if(!res.ok){
+      if(res.status === 404) throw new Error(`Couldn't find the flashcards data. Please contact the site owner.`);
+      throw new Error(`Couldn't load right now (${res.status}). Please try again in a moment.`);
+    }
+    const json = await res.json();
+    currentSha = json.sha;
+    workbook = XLSX.read(b64ToArrayBuffer(json.content), {type:'array'});
+    parseCardsFromWorkbook();
+    panel.style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+    renderDeckDatalist();
+    updateMasterHint();
+  }catch(e){
+    document.getElementById('connectPanelTitle').textContent = "Couldn't load the deck";
+    document.getElementById('connectPanelText').textContent = e.message;
+    document.getElementById('connectActions').style.display = 'flex';
+  }
+}
+
+async function persistCards(actionLabel, actionDetails){
+  if(!isMaster) return false;
+  if(!editingEnabled || !ghToken){
+    alert('This change was NOT saved — editing isn\'t enabled yet. Click "Enable editing" and confirm your passphrase, then click "Save to shared deck" again.');
+    promptEnableEditing();
+    return false;
+  }
+  const ws = XLSX.utils.aoa_to_sheet(buildCardsAOA());
+  ws['!cols'] = [16,26,10,40,40,16,20,20].map(w=>({wch:w}));
+  if(!workbook) workbook = XLSX.utils.book_new();
+  workbook.Sheets[CARDS_SHEET] = ws;
+  if(!workbook.SheetNames.includes(CARDS_SHEET)) workbook.SheetNames.push(CARDS_SHEET);
+  const pending = drainAuditQueue();
+  if(actionLabel) pending.push({ ts:phTimestamp(), actor:session.name, role:session.role, action:actionLabel, details:actionDetails||'' });
+  appendAuditToWorkbook(workbook, pending);
+  const wbout = XLSX.write(workbook, {bookType:'xlsx', type:'array'});
+  try{
+    currentSha = await saveViaProxy(ghToken, arrayBufferToB64(wbout), currentSha, `Flashcards: ${actionLabel||'update'}`);
+    return true;
+  }catch(e){
+    if(e.status === 409){
+      alert('Someone (or another tab/device) saved a newer version since you loaded this page. Reloading the latest version now — please click "Save to shared deck" again.');
+      await loadFromGitHub();
+      return false;
+    }
+    if(e.status === 401){
+      alert('Your editing session expired. Click "Enable editing" and confirm your passphrase again, then click "Save to shared deck" again.');
+      editingEnabled = false; ghToken = null;
+      try{ localStorage.removeItem(TOKEN_KEY); }catch(err){}
+      return false;
+    }
+    alert('Could not save: ' + e.message);
+    return false;
+  }
+}
+
+function promptEnableEditing(){
+  if(!isMaster) return;
+  document.getElementById('tokenPanel').style.display = 'block';
+  document.getElementById('editIdInput').focus();
+}
+document.getElementById('cancelTokenBtn').addEventListener('click', () => {
+  document.getElementById('tokenPanel').style.display = 'none';
+  document.getElementById('tokenFormError').style.display = 'none';
+});
+document.getElementById('retryLoadBtn').addEventListener('click', loadFromGitHub);
+document.getElementById('tokenForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id = document.getElementById('editIdInput').value.trim();
+  const pass = document.getElementById('editPassInput').value;
+  const errEl = document.getElementById('tokenFormError');
+  errEl.style.display = 'none';
+  if(!id || !pass) return;
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  try{
+    const res = await fetch('/api/verify-master', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ id, passphrase: pass })
+    });
+    const json = await res.json();
+    if(!res.ok){
+      errEl.textContent = json.error || 'Could not verify — check your ID and passphrase.';
+      errEl.style.display = 'block';
+      return;
+    }
+    ghToken = json.editToken;
+    editingEnabled = true;
+    if(document.getElementById('rememberTokenChk').checked){
+      try{ localStorage.setItem(TOKEN_KEY, json.editToken); }catch(err){}
+    }
+    document.getElementById('tokenPanel').style.display = 'none';
+    document.getElementById('editIdInput').value = '';
+    document.getElementById('editPassInput').value = '';
+    updateMasterHint();
+  }catch(err){
+    errEl.textContent = 'Could not reach the server — try again.';
+    errEl.style.display = 'block';
+  }finally{
+    submitBtn.disabled = false;
+  }
+});
+
+/* ================= Card Drafter — file parsing, drafting, review ================= */
+const CLZ = CLOZE_MARKER;
+let extractedText = '';
+let pendingCards = [];  // drafted, awaiting review: {tempId, type, front, back, checked}
+let draftedCards = [];  // approved locally, not yet saved anywhere: {id, deck, type, front, back}
+
+/* ---- file parsing ---- */
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const parseStatus = document.getElementById('parseStatus');
+const filePillWrap = document.getElementById('filePillWrap');
+const previewWrap = document.getElementById('previewWrap');
+const extractPreview = document.getElementById('extractPreview');
+const generateBtn = document.getElementById('generateBtn');
+const deckNameInput = document.getElementById('deckNameInput');
+
+if (window.pdfjsLib) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+dropzone.addEventListener('click', () => fileInput.click());
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault(); dropzone.classList.remove('drag');
+  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+
+async function handleFile(file){
+  filePillWrap.innerHTML = '';
+  const pill = document.createElement('div');
+  pill.className = 'filepill';
+  pill.textContent = '📄 ' + file.name + ' — ' + Math.round(file.size/1024) + ' KB';
+  filePillWrap.appendChild(pill);
+
+  if (!deckNameInput.value.trim()) {
+    deckNameInput.value = file.name.replace(/\.[^.]+$/, '').replace(/[_\-]+/g,' ').trim();
+  }
+
+  parseStatus.className = 'status'; parseStatus.textContent = 'Reading file…';
+  generateBtn.disabled = true;
+  extractedText = '';
+
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  try {
+    if (ext === 'pdf') extractedText = await parsePdf(file);
+    else if (ext === 'docx') extractedText = await parseDocx(file);
+    else if (ext === 'xlsx' || ext === 'xls') extractedText = await parseXlsx(file);
+    else extractedText = await parseAsText(file);
+
+    extractedText = (extractedText || '').trim();
+    if (!extractedText) {
+      parseStatus.className = 'status err';
+      parseStatus.textContent = 'Could not find readable text in this file. Try a .txt/.docx export of it instead.';
+      return;
+    }
+    parseStatus.className = 'status ok';
+    parseStatus.textContent = 'Extracted ' + extractedText.length.toLocaleString() + ' characters. Ready to draft cards.';
+    extractPreview.textContent = extractedText.slice(0, 6000) + (extractedText.length > 6000 ? '\n\n…(truncated preview; full text is used for drafting)' : '');
+    previewWrap.style.display = 'block';
+    generateBtn.disabled = false;
+  } catch (err) {
+    parseStatus.className = 'status err';
+    parseStatus.textContent = 'Could not read this file: ' + (err && err.message ? err.message : err);
+  }
+}
+function parseAsText(file){
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = () => reject(new Error('read failed'));
+    r.readAsText(file);
+  });
+}
+async function parsePdf(file){
+  const buf = await file.arrayBuffer();
+  const doc = await pdfjsLib.getDocument({ data: buf }).promise;
+  let text = '';
+  for (let i = 1; i <= doc.numPages; i++) {
+    const page = await doc.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map(it => it.str).join(' ') + '\n\n';
+  }
+  return text;
+}
+async function parseDocx(file){
+  const buf = await file.arrayBuffer();
+  const result = await mammoth.extractRawText({ arrayBuffer: buf });
+  return result.value;
+}
+async function parseXlsx(file){
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, { type: 'array' });
+  let text = '';
+  wb.SheetNames.forEach(name => { text += '## ' + name + '\n' + XLSX.utils.sheet_to_csv(wb.Sheets[name]) + '\n\n'; });
+  return text;
+}
+
+/* ---- dedupe against the LIVE shared deck ---- */
+function normalizeForDedupe(s){
+  return String(s||'').replace(/<br\s*\/?>/gi,' ').replace(/[^a-z0-9]+/gi,' ').trim().toLowerCase().slice(0,120);
+}
+function isNearDuplicate(front){
+  const n = normalizeForDedupe(front);
+  if (!n) return false;
+  return cards.some(c => { const f = normalizeForDedupe(c.front); return f && (f === n || f.includes(n) || n.includes(f)); });
+}
+function renderDeckDatalist(){
+  const decks = [...new Set(cards.map(c => c.deck).filter(Boolean))].sort();
+  document.getElementById('deckDatalist').innerHTML = decks.map(d => `<option value="${escapeHtml(d)}">`).join('');
+}
+
+/* ---- chunking ---- */
+function chunkText(text, maxLen){
+  const paras = text.split(/\n{2,}/);
+  const chunks = [];
+  let cur = '';
+  for (const p of paras) {
+    if ((cur + '\n\n' + p).length > maxLen && cur) { chunks.push(cur); cur = p; }
+    else cur = cur ? cur + '\n\n' + p : p;
+  }
+  return chunks.length ? chunks : [text];
+}
+
+/* ---- Claude call — extracted text only, nothing about the account or session ---- */
+async function draftCardsFromChunk(chunk, style, count, focusNote){
+  const styleInstruction = style === 'basic'
+    ? 'Only produce "basic" type cards (a direct question and a concise answer).'
+    : style === 'cloze'
+      ? 'Only produce "cloze" type cards (a full sentence from the material with one key term/phrase, and that exact term/phrase as the answer).'
+      : 'Produce a mix of "basic" and "cloze" type cards, roughly half and half.';
+
+  const prompt = [
+    'You are drafting spaced-repetition flashcards from a student\'s own course material below.',
+    'Return ONLY a JSON array — no markdown fences, no commentary, no keys other than specified.',
+    'Each array item is one of:',
+    '{"type":"basic","front":"<question>","back":"<concise answer, 1 sentence or short phrase>"}',
+    '{"type":"cloze","sentence":"<a full sentence copied or lightly adapted from the material, with the key term still in place>","answer":"<the exact key term/phrase from that sentence to blank out>"}',
+    styleInstruction,
+    'Write only from the material given — do not invent facts not supported by it.',
+    'Avoid duplicate or near-duplicate questions.',
+    focusNote ? ('Focus especially on: ' + focusNote) : '',
+    'Generate exactly ' + count + ' cards.',
+    '', '--- MATERIAL ---', chunk
+  ].filter(Boolean).join('\n');
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, messages: [{ role: 'user', content: prompt }] })
+  });
+  const data = await res.json();
+  const textOut = (data.content || []).map(b => b.text || '').join('\n').trim();
+  const cleaned = textOut.replace(/^```(json)?/i, '').replace(/```$/, '').trim();
+  let arr;
+  try { arr = JSON.parse(cleaned); } catch (e) { return []; }
+  if (!Array.isArray(arr)) return [];
+
+  const out = [];
+  for (const item of arr) {
+    if (!item || !item.type) continue;
+    if (item.type === 'basic' && item.front && item.back) {
+      out.push({ type: 'basic', front: String(item.front).trim(), back: String(item.back).trim() });
+    } else if (item.type === 'cloze' && item.sentence && item.answer) {
+      const sentence = String(item.sentence);
+      const answer = String(item.answer).trim();
+      const idx = sentence.toLowerCase().indexOf(answer.toLowerCase());
+      if (idx === -1 || !answer) continue;
+      const front = sentence.slice(0, idx) + CLZ + sentence.slice(idx + answer.length);
+      out.push({ type: 'cloze', front: front.trim(), back: answer });
+    }
+  }
+  return out;
+}
+
+/* ---- generation orchestration ---- */
+const genStatus = document.getElementById('genStatus');
+const progressTrack = document.getElementById('progressTrack');
+const progressFill = document.getElementById('progressFill');
+
+generateBtn.addEventListener('click', async () => {
+  if (!extractedText) return;
+  const style = document.getElementById('cardStyle').value;
+  const target = Math.max(3, Math.min(60, parseInt(document.getElementById('targetCount').value, 10) || 15));
+  const focusNote = document.getElementById('focusNote').value.trim();
+
+  generateBtn.disabled = true;
+  genStatus.className = 'status'; genStatus.textContent = 'Drafting…';
+  progressTrack.style.display = 'block'; progressFill.style.width = '4%';
+
+  const chunks = chunkText(extractedText, 3800);
+  const perCall = Math.min(6, Math.max(3, Math.ceil(target / Math.max(1, chunks.length))));
+  const maxCalls = 15;
+  let calls = 0, collected = [], chunkIdx = 0;
+
+  try {
+    while (collected.length < target && calls < maxCalls && chunkIdx < chunks.length * 2) {
+      const chunk = chunks[chunkIdx % chunks.length];
+      const askFor = Math.min(perCall, target - collected.length);
+      const drafted = await draftCardsFromChunk(chunk, style, askFor, focusNote);
+      calls++; chunkIdx++;
+      for (const c of drafted) {
+        if (collected.length >= target) break;
+        if (isNearDuplicate(c.front)) continue;
+        if (collected.some(existing => normalizeForDedupe(existing.front) === normalizeForDedupe(c.front))) continue;
+        collected.push(c);
+      }
+      progressFill.style.width = Math.round(Math.min(95, (collected.length / target) * 100)) + '%';
+      genStatus.textContent = 'Drafted ' + collected.length + ' / ' + target + '…';
+    }
+  } catch (err) {
+    genStatus.className = 'status err';
+    genStatus.textContent = 'Something went wrong while drafting: ' + (err && err.message ? err.message : err) + '. You can try again.';
+    generateBtn.disabled = false;
+    progressTrack.style.display = 'none';
+    return;
+  }
+
+  progressFill.style.width = '100%';
+  setTimeout(() => { progressTrack.style.display = 'none'; progressFill.style.width = '0%'; }, 600);
+
+  collected.forEach(c => pendingCards.push({ tempId: uid(), type: c.type, front: c.front, back: c.back, checked: true }));
+  renderPending();
+
+  genStatus.className = collected.length ? 'status ok' : 'status err';
+  genStatus.textContent = collected.length
+    ? collected.length + ' cards drafted below — review before approving.'
+    : 'No cards came back (or everything looked like a duplicate of what\'s already in the deck). Try again, or adjust the focus note.';
+  generateBtn.disabled = false;
+});
+
+/* ---- pending review UI ---- */
+const pendingList = document.getElementById('pendingList');
+const pendingCounts = document.getElementById('pendingCounts');
+
+function renderPending(){
+  pendingList.innerHTML = '';
+  if (!pendingCards.length) {
+    pendingList.innerHTML = '<div class="empty">No drafts yet — generate some above.</div>';
+    pendingCounts.textContent = '';
+    return;
+  }
+  const checkedCount = pendingCards.filter(c => c.checked).length;
+  pendingCounts.textContent = pendingCards.length + ' drafted · ' + checkedCount + ' checked';
+
+  pendingCards.forEach(card => {
+    const item = document.createElement('div');
+    item.className = 'card-item' + (card.checked ? '' : ' discarded');
+
+    const top = document.createElement('div'); top.className = 'top';
+    const left = document.createElement('label');
+    left.style.display = 'flex'; left.style.alignItems = 'center'; left.style.gap = '8px';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.checked = card.checked;
+    cb.addEventListener('change', () => { card.checked = cb.checked; renderPending(); });
+    const pill = document.createElement('span'); pill.className = 'type-pill'; pill.textContent = card.type;
+    left.appendChild(cb); left.appendChild(pill);
+    const del = document.createElement('button'); del.className = 'btn-ghost btn-sm'; del.textContent = 'Remove';
+    del.addEventListener('click', () => { pendingCards = pendingCards.filter(c => c.tempId !== card.tempId); renderPending(); });
+    top.appendChild(left); top.appendChild(del);
+    item.appendChild(top);
+
+    const frontLabel = document.createElement('div'); frontLabel.className = 'fieldlabel';
+    frontLabel.textContent = card.type === 'cloze' ? 'Sentence (blank shown as _____)' : 'Front';
+    item.appendChild(frontLabel);
+    const frontArea = document.createElement('textarea'); frontArea.rows = 2; frontArea.value = card.front;
+    frontArea.addEventListener('input', () => { card.front = frontArea.value; });
+    item.appendChild(frontArea);
+
+    const backLabel = document.createElement('div'); backLabel.className = 'fieldlabel';
+    backLabel.textContent = card.type === 'cloze' ? 'Answer' : 'Back';
+    item.appendChild(backLabel);
+    const backArea = document.createElement('textarea'); backArea.rows = card.type === 'cloze' ? 1 : 2; backArea.value = card.back;
+    backArea.addEventListener('input', () => { card.back = backArea.value; });
+    item.appendChild(backArea);
+
+    pendingList.appendChild(item);
+  });
+}
+document.getElementById('acceptAllBtn').addEventListener('click', () => { pendingCards.forEach(c => c.checked = true); renderPending(); });
+document.getElementById('discardAllBtn').addEventListener('click', () => { pendingCards.forEach(c => c.checked = false); renderPending(); });
+
+document.getElementById('approveBtn').addEventListener('click', () => {
+  const deck = canonicalizeDeck(deckNameInput.value.trim() || 'Untitled deck');
+  const approved = pendingCards.filter(c => c.checked && c.front.trim() && c.back.trim());
+  if (!approved.length) return;
+  approved.forEach(c => draftedCards.push({ id: uid(), deck, type: c.type, front: c.front.trim(), back: c.back.trim() }));
+  pendingCards = pendingCards.filter(c => !(c.checked && c.front.trim() && c.back.trim()));
+  renderPending();
+  renderDrafted();
+});
+
+/* ---- approved-but-unsaved list + save / export ---- */
+const draftedList = document.getElementById('draftedList');
+const draftedCounts = document.getElementById('draftedCounts');
+const deckTitle = document.getElementById('deckTitle');
+const saveSharedBtn = document.getElementById('saveSharedBtn');
+const saveStatus = document.getElementById('saveStatus');
+const exportAnkiBtn = document.getElementById('exportAnkiBtn');
+const exportXlsxBtn = document.getElementById('exportXlsxBtn');
+const exportCsvBtn = document.getElementById('exportCsvBtn');
+const masterHint = document.getElementById('masterHint');
+
+function updateMasterHint(){
+  if (!isMaster) {
+    masterHint.textContent = 'Signed in as Guest — you can draft and export cards, but only a Master account can save them into the shared deck.';
+  } else if (!editingEnabled) {
+    masterHint.textContent = 'Editing isn\'t enabled yet — clicking "Save to shared deck" will ask for your passphrase first.';
+  } else {
+    masterHint.textContent = 'Editing is enabled — "Save to shared deck" will write straight into the shared Flashcards sheet.';
+  }
+}
+
+function renderDrafted(){
+  deckTitle.textContent = deckNameInput.value.trim() || 'untitled';
+  draftedList.innerHTML = '';
+  const has = draftedCards.length > 0;
+  saveSharedBtn.disabled = !has || !isMaster;
+  exportAnkiBtn.disabled = !has;
+  exportXlsxBtn.disabled = !has;
+  exportCsvBtn.disabled = !has;
+
+  if (!has) {
+    draftedList.innerHTML = '<div class="empty">Nothing approved yet.</div>';
+    draftedCounts.textContent = '';
+    return;
+  }
+  draftedCounts.textContent = draftedCards.length + ' card' + (draftedCards.length === 1 ? '' : 's') + ' approved, waiting to be saved';
+
+  draftedCards.forEach(card => {
+    const item = document.createElement('div'); item.className = 'card-item';
+    const top = document.createElement('div'); top.className = 'top';
+    const pill = document.createElement('span'); pill.className = 'type-pill'; pill.textContent = card.type;
+    const del = document.createElement('button'); del.className = 'btn-ghost btn-sm'; del.textContent = 'Remove';
+    del.addEventListener('click', () => { draftedCards = draftedCards.filter(c => c.id !== card.id); renderDrafted(); });
+    top.appendChild(pill); top.appendChild(del);
+    item.appendChild(top);
+    const f = document.createElement('div'); f.textContent = card.front;
+    const b = document.createElement('div'); b.style.color = 'var(--sage)'; b.style.marginTop = '4px'; b.textContent = '→ ' + card.back;
+    item.appendChild(f); item.appendChild(b);
+    draftedList.appendChild(item);
+  });
+}
+deckNameInput.addEventListener('input', () => { deckTitle.textContent = deckNameInput.value.trim() || 'untitled'; });
+
+saveSharedBtn.addEventListener('click', async () => {
+  if (!isMaster || !draftedCards.length) return;
+  saveStatus.className = 'status'; saveStatus.textContent = 'Saving…';
+  saveSharedBtn.disabled = true;
+  const snapshot = cards.slice();
+  const ts = new Date().toISOString();
+  draftedCards.forEach(c => cards.push({ id:c.id, deck:c.deck, type:c.type, front:c.front, back:c.back, createdBy:session.name, createdAt:ts, updatedAt:ts }));
+  const deckLabel = draftedCards[0] ? draftedCards[0].deck : '';
+  const ok = await persistCards('Add Flashcards (drafted)', draftedCards.length + ' cards to ' + deckLabel);
+  if (ok) {
+    draftedCards = [];
+    renderDrafted();
+    renderDeckDatalist();
+    saveStatus.className = 'status ok'; saveStatus.textContent = 'Saved to the shared deck.';
+  } else {
+    cards = snapshot;
+    saveStatus.className = 'status err'; saveStatus.textContent = 'Not saved — see the message above.';
+  }
+  saveSharedBtn.disabled = !isMaster || !draftedCards.length;
+});
+
+/* ---- exports (personal copy, any role, only on explicit click) ---- */
+function downloadBlob(content, filename, mime){
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function csvField(v){ return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; }
+
+exportAnkiBtn.addEventListener('click', () => {
+  const lines = ['#separator:tab', '#html:true', '#tags column:3'];
+  draftedCards.forEach(c => {
+    lines.push(csvField(c.front.replace(/\n/g, '<br>')) + '\t' + csvField(c.back.replace(/\n/g, '<br>')) + '\t');
+  });
+  downloadBlob(lines.join('\n'), (deckNameInput.value.trim() || 'deck') + '.txt', 'text/plain');
+  const s = document.getElementById('exportStatus'); s.className = 'status ok';
+  s.textContent = 'Downloaded — import in Anki/AnkiDroid (File > Import), tab separated, HTML on.';
+});
+exportXlsxBtn.addEventListener('click', () => {
+  const headers = ['ID','Deck','Type','Front','Back','CreatedBy','CreatedAt','UpdatedAt'];
+  const rows = draftedCards.map(c => [c.id, c.deck, c.type, c.front, c.back, '', '', '']);
+  const aoa = [[deckNameInput.value.trim() || 'Deck'], [], headers, ...rows];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, CARDS_SHEET);
+  XLSX.writeFile(wb, (deckNameInput.value.trim() || 'deck') + '.xlsx');
+  const s = document.getElementById('exportStatus'); s.className = 'status ok';
+  s.textContent = 'Downloaded — same columns and sheet name as the live Flashcards sheet, for manual reference.';
+});
+exportCsvBtn.addEventListener('click', async () => {
+  const headers = ['ID','Deck','Type','Front','Back'];
+  const rows = draftedCards.map(c => [c.id, c.deck, c.type, c.front, c.back].map(csvField).join(','));
+  const csv = [headers.join(','), ...rows].join('\n');
+  try {
+    await navigator.clipboard.writeText(csv);
+    const s = document.getElementById('exportStatus'); s.className = 'status ok';
+    s.textContent = 'Copied ' + draftedCards.length + ' rows as CSV to your clipboard.';
+  } catch (e) {
+    downloadBlob(csv, (deckNameInput.value.trim() || 'deck') + '.csv', 'text/csv');
+    const s = document.getElementById('exportStatus'); s.className = 'status ok';
+    s.textContent = 'Clipboard was unavailable — downloaded a .csv instead.';
+  }
+});
+
+/* ================= Boot ================= */
+if(!session){
+  document.getElementById('accessLockedPanel').style.display = 'block';
+  document.getElementById('connectPanel').style.display = 'none';
+} else {
+  renderSessionStrip();
+  try{
+    const saved = localStorage.getItem(TOKEN_KEY);
+    if(saved && isMaster){ ghToken = saved; editingEnabled = true; }
+  }catch(e){}
+  loadFromGitHub();
+  renderPending();
+  renderDrafted();
+}
+</script>
+</body>
+</html>
