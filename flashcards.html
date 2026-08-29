@@ -93,15 +93,32 @@
   #cardFormError{color:var(--pencil-red); font-size:13px; display:none; margin-bottom:10px;}
   .form-actions{display:flex; justify-content:flex-end; gap:10px;}
 
-  .card-list{display:flex; flex-direction:column; gap:0; padding:0 14px 4px;}
-  .card-row{ display:grid; grid-template-columns:1fr auto; gap:10px; align-items:center; padding:12px 4px; border-bottom:1px dashed var(--paper-line); }
+  .card-list{display:flex; flex-direction:column; gap:0; padding:2px 14px 8px;}
+  .card-row{ display:flex; align-items:center; gap:12px; padding:11px 4px; border-bottom:1px dashed var(--paper-line); }
   .card-row:last-child{border-bottom:none;}
-  .card-row .deck-pill{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--sage); background:var(--sage-bg); padding:2px 6px; border-radius:4px; margin-right:6px; }
-  .card-row .front-snip{font-size:13.5px; color:var(--ink);}
-  .card-row label{display:flex; align-items:center; gap:10px; overflow:hidden; cursor:pointer; font-size:inherit; font-weight:inherit; text-transform:none; letter-spacing:normal; color:inherit;}
-  .row-actions{display:flex; gap:4px; flex-shrink:0;}
-  .row-actions button{padding:5px 8px; font-size:12px; border-radius:5px;}
+  .card-row:hover{background:rgba(94,133,103,.05);}
+  [data-theme="dark"] .card-row:hover{background:rgba(132,172,142,.07);}
+  .card-row .deck-pill{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--sage); background:var(--sage-bg); padding:2px 6px; border-radius:4px; flex-shrink:0; }
+  .card-row .front-snip{font-size:13.5px; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .card-row label{display:flex; align-items:center; gap:12px; overflow:hidden; cursor:pointer; flex:1; min-width:0; font-size:inherit; font-weight:inherit; text-transform:none; letter-spacing:normal; color:inherit;}
+  .row-actions{display:flex; gap:6px; flex-shrink:0;}
+  .row-actions button{padding:5px 10px; font-size:12px; border-radius:6px;}
   .note{font-size:12px; color:var(--muted);}
+
+  /* Custom checkboxes — same size/shape at deck level and card level, and they
+     actually line up on their own baseline instead of the browser default. */
+  input[type="checkbox"].card-select, input[type="checkbox"].deck-select-all{
+    appearance:none; -webkit-appearance:none; margin:0; flex-shrink:0;
+    width:17px; height:17px; border-radius:5px; border:1.5px solid var(--paper-line);
+    background:var(--card); cursor:pointer; position:relative;
+    transition:background .12s ease, border-color .12s ease;
+  }
+  input[type="checkbox"].card-select:hover, input[type="checkbox"].deck-select-all:hover{ border-color:var(--sage); }
+  input[type="checkbox"].card-select:checked, input[type="checkbox"].deck-select-all:checked{ background:var(--sage); border-color:var(--sage); }
+  input[type="checkbox"].card-select:checked::after, input[type="checkbox"].deck-select-all:checked::after{
+    content:''; position:absolute; left:5px; top:1px; width:4px; height:9px;
+    border:solid #fff; border-width:0 2px 2px 0; transform:rotate(45deg);
+  }
 
   /* Manage cards — collapsible deck groups + bulk select */
   .manage-toolbar{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:12px;}
@@ -112,12 +129,12 @@
   .btn-delete-selected{border-color:var(--pencil-red); color:var(--pencil-red); background:#fff;}
   [data-theme="dark"] .btn-delete-selected{background:transparent;}
   .deck-group{ background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius); margin-bottom:10px; box-shadow:var(--shadow); overflow:hidden; }
-  .deck-group summary{ list-style:none; cursor:pointer; padding:12px 14px; display:flex; align-items:center; gap:10px; }
+  .deck-group summary{ list-style:none; cursor:pointer; padding:13px 14px; display:flex; align-items:center; gap:12px; }
   .deck-group summary::-webkit-details-marker{display:none;}
-  .deck-group summary::before{content:'▸'; display:inline-block; color:var(--muted); font-size:11px; transition:transform .15s ease; width:10px;}
+  .deck-group summary::before{content:'▸'; display:inline-block; color:var(--muted); font-size:11px; transition:transform .15s ease; width:10px; flex-shrink:0;}
   .deck-group[open] summary::before{transform:rotate(90deg);}
-  .deck-select-all{margin:0;}
   .deck-group summary .deck-pill{margin-right:0;}
+  .deck-group summary .note{margin-left:auto;}
 
   footer{text-align:center; color:#A79F8C; font-size:12px; margin-top:36px;}
 </style>
