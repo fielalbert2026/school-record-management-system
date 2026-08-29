@@ -51,7 +51,22 @@
     font-family:'Inter',system-ui,sans-serif;
     -webkit-font-smoothing:antialiased;
   }
-  .wrap{max-width:1000px; margin:0 auto; padding:56px 26px 90px;}
+  .wrap{max-width:1320px; margin:0 auto; padding:56px 26px 90px;}
+  .dashboard-layout{
+    display:grid;
+    grid-template-columns: minmax(230px, 18%) 1fr;
+    gap:40px;
+    align-items:start;
+  }
+  .dashboard-sidebar{min-width:0; padding-right:28px; border-right:1px solid var(--paper-line);}
+  .dashboard-sidebar .section-toolbar{flex-direction:column; align-items:flex-start; gap:8px;}
+  .dashboard-sidebar .ann-card{padding:16px 16px;}
+  .dashboard-sidebar .rem-row{grid-template-columns:1fr; gap:6px;}
+  .dashboard-main{min-width:0;}
+  @media (max-width:900px){
+    .dashboard-layout{grid-template-columns:1fr; gap:32px;}
+    .dashboard-sidebar{padding-right:0; border-right:none;}
+  }
   a{color:inherit;}
 
   /* ---------- Hero / masthead ---------- */
@@ -318,6 +333,9 @@
     </p>
   </div>
 
+  <div class="dashboard-layout">
+  <aside class="dashboard-sidebar">
+
   <div class="section-toolbar">
     <p class="section-label" style="margin:0;">Announcements</p>
     <div class="ann-controls" id="annControls"></div>
@@ -387,6 +405,9 @@
     <div class="ann-empty">Loading reminders…</div>
   </div>
 
+  </aside>
+  <div class="dashboard-main">
+
   <p class="section-label">Modules</p>
   <div class="modules">
 
@@ -420,6 +441,9 @@
       </div>
     </a>
 
+  </div>
+
+  </div>
   </div>
 
   <div class="note-panel">
