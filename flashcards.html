@@ -279,6 +279,7 @@ let connected = false;
 let cards = [];
 let editingCardId = null;
 let currentType = 'basic';
+let knownSheetNames = []; // snapshot of every sheet present at load — see persistCards() guard below
 
 /* ---------------- Audit log — same scheme as the other modules ---------------- */
 function phTimestamp(){
@@ -407,6 +408,7 @@ async function loadFromGitHub(){
     const json = await res.json();
     currentSha = json.sha;
     workbook = XLSX.read(b64ToArrayBuffer(json.content), {type:'array'});
+    knownSheetNames = workbook.SheetNames.slice();
     parseCardsFromWorkbook();
     connected = true;
     panel.style.display = 'none';
@@ -438,6 +440,16 @@ async function persistCards(actionLabel, actionDetails){
   const pending = drainAuditQueue();
   if(actionLabel) pending.push({ ts:phTimestamp(), actor:session.name, role:session.role, action:actionLabel, details:actionDetails||'' });
   appendAuditToWorkbook(workbook, pending);
+  // Safety guard: this save is only ever supposed to touch Flashcards + Audit_Log.
+  // If any sheet that was present when this page loaded (Subject_Scheduler,
+  // Valid_Users, Announcements, Reminders, ...) is missing from the outgoing
+  // workbook, something is wrong — refuse to write rather than push a file
+  // that's silently missing another module's data.
+  const missing = knownSheetNames.filter(name => !workbook.SheetNames.includes(name));
+  if(missing.length){
+    alert('Save blocked as a safety precaution: ' + missing.join(', ') + ' would be missing from the saved file. Nothing was written — please reload the page and try again, and let the site owner know if this keeps happening.');
+    return false;
+  }
   const wbout = XLSX.write(workbook, {bookType:'xlsx', type:'array'});
   try{
     currentSha = await saveViaProxy(ghToken, arrayBufferToB64(wbout), currentSha, `Flashcards: ${actionLabel||'update'}`);

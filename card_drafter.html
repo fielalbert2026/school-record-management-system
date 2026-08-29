@@ -272,6 +272,7 @@ let editingEnabled = false;
 let workbook = null;
 let currentSha = null;
 let cards = []; // the LIVE shared deck, loaded from GitHub
+let knownSheetNames = []; // snapshot of every sheet present at load — see persistCards() guard below
 
 function phTimestamp(){
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -383,6 +384,7 @@ async function loadFromGitHub(){
     const json = await res.json();
     currentSha = json.sha;
     workbook = XLSX.read(b64ToArrayBuffer(json.content), {type:'array'});
+    knownSheetNames = workbook.SheetNames.slice();
     parseCardsFromWorkbook();
     panel.style.display = 'none';
     document.getElementById('content').style.display = 'block';
@@ -410,6 +412,16 @@ async function persistCards(actionLabel, actionDetails){
   const pending = drainAuditQueue();
   if(actionLabel) pending.push({ ts:phTimestamp(), actor:session.name, role:session.role, action:actionLabel, details:actionDetails||'' });
   appendAuditToWorkbook(workbook, pending);
+  // Safety guard: this save is only ever supposed to touch Flashcards + Audit_Log.
+  // If any sheet that was present when this page loaded (Subject_Scheduler,
+  // Valid_Users, Announcements, Reminders, ...) is missing from the outgoing
+  // workbook, something is wrong — refuse to write rather than push a file
+  // that's silently missing another module's data.
+  const missing = knownSheetNames.filter(name => !workbook.SheetNames.includes(name));
+  if(missing.length){
+    alert('Save blocked as a safety precaution: ' + missing.join(', ') + ' would be missing from the saved file. Nothing was written — please reload the page and try again, and let the site owner know if this keeps happening.');
+    return false;
+  }
   const wbout = XLSX.write(workbook, {bookType:'xlsx', type:'array'});
   try{
     currentSha = await saveViaProxy(ghToken, arrayBufferToB64(wbout), currentSha, `Flashcards: ${actionLabel||'update'}`);
@@ -619,6 +631,39 @@ function makeClozeFromSentence(sentence, term){
 }
 
 /* ---- candidate extraction ---- */
+// Sentences that open with a generic pronoun/determiner ("This is...", "It is...",
+// "There is...") match the same "<Word> is <rest>" shape as a real definition, but
+// the "term" isn't a term at all — it's just the sentence's first word. Anything
+// on this list is rejected outright rather than turned into a card.
+const GENERIC_TERM_STOPLIST = new Set([
+  'this','it','that','there','these','those','here','such','some','many','most',
+  'all','each','both','he','she','they','we','you','i','what','which','who','one'
+]);
+function isGenericTerm(term){
+  const words = term.trim().split(/\s+/);
+  return words.length === 1 && GENERIC_TERM_STOPLIST.has(words[0].toLowerCase());
+}
+// Strip a leading article so "The mitochondria" becomes "mitochondria" for the
+// answer side of a card — students identify "mitochondria", not "the mitochondria".
+function stripLeadingArticle(s){
+  return String(s || '').replace(/^(the|a|an)\s+/i, '').trim();
+}
+function lowerFirst(s){
+  if (!s) return s;
+  if (/^[A-Z]{2,}/.test(s)) return s; // leave acronyms (DNA, ATP) alone
+  return s.charAt(0).toLowerCase() + s.slice(1);
+}
+// A colon can appear as "Term: definition" (glossary) or "Definition: Term" (a
+// professor writing the description first, answer after the colon) — both are
+// common in copy-pasted material. Treat whichever side is short (a name/phrase,
+// not a full clause) as the term, and the other, longer side as the definition.
+function pickTermDef(sideA, sideB){
+  const a = sideA.trim(), b = sideB.trim();
+  const wa = a.split(/\s+/).length, wb = b.split(/\s+/).length;
+  if (wb <= 6 && wb < wa) return { term: stripLeadingArticle(b), def: a };
+  return { term: stripLeadingArticle(a), def: b };
+}
+
 function extractCandidates(text){
   const candidates = []; // {front, back, term, sentence, weight}
   const lines = splitLines(text);
@@ -632,28 +677,30 @@ function extractCandidates(text){
     }
   }
 
-  // 2) Glossary-style lines: "Term: definition" / "Term — definition" / "Term - definition"
-  //    Term must be short (looks like a name/phrase, not a full sentence).
-  const glossaryRe = /^([A-Z][A-Za-z0-9()\/&' ]{1,60}?)\s*[:\u2014\u2013]\s+(.{8,240})$/;
+  // 2) Glossary-style lines: "Term: definition" / "Term — definition" (or the
+  //    reverse, "definition: Term" — pickTermDef sorts out which side is which).
+  const glossaryRe = /^([A-Z][A-Za-z0-9()\/&' ]{1,60}?)\s*[:\u2014\u2013]\s+(.{2,240})$/;
   lines.forEach(line => {
     if (/^(?:[-*•]|\d+[.)])\s/.test(line)) return; // handled separately below
     const m = line.match(glossaryRe);
     if (m) {
-      const term = m[1].trim();
-      const def = stripTrailingPunct(m[2]);
-      if (term.split(/\s+/).length <= 7 && def.split(/\s+/).length >= 2) {
-        candidates.push({ front: `What is ${term}?`, back: def, term, sentence: `${term} is ${def}.`, weight: 5 });
+      const { term, def } = pickTermDef(m[1], m[2]);
+      const cleanDef = stripTrailingPunct(def);
+      if (term && !isGenericTerm(term) && term.split(/\s+/).length <= 7 && cleanDef.split(/\s+/).length >= 2) {
+        candidates.push({ front: `What is ${term}?`, back: cleanDef, term, sentence: `${term} is ${lowerFirst(cleanDef)}.`, weight: 5 });
       }
     }
   });
 
-  // 3) Labeled bullet/numbered items: "- Term: definition" or "1. Term: definition"
+  // 3) Labeled bullet/numbered items: "- Term: definition" (or the reverse).
   lines.forEach(line => {
-    const m = line.match(/^(?:[-*•]|\d+[.)])\s*([^:]{2,60}):\s*(.{5,240})$/);
+    const m = line.match(/^(?:[-*•]|\d+[.)])\s*([^:]{2,80}):\s*(.{2,240})$/);
     if (m) {
-      const term = m[1].trim();
-      const def = stripTrailingPunct(m[2]);
-      candidates.push({ front: `What is ${term}?`, back: def, term, sentence: `${term} is ${def}.`, weight: 4 });
+      const { term, def } = pickTermDef(m[1], m[2]);
+      const cleanDef = stripTrailingPunct(def);
+      if (term && !isGenericTerm(term) && cleanDef) {
+        candidates.push({ front: `What is ${term}?`, back: cleanDef, term, sentence: `${term} is ${lowerFirst(cleanDef)}.`, weight: 4 });
+      }
     }
   });
 
@@ -663,7 +710,8 @@ function extractCandidates(text){
   sentences.forEach(s => {
     const m = s.match(defRe);
     if (m) {
-      const term = m[1].trim();
+      const term = stripLeadingArticle(m[1].trim());
+      if (!term || isGenericTerm(term)) return;
       const rest = stripTrailingPunct(m[3]);
       const verb = m[2];
       candidates.push({
