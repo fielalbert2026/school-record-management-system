@@ -725,7 +725,7 @@ function renderSignedIn(s){
   const strip = document.getElementById('sessionStrip');
   strip.classList.add('show');
   const roleClass = isMaster ? 'master' : 'guest';
-  strip.innerHTML = `Signed in as <b>${session.name}</b> <span class="role-pill ${roleClass}">${session.role}</span> <button id="logoutBtn" type="button">Log out</button>`;
+  strip.innerHTML = `Hello <b>${session.name}</b>😀<span class="role-pill ${roleClass}">${session.role}</span> <button id="logoutBtn" type="button">Log out</button>`;
   document.getElementById('logoutBtn').addEventListener('click', async () => {
     if(isMaster){
       await flushAuditNow('Logout', '');
