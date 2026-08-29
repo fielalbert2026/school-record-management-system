@@ -183,7 +183,7 @@
         <span class="status" id="genStatus"></span>
       </div>
       <div class="progress-track" id="progressTrack"><div class="progress-fill" id="progressFill"></div></div>
-      <p class="hint" style="margin-top:10px;">This scans the extracted text for glossary lines ("Term: definition"), Q/A pairs, definition sentences ("X is/are the…", "X refers to…"), and labeled list items — then turns each into a card. It works best on material that already reads like notes, a glossary, or a study guide; it won't invent facts that aren't in the file.</p>
+      <p class="hint" style="margin-top:10px;">An AI pass reads the extracted text and pulls out candidate cards — it's told explicitly to extract only, not to add outside explanation, filler, or examples. It's better at handling material that doesn't fit a rigid "Term: definition" shape, but it's still a draft: check it against the source before approving.</p>
     </section>
 
     <section class="panel">
@@ -219,7 +219,7 @@
       </div>
       <div class="status" id="exportStatus"></div>
 
-      <div class="warn-box">Drafting happens entirely in your browser — the extracted text is scanned with pattern matching, nothing is sent to any AI or external service. Saving to the shared deck is a separate step that goes through the same sign-in check as every other change in this app.</div>
+      <div class="warn-box">Drafting sends only the extracted file text to Claude, instructed to extract questions as-is and not add anything the file doesn't say — never your school ID, passphrase, or editing token. Saving to the shared deck is a separate step that goes through the same sign-in check as every other change in this app.</div>
     </section>
   </div>
 
@@ -603,199 +603,102 @@ function renderDeckDatalist(){
 }
 
 /* =====================================================================
-   Programmatic card drafting — pure pattern-matching, no AI/API calls.
-   Scans the extracted text for a handful of shapes that study material
-   commonly takes, and turns each match into a candidate card. Everything
-   here runs synchronously in the browser on text already on the page.
+   AI-assisted card drafting. Pure pattern-matching (regex over the text)
+   turned out too rigid — it missed anything not phrased as "Term: def"
+   and produced askew cards on real slide/notes text. An AI pass reads
+   the material the way a student would, but is instructed to extract
+   only, never invent: see EXTRACTION_INSTRUCTION below. Every draft is
+   still just a suggestion — nothing is added anywhere until a Master
+   reviews and approves it, same as before.
    ===================================================================== */
 
-function splitLines(text){
-  return text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-}
-function splitSentences(text){
-  return (text.replace(/\s+/g, ' ').match(/[^.!?]+[.!?]+(?=\s|$)|[^.!?]+$/g) || [])
-    .map(s => s.trim()).filter(s => s.length > 12);
-}
-function stripTrailingPunct(s){ return String(s || '').trim().replace(/[.:;,\s]+$/, ''); }
-function normalizeForDedupeLocal(s){
-  return String(s || '').replace(CLZ, ' ').replace(/[^a-z0-9]+/gi, ' ').trim().toLowerCase().slice(0, 120);
-}
-
-/* Build a cloze front/back from a sentence that contains `term` verbatim
-   (case-insensitive, first occurrence). Returns null if term isn't found. */
-function makeClozeFromSentence(sentence, term){
-  const idx = sentence.toLowerCase().indexOf(term.toLowerCase());
-  if (idx === -1) return null;
-  const front = (sentence.slice(0, idx) + CLZ + sentence.slice(idx + term.length)).trim();
-  return { type: 'cloze', front, back: term.trim() };
-}
-
-/* ---- candidate extraction ---- */
-// Sentences that open with a generic pronoun/determiner ("This is...", "It is...",
-// "There is...") match the same "<Word> is <rest>" shape as a real definition, but
-// the "term" isn't a term at all — it's just the sentence's first word. Anything
-// on this list is rejected outright rather than turned into a card.
-const GENERIC_TERM_STOPLIST = new Set([
-  'this','it','that','there','these','those','here','such','some','many','most',
-  'all','each','both','he','she','they','we','you','i','what','which','who','one'
-]);
-function isGenericTerm(term){
-  const words = term.trim().split(/\s+/);
-  return words.length === 1 && GENERIC_TERM_STOPLIST.has(words[0].toLowerCase());
-}
-// Strip a leading article so "The mitochondria" becomes "mitochondria" for the
-// answer side of a card — students identify "mitochondria", not "the mitochondria".
-function stripLeadingArticle(s){
-  return String(s || '').replace(/^(the|a|an)\s+/i, '').trim();
-}
-function lowerFirst(s){
-  if (!s) return s;
-  if (/^[A-Z]{2,}/.test(s)) return s; // leave acronyms (DNA, ATP) alone
-  return s.charAt(0).toLowerCase() + s.slice(1);
-}
-// A colon can appear as "Term: definition" (glossary) or "Definition: Term" (a
-// professor writing the description first, answer after the colon) — both are
-// common in copy-pasted material. Treat whichever side is short (a name/phrase,
-// not a full clause) as the term, and the other, longer side as the definition.
-function pickTermDef(sideA, sideB){
-  const a = sideA.trim(), b = sideB.trim();
-  const wa = a.split(/\s+/).length, wb = b.split(/\s+/).length;
-  if (wb <= 6 && wb < wa) return { term: stripLeadingArticle(b), def: a };
-  return { term: stripLeadingArticle(a), def: b };
-}
-
-function extractCandidates(text){
-  const candidates = []; // {front, back, term, sentence, weight}
-  const lines = splitLines(text);
-
-  // 1) Explicit Q/A pairs on consecutive lines: "Q: ..." / "A: ..."
-  for (let i = 0; i < lines.length - 1; i++) {
-    const qm = lines[i].match(/^Q(?:uestion)?\s*\d*\s*[:.\-\)]\s*(.{4,300})$/i);
-    const am = lines[i + 1] && lines[i + 1].match(/^A(?:nswer)?\s*\d*\s*[:.\-\)]\s*(.{1,300})$/i);
-    if (qm && am) {
-      candidates.push({ front: qm[1].trim(), back: stripTrailingPunct(am[1]), weight: 6 });
-    }
+function chunkText(text, maxLen){
+  const paras = text.split(/\n{2,}/);
+  const chunks = [];
+  let cur = '';
+  for (const p of paras) {
+    if ((cur + '\n\n' + p).length > maxLen && cur) { chunks.push(cur); cur = p; }
+    else cur = cur ? cur + '\n\n' + p : p;
   }
-
-  // 2) Glossary-style lines: "Term: definition" / "Term — definition" (or the
-  //    reverse, "definition: Term" — pickTermDef sorts out which side is which).
-  const glossaryRe = /^([A-Z][A-Za-z0-9()\/&' ]{1,60}?)\s*[:\u2014\u2013]\s+(.{2,240})$/;
-  lines.forEach(line => {
-    if (/^(?:[-*•]|\d+[.)])\s/.test(line)) return; // handled separately below
-    const m = line.match(glossaryRe);
-    if (m) {
-      const { term, def } = pickTermDef(m[1], m[2]);
-      const cleanDef = stripTrailingPunct(def);
-      if (term && !isGenericTerm(term) && term.split(/\s+/).length <= 7 && cleanDef.split(/\s+/).length >= 2) {
-        candidates.push({ front: `What is ${term}?`, back: cleanDef, term, sentence: `${term} is ${lowerFirst(cleanDef)}.`, weight: 5 });
-      }
-    }
-  });
-
-  // 3) Labeled bullet/numbered items: "- Term: definition" (or the reverse).
-  lines.forEach(line => {
-    const m = line.match(/^(?:[-*•]|\d+[.)])\s*([^:]{2,80}):\s*(.{2,240})$/);
-    if (m) {
-      const { term, def } = pickTermDef(m[1], m[2]);
-      const cleanDef = stripTrailingPunct(def);
-      if (term && !isGenericTerm(term) && cleanDef) {
-        candidates.push({ front: `What is ${term}?`, back: cleanDef, term, sentence: `${term} is ${lowerFirst(cleanDef)}.`, weight: 4 });
-      }
-    }
-  });
-
-  // 4) Definition sentences inside normal prose: "X is/are/refers to/means/is defined as/is known as ..."
-  const sentences = splitSentences(text);
-  const defRe = /^([A-Z][A-Za-z0-9()'\/ ]{2,55}?)\s+(is|are|refers to|means|is defined as|are defined as|is known as|is called)\s+(.{10,220})$/;
-  sentences.forEach(s => {
-    const m = s.match(defRe);
-    if (m) {
-      const term = stripLeadingArticle(m[1].trim());
-      if (!term || isGenericTerm(term)) return;
-      const rest = stripTrailingPunct(m[3]);
-      const verb = m[2];
-      candidates.push({
-        front: `What ${/^are\b/i.test(verb) ? 'are' : 'is'} ${term}?`,
-        back: rest, term, sentence: s.trim(), weight: 3
-      });
-    }
-  });
-
-  // Dedupe by normalized front text, keep highest-weight version of each.
-  const byKey = new Map();
-  candidates.forEach(c => {
-    const key = normalizeForDedupeLocal(c.front);
-    if (!key) return;
-    const existing = byKey.get(key);
-    if (!existing || c.weight > existing.weight) byKey.set(key, c);
-  });
-  return [...byKey.values()];
+  return chunks.length ? chunks : [text];
 }
 
-/* ---- turn a candidate into an identification or cloze card ----
-   Identification = the classic "describe it, name it" test format: the
-   front shows the description/definition, the back is just the term —
-   the reverse of a Q&A card, and the same underlying fact as the cloze
-   version, just without the term sitting inside the sentence. */
-function candidateToBasic(c){
-  if (c.term) {
-    return { type: 'basic', front: stripTrailingPunct(c.back), back: c.term };
-  }
-  // No isolated term available (e.g. a Q/A pair lifted straight from the
-  // material) — keep it as a direct question/answer instead.
-  return { type: 'basic', front: c.front, back: c.back };
-}
-function candidateToCloze(c){
-  if (c.term && c.sentence) {
-    const built = makeClozeFromSentence(c.sentence, c.term);
-    if (built) return built;
-  }
-  return null; // no usable sentence/term to blank out (e.g. a Q/A pair) — skip for cloze-only mode
-}
+// The whole point of this tool is to pull cards OUT of the file, not write
+// new material into it — so the prompt is deliberately strict about that.
+const EXTRACTION_INSTRUCTION = 'Generate questions strictly based on the uploaded file/document text below. Do not add outside knowledge, filler wording, examples, or elaboration that is not already present in the text. The goal is to extract study questions from the material as-is, as if preparing it for memorization — not to teach or explain it further.';
 
-/* ---- orchestration: pick, rank, and shape candidates to the requested style/count ---- */
-function draftCardsProgrammatic(text, style, target, focusNote){
-  let candidates = extractCandidates(text);
-  const kw = (focusNote || '').trim().toLowerCase();
-  if (kw) {
-    candidates.sort((a, b) => {
-      const aHit = (a.front + ' ' + a.back).toLowerCase().includes(kw) ? 1 : 0;
-      const bHit = (b.front + ' ' + b.back).toLowerCase().includes(kw) ? 1 : 0;
-      if (aHit !== bHit) return bHit - aHit;
-      return b.weight - a.weight;
-    });
-  } else {
-    candidates.sort((a, b) => b.weight - a.weight);
-  }
+async function draftCardsFromChunk(chunk, style, count, focusNote){
+  const styleInstruction = style === 'basic'
+    ? 'Only produce "basic" type cards: a short identification-style question and the exact answer as it appears in the text (a term, name, phrase, or short fact — not a paraphrase).'
+    : style === 'cloze'
+      ? 'Only produce "cloze" type cards: a sentence copied (or very lightly trimmed) directly from the text, with one key term/phrase from that same sentence to blank out.'
+      : 'Produce a mix of "basic" and "cloze" type cards, roughly half and half.';
+
+  const prompt = [
+    EXTRACTION_INSTRUCTION,
+    'Return ONLY a JSON array — no markdown fences, no commentary, no keys other than specified.',
+    'Each array item is one of:',
+    '{"type":"basic","front":"<identification-style question>","back":"<the exact term/answer, copied from the text>"}',
+    '{"type":"cloze","sentence":"<a sentence copied from the text, with the key term still in place>","answer":"<the exact key term/phrase from that sentence to blank out>"}',
+    styleInstruction,
+    'Every front, back, sentence, and answer must be traceable to the text below — do not paraphrase definitions into your own words, do not add context the text does not state, and do not invent examples.',
+    'Skip content that is too vague or fragmentary to make a clean question from, rather than padding it out.',
+    'Avoid duplicate or near-duplicate questions.',
+    focusNote ? ('Prioritize material related to: ' + focusNote) : '',
+    'Generate up to ' + count + ' cards — fewer is fine if the text does not support that many.',
+    '', '--- FILE TEXT ---', chunk
+  ].filter(Boolean).join('\n');
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, messages: [{ role: 'user', content: prompt }] })
+  });
+  const data = await res.json();
+  const textOut = (data.content || []).map(b => b.text || '').join('\n').trim();
+  const cleaned = textOut.replace(/^```(json)?/i, '').replace(/```$/, '').trim();
+  let arr;
+  try { arr = JSON.parse(cleaned); } catch (e) { return []; }
+  if (!Array.isArray(arr)) return [];
 
   const out = [];
-  const seen = new Set();
-  const pushIfNew = (card) => {
-    if (!card || !card.front || !card.back) return false;
-    const key = normalizeForDedupeLocal(card.front);
-    if (!key || seen.has(key)) return false;
-    if (isNearDuplicate(card.front)) return false;
-    seen.add(key);
-    out.push(card);
-    return true;
-  };
-
-  for (const c of candidates) {
-    if (out.length >= target) break;
-    if (style === 'basic') {
-      pushIfNew(candidateToBasic(c));
-    } else if (style === 'cloze') {
-      const cloze = candidateToCloze(c);
-      if (cloze) pushIfNew(cloze);
-    } else { // mix — alternate, but fall back to whichever form is actually available
-      const wantCloze = out.length % 2 === 1;
-      const primary = wantCloze ? candidateToCloze(c) : candidateToBasic(c);
-      if (primary && pushIfNew(primary)) continue;
-      const fallback = wantCloze ? candidateToBasic(c) : candidateToCloze(c);
-      if (fallback) pushIfNew(fallback);
+  for (const item of arr) {
+    if (!item || !item.type) continue;
+    if (item.type === 'basic' && item.front && item.back) {
+      out.push({ type: 'basic', front: String(item.front).trim(), back: String(item.back).trim() });
+    } else if (item.type === 'cloze' && item.sentence && item.answer) {
+      const sentence = String(item.sentence);
+      const answer = String(item.answer).trim();
+      const idx = sentence.toLowerCase().indexOf(answer.toLowerCase());
+      if (idx === -1 || !answer) continue;
+      const front = sentence.slice(0, idx) + CLZ + sentence.slice(idx + answer.length);
+      out.push({ type: 'cloze', front: front.trim(), back: answer });
     }
   }
   return out;
+}
+
+async function draftCardsAI(text, style, target, focusNote, onProgress){
+  const chunks = chunkText(text, 3800);
+  const perCall = Math.min(6, Math.max(3, Math.ceil(target / Math.max(1, chunks.length))));
+  const maxCalls = 15;
+  let calls = 0, collected = [], chunkIdx = 0;
+
+  while (collected.length < target && calls < maxCalls && chunkIdx < chunks.length * 2) {
+    const chunk = chunks[chunkIdx % chunks.length];
+    const askFor = Math.min(perCall, target - collected.length);
+    const drafted = await draftCardsFromChunk(chunk, style, askFor, focusNote);
+    calls++; chunkIdx++;
+    for (const c of drafted) {
+      if (collected.length >= target) break;
+      if (isNearDuplicate(c.front)) continue;
+      const key = normalizeForDedupe(c.front);
+      if (!key || collected.some(existing => normalizeForDedupe(existing.front) === key)) continue;
+      collected.push(c);
+    }
+    if (onProgress) onProgress(collected.length, calls);
+  }
+  return collected;
 }
 
 /* ---- generation orchestration ---- */
@@ -803,44 +706,41 @@ const genStatus = document.getElementById('genStatus');
 const progressTrack = document.getElementById('progressTrack');
 const progressFill = document.getElementById('progressFill');
 
-generateBtn.addEventListener('click', () => {
+generateBtn.addEventListener('click', async () => {
   if (!extractedText) return;
   const style = document.getElementById('cardStyle').value;
   const target = Math.max(3, Math.min(60, parseInt(document.getElementById('targetCount').value, 10) || 15));
   const focusNote = document.getElementById('focusNote').value.trim();
 
   generateBtn.disabled = true;
-  genStatus.className = 'status'; genStatus.textContent = 'Scanning the extracted text…';
-  progressTrack.style.display = 'block'; progressFill.style.width = '20%';
+  genStatus.className = 'status'; genStatus.textContent = 'Reading the file and drafting…';
+  progressTrack.style.display = 'block'; progressFill.style.width = '4%';
 
-  // Pattern matching over local text is fast, but keep it off the very next
-  // paint so the "Scanning…" status and progress bar actually show up.
-  setTimeout(() => {
-    let collected = [];
-    try {
-      collected = draftCardsProgrammatic(extractedText, style, target, focusNote);
-    } catch (err) {
-      genStatus.className = 'status err';
-      genStatus.textContent = 'Something went wrong while scanning: ' + (err && err.message ? err.message : err) + '. You can try again.';
-      generateBtn.disabled = false;
-      progressTrack.style.display = 'none';
-      return;
-    }
-
-    progressFill.style.width = '100%';
-    setTimeout(() => { progressTrack.style.display = 'none'; progressFill.style.width = '0%'; }, 400);
-
-    collected.forEach(c => pendingCards.push({ tempId: uid(), type: c.type, front: c.front, back: c.back, checked: true }));
-    renderPending();
-
-    genStatus.className = collected.length ? 'status ok' : 'status err';
-    genStatus.textContent = collected.length
-      ? collected.length + ' card' + (collected.length === 1 ? '' : 's') + ' drafted below from patterns found in the file — review before approving.'
-      : (style === 'cloze'
-          ? 'No usable definition sentences found to build fill-in-the-blank cards from. Try "Identification" or "Mix", or use material with clearer "X is the Y of Z" style lines.'
-          : 'No glossary lines, Q/A pairs, or definition sentences were found in this file (or everything matched what\'s already in the deck). This works best on notes, glossaries, or study guides — try a different file or add a keyword above.');
+  let collected = [];
+  try {
+    collected = await draftCardsAI(extractedText, style, target, focusNote, (n) => {
+      progressFill.style.width = Math.round(Math.min(95, (n / target) * 100)) + '%';
+      genStatus.textContent = 'Drafted ' + n + ' / ' + target + '…';
+    });
+  } catch (err) {
+    genStatus.className = 'status err';
+    genStatus.textContent = 'Something went wrong while drafting: ' + (err && err.message ? err.message : err) + '. You can try again.';
     generateBtn.disabled = false;
-  }, 50);
+    progressTrack.style.display = 'none';
+    return;
+  }
+
+  progressFill.style.width = '100%';
+  setTimeout(() => { progressTrack.style.display = 'none'; progressFill.style.width = '0%'; }, 400);
+
+  collected.forEach(c => pendingCards.push({ tempId: uid(), type: c.type, front: c.front, back: c.back, checked: true }));
+  renderPending();
+
+  genStatus.className = collected.length ? 'status ok' : 'status err';
+  genStatus.textContent = collected.length
+    ? collected.length + ' card' + (collected.length === 1 ? '' : 's') + ' drafted below, straight from the file — review before approving.'
+    : 'Nothing usable came back (or everything matched what\'s already in the deck). Try again, a different style, or a shorter/cleaner excerpt of the file.';
+  generateBtn.disabled = false;
 });
 
 /* ---- pending review UI ---- */

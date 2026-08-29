@@ -377,12 +377,21 @@
 
   <div class="ann-panel" id="remFormPanel">
     <h3 id="remFormTitle">Add a reminder</h3>
-    <label for="remSubjectInput">Subject</label>
-    <input id="remSubjectInput" type="text" list="remSubjectDatalist" placeholder="e.g. Calculus I">
+    <div class="pin-field">
+      <label for="remTypeInput">Type</label>
+      <select id="remTypeInput">
+        <option value="Subject">Subject-based</option>
+        <option value="General" selected>General</option>
+      </select>
+    </div>
+    <label for="remSubjectInput" id="remSubjectLabel">Title</label>
+    <input id="remSubjectInput" type="text" list="remSubjectDatalist" placeholder="e.g. Bring your school ID">
     <datalist id="remSubjectDatalist"></datalist>
+    <label for="remDescInput">Description (optional)</label>
+    <textarea id="remDescInput" rows="2" placeholder="A bit more detail about this reminder…"></textarea>
     <div class="field-row-2">
       <div>
-        <label for="remExpiresInput">Expires on</label>
+        <label for="remExpiresInput">Deadline</label>
         <input id="remExpiresInput" type="datetime-local">
       </div>
       <div class="pin-field">
@@ -394,7 +403,7 @@
         </select>
       </div>
     </div>
-    <div id="remFormError">Fill in a subject and an expiration date/time.</div>
+    <div id="remFormError">Fill in a title and a deadline date/time.</div>
     <div class="actions">
       <button type="button" class="btn-ghost" id="remCancelBtn">Cancel</button>
       <button type="button" class="btn-primary" id="remSubmitBtn">Add reminder</button>
@@ -847,12 +856,16 @@ function parseReminders(wb){
   if(headerIdx === -1) return [];
   const headers = aoa[headerIdx];
   const col = name => headers.indexOf(name);
-  const idCol=col('ID'), subjCol=col('Subject'), addedCol=col('DateAdded'), expCol=col('ExpiresAt'), impCol=col('Importance'), authorCol=col('CreatedBy');
+  const idCol=col('ID'), subjCol=col('Subject'), typeCol=col('Type'), descCol=col('Description'),
+        addedCol=col('DateAdded'), expCol=col('ExpiresAt'), impCol=col('Importance'), authorCol=col('CreatedBy');
   return aoa.slice(headerIdx+1)
     .filter(r => r[idCol])
     .map(r => ({
       id: r[idCol],
       subject: r[subjCol] || '',
+      // Older rows saved before the Type column existed are all subject-based reminders.
+      type: (typeCol > -1 && r[typeCol]) || 'Subject',
+      description: (descCol > -1 && r[descCol]) || '',
       dateAdded: (addedCol > -1 && r[addedCol]) || '',
       expiresAt: (expCol > -1 && r[expCol]) || '',
       importance: (impCol > -1 && r[impCol]) || 'Medium',
@@ -862,16 +875,16 @@ function parseReminders(wb){
 
 function buildRemindersSheet(){
   const sorted = sortReminders(reminders);
-  const rows = sorted.map(r => [r.id, r.subject, r.dateAdded, r.expiresAt, r.importance, r.createdBy]);
+  const rows = sorted.map(r => [r.id, r.subject, r.type || 'Subject', r.description || '', r.dateAdded, r.expiresAt, r.importance, r.createdBy]);
   const aoa = [
     ["Reminders — Personalized School Record Management System"],
     ["Managed by Master users from the dashboard. Do not edit IDs by hand."],
     [],
-    ["ID","Subject","DateAdded","ExpiresAt","Importance","CreatedBy"],
+    ["ID","Subject","Type","Description","DateAdded","ExpiresAt","Importance","CreatedBy"],
     ...rows
   ];
   const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols'] = [{wch:16},{wch:26},{wch:22},{wch:22},{wch:12},{wch:22}];
+  ws['!cols'] = [{wch:16},{wch:26},{wch:12},{wch:40},{wch:22},{wch:22},{wch:12},{wch:22}];
   return ws;
 }
 
@@ -886,21 +899,29 @@ function sortReminders(list){
 
 function renderReminders(){
   const list = document.getElementById('remList');
-  if(reminders.length === 0){
+  // Past-deadline reminders stay visible for a couple of days (same grace
+  // period as Announcements) so they don't just vanish the moment they're
+  // due, then drop off the interface on their own after that.
+  const displayable = reminders.filter(r => !isPastRetention(r));
+  if(displayable.length === 0){
     list.innerHTML = '<div class="ann-empty">No reminders yet.</div>';
     return;
   }
-  const sorted = sortReminders(reminders);
+  const sorted = sortReminders(displayable);
   list.innerHTML = sorted.map(r => {
     const expired = !!r.expiresAt && new Date(r.expiresAt).getTime() < Date.now();
     const impClass = (r.importance || 'Medium').toLowerCase();
+    const isGeneral = (r.type || 'Subject') === 'General';
     return `<div class="rem-row">
       <span class="rem-importance ${impClass}">${escapeHtml(r.importance || 'Medium')}</span>
       <div>
-        <div class="rem-subject">${escapeHtml(r.subject)}</div>
+        <div class="rem-subject">
+          ${isGeneral ? `<span style="font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--sage); background:var(--sage-bg); padding:2px 7px; border-radius:10px; margin-right:6px; vertical-align:middle;">General</span>` : ''}${escapeHtml(r.subject)}
+        </div>
+        ${r.description ? `<div class="rem-meta">${escapeHtml(r.description)}</div>` : ''}
         <div class="rem-meta">
           Added ${escapeHtml(fmtDateOnly(r.dateAdded))}
-          ${r.expiresAt ? ` · ${expired ? 'Expired' : 'Expires'} ${escapeHtml(fmtDate(r.expiresAt))}` : ''}
+          ${r.expiresAt ? ` · ${expired ? 'Deadline passed' : 'Deadline'} ${escapeHtml(fmtDate(r.expiresAt))}` : ''}
         </div>
       </div>
       <div></div>
@@ -912,16 +933,26 @@ function renderReminders(){
   }).join('');
 }
 
+function updateRemSubjectLabel(){
+  const isGeneral = document.getElementById('remTypeInput').value === 'General';
+  document.getElementById('remSubjectLabel').textContent = isGeneral ? 'Title' : 'Subject';
+  document.getElementById('remSubjectInput').placeholder = isGeneral ? 'e.g. Bring your school ID' : 'e.g. Calculus I';
+}
+document.getElementById('remTypeInput').addEventListener('change', updateRemSubjectLabel);
+
 function openRemForm(){ document.getElementById('remFormPanel').classList.add('open'); document.getElementById('remSubjectInput').focus(); }
 function closeRemForm(){
   document.getElementById('remFormPanel').classList.remove('open');
   remEditingId = null;
+  document.getElementById('remTypeInput').value = 'General';
   document.getElementById('remSubjectInput').value = '';
+  document.getElementById('remDescInput').value = '';
   document.getElementById('remExpiresInput').value = '';
   document.getElementById('remImportanceInput').value = 'Medium';
   document.getElementById('remFormError').style.display = 'none';
   document.getElementById('remFormTitle').textContent = 'Add a reminder';
   document.getElementById('remSubmitBtn').textContent = 'Add reminder';
+  updateRemSubjectLabel();
 }
 document.getElementById('remAddToggleBtn').addEventListener('click', () => {
   if(!annEditingEnabled || !annGhToken){
@@ -938,7 +969,9 @@ document.getElementById('remSubmitBtn').addEventListener('click', async () => {
     document.getElementById('tokenPanel').style.display = 'block';
     return;
   }
+  const type = document.getElementById('remTypeInput').value === 'General' ? 'General' : 'Subject';
   const subject = document.getElementById('remSubjectInput').value.trim();
+  const description = document.getElementById('remDescInput').value.trim();
   const expiresRaw = document.getElementById('remExpiresInput').value;
   const importance = document.getElementById('remImportanceInput').value;
   if(!subject || !expiresRaw){
@@ -950,9 +983,9 @@ document.getElementById('remSubmitBtn').addEventListener('click', async () => {
   const wasEditing = !!remEditingId;
   const now = new Date().toISOString();
   if(remEditingId){
-    reminders = reminders.map(r => r.id === remEditingId ? {...r, subject, expiresAt, importance} : r);
+    reminders = reminders.map(r => r.id === remEditingId ? {...r, subject, type, description, expiresAt, importance} : r);
   } else {
-    reminders.unshift({id:uid(), subject, dateAdded:now, expiresAt, importance, createdBy:session.name});
+    reminders.unshift({id:uid(), subject, type, description, dateAdded:now, expiresAt, importance, createdBy:session.name});
   }
   closeRemForm();
   renderReminders();
@@ -963,9 +996,12 @@ function startRemEdit(id){
   const r = reminders.find(x => x.id === id);
   if(!r) return;
   remEditingId = id;
+  document.getElementById('remTypeInput').value = r.type || 'Subject';
   document.getElementById('remSubjectInput').value = r.subject;
+  document.getElementById('remDescInput').value = r.description || '';
   document.getElementById('remExpiresInput').value = r.expiresAt ? toDatetimeLocalValue(r.expiresAt) : '';
   document.getElementById('remImportanceInput').value = r.importance || 'Medium';
+  updateRemSubjectLabel();
   document.getElementById('remFormTitle').textContent = 'Edit reminder';
   document.getElementById('remSubmitBtn').textContent = 'Save changes';
   openRemForm();

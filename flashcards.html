@@ -492,7 +492,7 @@ async function persistCards(actionLabel, actionDetails){
 function promptEnableEditing(){
   if(!isMaster) return;
   document.getElementById('tokenPanel').style.display = 'block';
-  document.getElementById('tokenInput').focus();
+  document.getElementById('editIdInput').focus();
 }
 document.getElementById('cancelTokenBtn').addEventListener('click', () => {
   document.getElementById('tokenPanel').style.display = 'none';
