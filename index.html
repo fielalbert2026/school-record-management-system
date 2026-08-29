@@ -205,12 +205,12 @@
   .ann-panel h3{font-family:'Fraunces',serif; margin:0 0 14px; color:var(--ink); font-size:17px;}
   .ann-panel label{display:block; font-family:'IBM Plex Mono',monospace; font-size:11px; text-transform:uppercase;
     letter-spacing:.06em; color:var(--muted); margin:0 0 6px;}
-  .ann-panel input[type="text"], .ann-panel input[type="date"], .ann-panel textarea{
+  .ann-panel input[type="text"], .ann-panel input[type="datetime-local"], .ann-panel textarea{
     width:100%; font-family:'Inter',sans-serif; font-size:14px; padding:10px 12px;
     border:1.5px solid var(--paper-line); border-radius:7px; background:#FFFEFC; color:var(--ink);
     margin-bottom:14px; resize:vertical;
   }
-  .ann-panel input[type="text"]:focus, .ann-panel input[type="date"]:focus, .ann-panel textarea:focus{outline:none; border-color:var(--ink);}
+  .ann-panel input[type="text"]:focus, .ann-panel input[type="datetime-local"]:focus, .ann-panel textarea:focus{outline:none; border-color:var(--ink);}
   .ann-panel .actions{display:flex; gap:10px; flex-wrap:wrap;}
   .field-row-2{display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:end;}
   @media (max-width:520px){ .field-row-2{grid-template-columns:1fr;} }
@@ -222,6 +222,25 @@
   }
   .pin-checkbox-label input{margin:0; width:auto;}
   #annFormError{color:var(--pencil-red); font-size:12.5px; display:none; margin:-6px 0 14px;}
+  #remFormError{color:var(--pencil-red); font-size:12.5px; display:none; margin:-6px 0 14px;}
+
+  .rem-list{display:flex; flex-direction:column; gap:0; background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius); box-shadow:var(--shadow);}
+  .rem-row{ display:grid; grid-template-columns:auto 1fr auto auto; gap:14px; align-items:center; padding:14px 18px; border-bottom:1px dashed var(--paper-line); }
+  .rem-row:last-child{border-bottom:none;}
+  .rem-subject{font-weight:600; color:var(--ink); font-size:14.5px;}
+  .rem-meta{font-size:12px; color:var(--muted); margin-top:2px;}
+  .rem-importance{
+    font-family:'IBM Plex Mono',monospace; font-size:10.5px; text-transform:uppercase; letter-spacing:.06em;
+    padding:4px 10px; border-radius:20px; white-space:nowrap;
+  }
+  .rem-importance.low{background:#EFEAE0; color:var(--muted);}
+  .rem-importance.medium{background:var(--highlighter); color:var(--highlighter-ink);}
+  .rem-importance.high{background:var(--pencil-red); color:#fff;}
+  .rem-actions{display:flex; gap:4px;}
+  .rem-actions button{padding:5px 8px; font-size:12px; border-radius:5px;}
+  @media (max-width:560px){
+    .rem-row{grid-template-columns:1fr; gap:6px;}
+  }
 
   .ann-list{display:flex; flex-direction:column; gap:14px; margin-bottom:44px;}
   .ann-card{
@@ -313,7 +332,7 @@
     <div class="field-row-2">
       <div>
         <label for="annExpiresInput">Expires on (optional)</label>
-        <input id="annExpiresInput" type="date">
+        <input id="annExpiresInput" type="datetime-local">
       </div>
       <div class="pin-field">
         <label class="pin-checkbox-label">
@@ -331,6 +350,41 @@
 
   <div class="ann-list" id="annList">
     <div class="ann-empty">Loading announcements…</div>
+  </div>
+
+  <div class="section-toolbar" style="margin-top:36px;">
+    <p class="section-label" style="margin:0;">Reminders</p>
+    <button class="btn-highlight" id="remAddToggleBtn" style="display:none;">+ Add reminder</button>
+  </div>
+
+  <div class="ann-panel" id="remFormPanel">
+    <h3 id="remFormTitle">Add a reminder</h3>
+    <label for="remSubjectInput">Subject</label>
+    <input id="remSubjectInput" type="text" list="remSubjectDatalist" placeholder="e.g. Calculus I">
+    <datalist id="remSubjectDatalist"></datalist>
+    <div class="field-row-2">
+      <div>
+        <label for="remExpiresInput">Expires on</label>
+        <input id="remExpiresInput" type="datetime-local">
+      </div>
+      <div class="pin-field">
+        <label for="remImportanceInput">Importance</label>
+        <select id="remImportanceInput">
+          <option value="Low">Low</option>
+          <option value="Medium" selected>Medium</option>
+          <option value="High">High</option>
+        </select>
+      </div>
+    </div>
+    <div id="remFormError">Fill in a subject and an expiration date/time.</div>
+    <div class="actions">
+      <button type="button" class="btn-ghost" id="remCancelBtn">Cancel</button>
+      <button type="button" class="btn-primary" id="remSubmitBtn">Add reminder</button>
+    </div>
+  </div>
+
+  <div class="rem-list" id="remList">
+    <div class="ann-empty">Loading reminders…</div>
   </div>
 
   <p class="section-label">Modules</p>
@@ -657,11 +711,14 @@ function renderSignedIn(s){
  * one localStorage key means a token entered in either module works in both.
  */
 const ANN_SHEET = 'Announcements';
+const REM_SHEET = 'Reminders';
 const ANN_TOKEN_KEY = 'gh_pat_school_scheduler';
 let annGhToken = null;
 let annEditingEnabled = false;
 let announcements = [];
 let annEditingId = null;
+let reminders = [];
+let remEditingId = null;
 
 function uid(){ return 'ann_' + Date.now() + '_' + Math.random().toString(36).slice(2,8); }
 function escapeHtml(str){
@@ -679,6 +736,17 @@ function fmtDateOnly(iso){
 }
 function isExpired(a){
   return !!a.expiresAt && new Date(a.expiresAt).getTime() < Date.now();
+}
+const ANN_RETENTION_MS = 2 * 24 * 60 * 60 * 1000; // 2 days
+function isPastRetention(a){
+  return !!a.expiresAt && (Date.now() - new Date(a.expiresAt).getTime()) > ANN_RETENTION_MS;
+}
+// Converts a stored UTC ISO timestamp back into the local
+// YYYY-MM-DDTHH:mm format a <input type="datetime-local"> expects.
+function toDatetimeLocalValue(iso){
+  const d = new Date(iso);
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 // Sort: pinned-and-active first (newest first), then unpinned-active
 // (newest first), then expired last regardless of pin (newest first).
@@ -737,19 +805,177 @@ function buildAnnouncementsSheet(){
   return ws;
 }
 
+function parseReminders(wb){
+  const ws = wb.Sheets[REM_SHEET];
+  if(!ws) return [];
+  const aoa = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+  const headerIdx = aoa.findIndex(r => r[0] === 'ID');
+  if(headerIdx === -1) return [];
+  const headers = aoa[headerIdx];
+  const col = name => headers.indexOf(name);
+  const idCol=col('ID'), subjCol=col('Subject'), addedCol=col('DateAdded'), expCol=col('ExpiresAt'), impCol=col('Importance'), authorCol=col('CreatedBy');
+  return aoa.slice(headerIdx+1)
+    .filter(r => r[idCol])
+    .map(r => ({
+      id: r[idCol],
+      subject: r[subjCol] || '',
+      dateAdded: (addedCol > -1 && r[addedCol]) || '',
+      expiresAt: (expCol > -1 && r[expCol]) || '',
+      importance: (impCol > -1 && r[impCol]) || 'Medium',
+      createdBy: (authorCol > -1 && r[authorCol]) || '',
+    }));
+}
+
+function buildRemindersSheet(){
+  const sorted = sortReminders(reminders);
+  const rows = sorted.map(r => [r.id, r.subject, r.dateAdded, r.expiresAt, r.importance, r.createdBy]);
+  const aoa = [
+    ["Reminders — Personalized School Record Management System"],
+    ["Managed by Master users from the dashboard. Do not edit IDs by hand."],
+    [],
+    ["ID","Subject","DateAdded","ExpiresAt","Importance","CreatedBy"],
+    ...rows
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{wch:16},{wch:26},{wch:22},{wch:22},{wch:12},{wch:22}];
+  return ws;
+}
+
+const IMPORTANCE_RANK = {High:0, Medium:1, Low:2};
+function sortReminders(list){
+  return list.slice().sort((a,b) => {
+    const rank = (IMPORTANCE_RANK[a.importance] ?? 1) - (IMPORTANCE_RANK[b.importance] ?? 1);
+    if(rank !== 0) return rank;
+    return new Date(a.expiresAt || 0) - new Date(b.expiresAt || 0);
+  });
+}
+
+function renderReminders(){
+  const list = document.getElementById('remList');
+  if(reminders.length === 0){
+    list.innerHTML = '<div class="ann-empty">No reminders yet.</div>';
+    return;
+  }
+  const sorted = sortReminders(reminders);
+  list.innerHTML = sorted.map(r => {
+    const expired = !!r.expiresAt && new Date(r.expiresAt).getTime() < Date.now();
+    const impClass = (r.importance || 'Medium').toLowerCase();
+    return `<div class="rem-row">
+      <span class="rem-importance ${impClass}">${escapeHtml(r.importance || 'Medium')}</span>
+      <div>
+        <div class="rem-subject">${escapeHtml(r.subject)}</div>
+        <div class="rem-meta">
+          Added ${escapeHtml(fmtDateOnly(r.dateAdded))}
+          ${r.expiresAt ? ` · ${expired ? 'Expired' : 'Expires'} ${escapeHtml(fmtDate(r.expiresAt))}` : ''}
+        </div>
+      </div>
+      <div></div>
+      ${(isMaster && annEditingEnabled) ? `<div class="rem-actions">
+        <button class="btn-ghost" onclick="startRemEdit('${r.id}')">Edit</button>
+        <button class="btn-text" onclick="deleteReminder('${r.id}')" style="color:var(--pencil-red);">Delete</button>
+      </div>` : '<div></div>'}
+    </div>`;
+  }).join('');
+}
+
+function openRemForm(){ document.getElementById('remFormPanel').classList.add('open'); document.getElementById('remSubjectInput').focus(); }
+function closeRemForm(){
+  document.getElementById('remFormPanel').classList.remove('open');
+  remEditingId = null;
+  document.getElementById('remSubjectInput').value = '';
+  document.getElementById('remExpiresInput').value = '';
+  document.getElementById('remImportanceInput').value = 'Medium';
+  document.getElementById('remFormError').style.display = 'none';
+  document.getElementById('remFormTitle').textContent = 'Add a reminder';
+  document.getElementById('remSubmitBtn').textContent = 'Add reminder';
+}
+document.getElementById('remAddToggleBtn').addEventListener('click', () => {
+  if(!annEditingEnabled || !annGhToken){
+    document.getElementById('tokenPanel').style.display = 'block';
+    document.getElementById('editIdInput').focus();
+    return;
+  }
+  openRemForm();
+});
+document.getElementById('remCancelBtn').addEventListener('click', closeRemForm);
+document.getElementById('remSubmitBtn').addEventListener('click', async () => {
+  if(!isMaster) return;
+  if(!annEditingEnabled || !annGhToken){
+    document.getElementById('tokenPanel').style.display = 'block';
+    return;
+  }
+  const subject = document.getElementById('remSubjectInput').value.trim();
+  const expiresRaw = document.getElementById('remExpiresInput').value;
+  const importance = document.getElementById('remImportanceInput').value;
+  if(!subject || !expiresRaw){
+    document.getElementById('remFormError').style.display = 'block';
+    return;
+  }
+  const expiresAt = new Date(expiresRaw).toISOString();
+  const snapshot = reminders.slice();
+  const wasEditing = !!remEditingId;
+  const now = new Date().toISOString();
+  if(remEditingId){
+    reminders = reminders.map(r => r.id === remEditingId ? {...r, subject, expiresAt, importance} : r);
+  } else {
+    reminders.unshift({id:uid(), subject, dateAdded:now, expiresAt, importance, createdBy:session.name});
+  }
+  closeRemForm();
+  renderReminders();
+  const ok = await persistDashboardData(wasEditing ? 'Edit Reminder' : 'Add Reminder', `${subject} (${importance})`);
+  if(!ok){ reminders = snapshot; renderReminders(); }
+});
+function startRemEdit(id){
+  const r = reminders.find(x => x.id === id);
+  if(!r) return;
+  remEditingId = id;
+  document.getElementById('remSubjectInput').value = r.subject;
+  document.getElementById('remExpiresInput').value = r.expiresAt ? toDatetimeLocalValue(r.expiresAt) : '';
+  document.getElementById('remImportanceInput').value = r.importance || 'Medium';
+  document.getElementById('remFormTitle').textContent = 'Edit reminder';
+  document.getElementById('remSubmitBtn').textContent = 'Save changes';
+  openRemForm();
+}
+window.startRemEdit = startRemEdit;
+async function deleteReminder(id){
+  if(!isMaster || !annEditingEnabled) return;
+  if(!confirm('Delete this reminder?')) return;
+  const target = reminders.find(r => r.id === id);
+  const snapshot = reminders.slice();
+  reminders = reminders.filter(r => r.id !== id);
+  renderReminders();
+  const ok = await persistDashboardData('Delete Reminder', target ? target.subject : id);
+  if(!ok){ reminders = snapshot; renderReminders(); }
+}
+window.deleteReminder = deleteReminder;
+
+// Autocomplete suggestions for the Subject field, pulled from the
+// Subject_Scheduler sheet already sitting in the same workbook.
+function populateRemSubjectDatalist(wb){
+  const ws = wb.Sheets['Subject_Scheduler'];
+  if(!ws) return;
+  const aoa = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+  const hIdx = aoa.findIndex(r => r[0] === 'Subject Code');
+  if(hIdx === -1) return;
+  const names = [...new Set(aoa.slice(hIdx+1).map(r => r[1]).filter(Boolean))].sort();
+  document.getElementById('remSubjectDatalist').innerHTML = names.map(n => `<option value="${escapeHtml(n)}">`).join('');
+}
+
 function renderAnnControls(){
   const el = document.getElementById('annControls');
-  if(!isMaster){ el.innerHTML = ''; return; }
+  const remBtn = document.getElementById('remAddToggleBtn');
+  if(!isMaster){ el.innerHTML = ''; remBtn.style.display = 'none'; return; }
+  remBtn.style.display = '';
   if(!annEditingEnabled){
     el.innerHTML = `<span class="ann-status">read-only</span><button class="btn-ghost" id="annEnableEditBtn" type="button">Enable editing</button>`;
     document.getElementById('annEnableEditBtn').addEventListener('click', () => {
       document.getElementById('tokenPanel').style.display = 'block';
-      document.getElementById('tokenInput').focus();
+      document.getElementById('editIdInput').focus();
     });
   } else {
     el.innerHTML = `<span class="ann-status">editing enabled</span><button class="btn-highlight" id="annAddBtn" type="button">+ New announcement</button><button class="btn-ghost" id="annLockBtn" type="button">Lock editing</button>`;
     document.getElementById('annAddBtn').addEventListener('click', openAnnForm);
-    document.getElementById('annLockBtn').addEventListener('click', () => { annEditingEnabled = false; closeAnnForm(); renderAnnControls(); renderAnnouncements(); });
+    document.getElementById('annLockBtn').addEventListener('click', () => { annEditingEnabled = false; closeAnnForm(); closeRemForm(); renderAnnControls(); renderAnnouncements(); renderReminders(); });
   }
 }
 
@@ -758,11 +984,12 @@ const ANN_VISIBLE_COUNT = 3;
 
 function renderAnnouncements(){
   const list = document.getElementById('annList');
-  if(announcements.length === 0){
+  const displayable = announcements.filter(a => !isPastRetention(a));
+  if(displayable.length === 0){
     list.innerHTML = '<div class="ann-empty">No announcements yet.</div>';
     return;
   }
-  const sorted = sortAnnouncements(announcements);
+  const sorted = sortAnnouncements(displayable);
   const hasMore = sorted.length > ANN_VISIBLE_COUNT;
   const visible = annExpanded ? sorted : sorted.slice(0, ANN_VISIBLE_COUNT);
   const cardsHtml = visible.map(a => {
@@ -770,7 +997,7 @@ function renderAnnouncements(){
     const badges = [
       a.pinned && !expired ? '<span class="ann-badge pinned">📌 Pinned</span>' : '',
       expired ? '<span class="ann-badge expired">Expired</span>' : '',
-      (!expired && a.expiresAt) ? `<span class="ann-badge expiring">Expires ${escapeHtml(fmtDateOnly(a.expiresAt))}</span>` : ''
+      (!expired && a.expiresAt) ? `<span class="ann-badge expiring">Expires ${escapeHtml(fmtDate(a.expiresAt))}</span>` : ''
     ].filter(Boolean).join('');
     return `
     <div class="ann-card${a.pinned && !expired ? ' pinned' : ''}${expired ? ' expired' : ''}">
@@ -802,10 +1029,14 @@ async function loadAnnouncements(){
   try{
     const wb = cachedWorkbook || await fetchWorkbookFresh();
     announcements = parseAnnouncements(wb);
+    reminders = parseReminders(wb);
+    populateRemSubjectDatalist(wb);
     renderAnnControls();
     renderAnnouncements();
+    renderReminders();
   }catch(e){
     list.innerHTML = `<div class="ann-empty">Couldn't load announcements: ${escapeHtml(e.message)}</div>`;
+    document.getElementById('remList').innerHTML = `<div class="ann-empty">Couldn't load reminders: ${escapeHtml(e.message)}</div>`;
   }
 }
 
@@ -834,7 +1065,7 @@ function startAnnEdit(id){
   annEditingId = id;
   document.getElementById('annTitleInput').value = a.title;
   document.getElementById('annMessageInput').value = a.message;
-  document.getElementById('annExpiresInput').value = a.expiresAt ? a.expiresAt.slice(0,10) : '';
+  document.getElementById('annExpiresInput').value = a.expiresAt ? toDatetimeLocalValue(a.expiresAt) : '';
   document.getElementById('annPinnedInput').checked = !!a.pinned;
   document.getElementById('annFormTitle').textContent = 'Edit announcement';
   document.getElementById('annSubmitBtn').textContent = 'Save changes';
@@ -864,15 +1095,15 @@ document.getElementById('annSubmitBtn').addEventListener('click', async () => {
   }
   const title = document.getElementById('annTitleInput').value.trim();
   const message = document.getElementById('annMessageInput').value.trim();
-  const expiresRaw = document.getElementById('annExpiresInput').value; // 'YYYY-MM-DD' or ''
+  const expiresRaw = document.getElementById('annExpiresInput').value; // 'YYYY-MM-DDTHH:mm' or ''
   const pinned = document.getElementById('annPinnedInput').checked;
   if(!title || !message){
     document.getElementById('annFormError').style.display = 'block';
     return;
   }
-  // Expiry is end-of-day on the chosen date, so the announcement stays
-  // visible through the entire day the owner picked.
-  const expiresAt = expiresRaw ? new Date(expiresRaw + 'T23:59:59').toISOString() : '';
+  // datetime-local gives a local YYYY-MM-DDTHH:mm string with no timezone —
+  // the Date constructor interprets that as local time correctly.
+  const expiresAt = expiresRaw ? new Date(expiresRaw).toISOString() : '';
   const snapshot = announcements.slice();
   const now = new Date().toISOString();
   const wasEditing = !!annEditingId;
@@ -889,7 +1120,7 @@ document.getElementById('annSubmitBtn').addEventListener('click', async () => {
   if(!ok){ announcements = snapshot; renderAnnouncements(); }
 });
 
-async function persistAnnouncements(actionLabel, actionDetails){
+async function persistDashboardData(actionLabel, actionDetails){
   if(!isMaster || !annEditingEnabled || !annGhToken){
     alert('This change was NOT saved — editing isn\'t enabled. Click "Enable editing" and confirm your passphrase, then redo this change.');
     return false;
@@ -899,19 +1130,23 @@ async function persistAnnouncements(actionLabel, actionDetails){
     const wb = cachedWorkbook;
     wb.Sheets[ANN_SHEET] = buildAnnouncementsSheet();
     if(!wb.SheetNames.includes(ANN_SHEET)) wb.SheetNames.push(ANN_SHEET);
+    wb.Sheets[REM_SHEET] = buildRemindersSheet();
+    if(!wb.SheetNames.includes(REM_SHEET)) wb.SheetNames.push(REM_SHEET);
     const pending = drainAuditQueue();
     if(actionLabel) pending.push({ ts:phTimestamp(), actor:session.name, role:session.role, action:actionLabel, details:actionDetails||'' });
     appendAuditToWorkbook(wb, pending);
     const wbout = XLSX.write(wb, {bookType:'xlsx', type:'array'});
     const contentB64 = bytesToB64Local(wbout);
-    cachedSha = await saveViaProxy(annGhToken, contentB64, cachedSha, 'Update announcements');
+    cachedSha = await saveViaProxy(annGhToken, contentB64, cachedSha, 'Update dashboard');
     return true;
   }catch(e){
     if(e.status === 409){
       alert('Someone (or another tab/device) saved a newer version since you loaded this page. Reloading the latest version now — please redo your last change.');
       await fetchWorkbookFresh();
       announcements = parseAnnouncements(cachedWorkbook);
+      reminders = parseReminders(cachedWorkbook);
       renderAnnouncements();
+      renderReminders();
       return false;
     }
     if(e.status === 401){
@@ -924,6 +1159,9 @@ async function persistAnnouncements(actionLabel, actionDetails){
     return false;
   }
 }
+// Kept as an alias — several call sites already reference persistAnnouncements
+// by name; it now saves both Announcements and Reminders in one commit.
+const persistAnnouncements = persistDashboardData;
 
 document.getElementById('cancelTokenBtn').addEventListener('click', () => {
   document.getElementById('tokenPanel').style.display = 'none';
@@ -959,9 +1197,10 @@ document.getElementById('tokenForm').addEventListener('submit', async (e) => {
     document.getElementById('editIdInput').value = '';
     document.getElementById('editPassInput').value = '';
     // Re-fetch so we're working off the freshest sha before any edit.
-    try{ await fetchWorkbookFresh(); announcements = parseAnnouncements(cachedWorkbook); }catch(err){}
+    try{ await fetchWorkbookFresh(); announcements = parseAnnouncements(cachedWorkbook); reminders = parseReminders(cachedWorkbook); }catch(err){}
     renderAnnControls();
     renderAnnouncements();
+    renderReminders();
   }catch(err){
     errEl.textContent = 'Could not reach the server — try again.';
     errEl.style.display = 'block';
