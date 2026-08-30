@@ -6,52 +6,57 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Personalized School Record Management System</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
-    --ink:#1D2B4F;
-    --ink-soft:#2A3D6B;
-    --paper:#F7F4EE;
-    --paper-line:#DCD3C0;
-    --card:#FFFEFC;
-    --graphite:#4A4A48;
-    --muted:#8A8577;
-    --highlighter:#E8B93E;
-    --highlighter-ink:#6B4E00;
-    --pencil-red:#C0392B;
-    --sage:#5E8567;
-    --sage-bg:#E9F0EA;
+    --ink:#101828;
+    --ink-soft:#1D2939;
+    --paper:#F7F8FA;
+    --paper-line:#E3E6EB;
+    --card:#FFFFFF;
+    --graphite:#344054;
+    --muted:#667085;
+    --accent:#155EEF;
+    --accent-hover:#0B4ECC;
+    --highlighter:#F79009;
+    --highlighter-ink:#93370D;
+    --pencil-red:#D92D20;
+    --sage:#039855;
+    --sage-bg:#ECFDF3;
     --radius:10px;
-    --shadow:0 1px 2px rgba(29,43,79,.06), 0 6px 18px rgba(29,43,79,.06);
+    --shadow:0 1px 2px rgba(16,24,40,.06), 0 4px 16px rgba(16,24,40,.08);
+    color-scheme: light;
   }
   [data-theme="dark"]{
-    --ink:#EDE8DB;
-    --ink-soft:#D9D0BC;
-    --paper:#12141C;
-    --paper-line:#2B2F3D;
-    --card:#1B1E28;
-    --graphite:#D6D1C4;
-    --muted:#9A947F;
-    --highlighter:#E8B93E;
-    --highlighter-ink:#3A2900;
-    --pencil-red:#E2685A;
-    --sage:#84AC8E;
-    --sage-bg:#1E2B22;
-    --shadow:0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.35);
+    --ink:#F5F5F6;
+    --ink-soft:#E4E4E7;
+    --paper:#0B0D12;
+    --paper-line:#242732;
+    --card:#15171E;
+    --graphite:#D0D2D8;
+    --muted:#8B8F9A;
+    --accent:#5B8DEF;
+    --accent-hover:#84A9F7;
+    --highlighter:#F79009;
+    --highlighter-ink:#2B1400;
+    --pencil-red:#F97066;
+    --sage:#32D583;
+    --sage-bg:#092C1D;
+    --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 24px rgba(0,0,0,.45);
+    color-scheme: dark;
   }
   #themeToggleBtn:hover{ transform:scale(1.08); }
   *{box-sizing:border-box;}
+  select{ background:var(--card); color:var(--ink); border:1.5px solid var(--paper-line); border-radius:6px; font-family:'Inter',sans-serif; }
   body{
     margin:0;
-    background:var(--paper);
-    background-image:linear-gradient(var(--paper-line) 1px, transparent 1px);
-    background-size:100% 36px;
+    background:radial-gradient(circle at 15% -10%, rgba(21,94,239,.05), transparent 55%), var(--paper);
     color:var(--graphite);
     font-family:'Inter',system-ui,sans-serif;
     -webkit-font-smoothing:antialiased;
   }
-  .wrap{max-width:1320px; margin:0 auto; padding:56px 26px 90px;}
+  .wrap{max-width:min(1680px, 96vw); margin:0 auto; padding:56px 26px 90px;}
   .dashboard-layout{
     display:grid;
     grid-template-columns: minmax(230px, 18%) 1fr;
@@ -76,7 +81,7 @@
     text-transform:uppercase; color:var(--sage); margin:0 0 14px;
   }
   h1{
-    font-family:'Fraunces',serif; font-weight:700; font-size:clamp(32px,5vw,52px);
+    font-family:'Manrope',sans-serif; font-weight:700; font-size:clamp(32px,5vw,52px);
     margin:0 0 14px; color:var(--ink); line-height:1.05;
   }
   .tagline{
@@ -113,9 +118,9 @@
     width:40px; height:40px; border-radius:9px; display:flex; align-items:center; justify-content:center;
     margin-bottom:16px; font-size:19px; background:var(--sage-bg); color:var(--sage);
   }
-  .mod-card.soon .mod-icon{background:#EFEAE0; color:var(--muted);}
+  .mod-card.soon .mod-icon{background:var(--paper-line); color:var(--muted);}
   .mod-title{
-    font-family:'Fraunces',serif; font-size:21px; font-weight:700; color:var(--ink); margin:0 0 8px;
+    font-family:'Manrope',sans-serif; font-size:21px; font-weight:700; color:var(--ink); margin:0 0 8px;
   }
   .mod-desc{font-size:13.5px; color:var(--muted); line-height:1.55; margin:0 0 20px; flex-grow:1;}
   .mod-foot{display:flex; align-items:center; justify-content:space-between; gap:10px;}
@@ -125,7 +130,7 @@
   .mod-card.live .mod-cta::after{content:" →"; }
   .badge-soon{
     font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:.06em;
-    background:#EFEAE0; color:var(--muted); border-radius:20px; padding:4px 10px; white-space:nowrap;
+    background:var(--paper-line); color:var(--muted); border-radius:20px; padding:4px 10px; white-space:nowrap;
   }
 
   /* ---------- Footer note ---------- */
@@ -134,7 +139,7 @@
     padding:20px 22px; font-size:13px; color:var(--muted); line-height:1.6;
   }
   .note-panel strong{color:var(--graphite);}
-  footer{text-align:center; color:#A79F8C; font-size:12px; margin-top:44px;}
+  footer{text-align:center; color:var(--muted); font-size:12px; margin-top:44px;}
 
   @media (max-width:640px){
     .modules{grid-template-columns:1fr;}
@@ -153,12 +158,12 @@
     max-width:380px; margin:0 auto 52px; background:var(--card); border:1px solid var(--paper-line);
     border-radius:var(--radius); box-shadow:var(--shadow); padding:30px 28px; text-align:center;
   }
-  #signinPanel h2{font-family:'Fraunces',serif; color:var(--ink); font-size:20px; margin:0 0 8px;}
+  #signinPanel h2{font-family:'Manrope',sans-serif; color:var(--ink); font-size:20px; margin:0 0 8px;}
   #signinPanel p{color:var(--muted); font-size:13px; line-height:1.55; margin:0 0 20px;}
   #signinForm{display:flex; flex-direction:column; gap:12px;}
   #idInput, #passInput{
     font-family:'IBM Plex Mono',monospace; font-size:15px; text-align:center; letter-spacing:.04em;
-    padding:11px 12px; border:1.5px solid var(--paper-line); border-radius:7px; background:#FFFEFC; color:var(--ink);
+    padding:11px 12px; border:1.5px solid var(--paper-line); border-radius:7px; background:var(--card); color:var(--ink);
   }
   #idInput:focus, #passInput:focus{outline:none; border-color:var(--ink);}
   #signinError{color:var(--pencil-red); font-size:12.5px; display:none;}
@@ -176,7 +181,7 @@
     text-transform:uppercase; letter-spacing:.06em; font-size:10px; padding:3px 9px; border-radius:20px;
   }
   .role-pill.master{background:var(--sage-bg); color:var(--sage);}
-  .role-pill.guest{background:#EFEAE0; color:var(--muted);}
+  .role-pill.guest{background:var(--paper-line); color:var(--muted);}
   .session-strip button{
     background:transparent; color:var(--muted); border:1px solid var(--paper-line);
     padding:5px 11px; font-size:11px; border-radius:16px;
@@ -186,16 +191,16 @@
   #hubContent.show{display:block;}
 
   /* ---------- Shared button variants (mirrors scheduler module) ---------- */
-  .btn-primary{background:var(--ink); color:var(--paper);}
-  .btn-primary:hover{background:var(--ink-soft);}
+  .btn-primary{background:var(--accent); color:#fff;}
+  .btn-primary:hover{background:var(--accent-hover);}
   .btn-highlight{background:var(--highlighter); border-color:var(--highlighter); color:var(--highlighter-ink);}
   .btn-highlight:hover{background:#f0c453;}
-  .btn-ghost{border-color:var(--paper-line); color:var(--graphite); background:#fff;}
+  .btn-ghost{border-color:var(--paper-line); color:var(--graphite); background:var(--card);}
   .btn-text{border:none; background:none; padding:2px 6px; font-size:12.5px; text-decoration:underline; cursor:pointer;}
 
   /* ---------- Announcements ---------- */
   .section-toolbar{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:10px;}
-  .section-toolbar h2{font-family:'Fraunces',serif; font-size:19px; color:var(--ink); margin:0;}
+  .section-toolbar h2{font-family:'Manrope',sans-serif; font-size:19px; color:var(--ink); margin:0;}
   .ann-controls{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
   .ann-status{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted);}
 
@@ -203,12 +208,12 @@
     background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius);
     box-shadow:var(--shadow); padding:22px 24px; margin-bottom:22px; text-align:center;
   }
-  #tokenPanel h2{font-family:'Fraunces',serif; color:var(--ink); margin:0 0 6px; font-size:18px;}
+  #tokenPanel h2{font-family:'Manrope',sans-serif; color:var(--ink); margin:0 0 6px; font-size:18px;}
   #tokenPanel p{color:var(--muted); font-size:13px; margin:0 0 16px; max-width:480px; margin-left:auto; margin-right:auto;}
   #tokenPanel .actions{display:flex; gap:10px; justify-content:center; flex-wrap:wrap; align-items:center;}
   #tokenPanel input[type="password"]{
     font-family:'IBM Plex Mono',monospace; font-size:13.5px; padding:10px 12px;
-    border:1.5px solid var(--paper-line); border-radius:7px; background:#FFFEFC; color:var(--ink);
+    border:1.5px solid var(--paper-line); border-radius:7px; background:var(--card); color:var(--ink);
   }
   #tokenPanel input[type="password"]:focus{outline:none; border-color:var(--ink);}
 
@@ -217,12 +222,12 @@
     box-shadow:var(--shadow); padding:22px 24px; margin-bottom:22px;
   }
   .ann-panel.open{display:block;}
-  .ann-panel h3{font-family:'Fraunces',serif; margin:0 0 14px; color:var(--ink); font-size:17px;}
+  .ann-panel h3{font-family:'Manrope',sans-serif; margin:0 0 14px; color:var(--ink); font-size:17px;}
   .ann-panel label{display:block; font-family:'IBM Plex Mono',monospace; font-size:11px; text-transform:uppercase;
     letter-spacing:.06em; color:var(--muted); margin:0 0 6px;}
   .ann-panel input[type="text"], .ann-panel input[type="datetime-local"], .ann-panel textarea{
     width:100%; font-family:'Inter',sans-serif; font-size:14px; padding:10px 12px;
-    border:1.5px solid var(--paper-line); border-radius:7px; background:#FFFEFC; color:var(--ink);
+    border:1.5px solid var(--paper-line); border-radius:7px; background:var(--card); color:var(--ink);
     margin-bottom:14px; resize:vertical;
   }
   .ann-panel input[type="text"]:focus, .ann-panel input[type="datetime-local"]:focus, .ann-panel textarea:focus{outline:none; border-color:var(--ink);}
@@ -233,13 +238,13 @@
   .pin-checkbox-label{
     display:flex; align-items:center; gap:8px; font-family:'Inter',sans-serif; font-size:13.5px;
     color:var(--graphite); text-transform:none; letter-spacing:normal; cursor:pointer;
-    border:1.5px solid var(--paper-line); border-radius:7px; padding:10px 12px; background:#FFFEFC;
+    border:1.5px solid var(--paper-line); border-radius:7px; padding:10px 12px; background:var(--card);
   }
   .pin-checkbox-label input{margin:0; width:auto;}
   #annFormError{color:var(--pencil-red); font-size:12.5px; display:none; margin:-6px 0 14px;}
   #remFormError{color:var(--pencil-red); font-size:12.5px; display:none; margin:-6px 0 14px;}
 
-  .rem-list{display:flex; flex-direction:column; gap:0; background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius); box-shadow:var(--shadow);}
+  .rem-list{display:flex; flex-direction:column; gap:0; background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius); box-shadow:var(--shadow); max-height:420px; overflow-y:auto; overscroll-behavior:contain;}
   .rem-row{ display:grid; grid-template-columns:auto 1fr auto auto; gap:14px; align-items:center; padding:14px 18px; border-bottom:1px dashed var(--paper-line); }
   .rem-row:last-child{border-bottom:none;}
   .rem-subject{font-weight:600; color:var(--ink); font-size:14.5px;}
@@ -248,7 +253,7 @@
     font-family:'IBM Plex Mono',monospace; font-size:10.5px; text-transform:uppercase; letter-spacing:.06em;
     padding:4px 10px; border-radius:20px; white-space:nowrap;
   }
-  .rem-importance.low{background:#EFEAE0; color:var(--muted);}
+  .rem-importance.low{background:var(--paper-line); color:var(--muted);}
   .rem-importance.medium{background:var(--highlighter); color:var(--highlighter-ink);}
   .rem-importance.high{background:var(--pencil-red); color:#fff;}
   .rem-actions{display:flex; gap:4px;}
@@ -257,7 +262,7 @@
     .rem-row{grid-template-columns:1fr; gap:6px;}
   }
 
-  .ann-list{display:flex; flex-direction:column; gap:14px; margin-bottom:44px;}
+  .ann-list{display:flex; flex-direction:column; gap:14px; margin-bottom:44px; max-height:520px; overflow-y:auto; overscroll-behavior:contain; padding-right:4px;}
   .ann-card{
     background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius);
     box-shadow:var(--shadow); padding:22px 24px;
@@ -272,7 +277,7 @@
   .ann-badge.pinned{background:var(--highlighter); color:var(--highlighter-ink);}
   .ann-badge.expired{background:#EDEAE2; color:var(--muted);}
   .ann-badge.expiring{background:var(--sage-bg); color:var(--sage);}
-  .ann-card h3{font-family:'Fraunces',serif; font-size:17px; color:var(--ink); margin:0 0 8px;}
+  .ann-card h3{font-family:'Manrope',sans-serif; font-size:17px; color:var(--ink); margin:0 0 8px;}
   .ann-card p{font-size:13.5px; color:var(--graphite); line-height:1.6; margin:0 0 14px; white-space:pre-wrap;}
   .ann-foot{
     display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
@@ -466,7 +471,7 @@
   </div>
 
   <div class="note-panel">
-    <strong style="color: rgb(241, 73, 101);">DISCLAIMER: </strong>This system is intended 
+    <strong style="color:var(--pencil-red);">DISCLAIMER: </strong>This system is intended 
     solely to serve as a centralized platform for 
     school updates, information, and reviewer 
     resources, with the purpose of making 
@@ -725,7 +730,7 @@ function renderSignedIn(s){
   const strip = document.getElementById('sessionStrip');
   strip.classList.add('show');
   const roleClass = isMaster ? 'master' : 'guest';
-  strip.innerHTML = `Hello <b>${session.name}</b>😀<span class="role-pill ${roleClass}">${session.role}</span> <button id="logoutBtn" type="button">Log out</button>`;
+  strip.innerHTML = `Signed in as <b>${session.name}</b> <span class="role-pill ${roleClass}">${session.role}</span> <button id="logoutBtn" type="button">Log out</button>`;
   document.getElementById('logoutBtn').addEventListener('click', async () => {
     if(isMaster){
       await flushAuditNow('Logout', '');
@@ -897,6 +902,8 @@ function sortReminders(list){
   });
 }
 
+let remExpanded = false;
+const REM_VISIBLE_COUNT = 1;
 function renderReminders(){
   const list = document.getElementById('remList');
   // Past-deadline reminders stay visible for a couple of days (same grace
@@ -908,7 +915,9 @@ function renderReminders(){
     return;
   }
   const sorted = sortReminders(displayable);
-  list.innerHTML = sorted.map(r => {
+  const hasMore = sorted.length > REM_VISIBLE_COUNT;
+  const visible = remExpanded ? sorted : sorted.slice(0, REM_VISIBLE_COUNT);
+  const rowsHtml = visible.map(r => {
     const expired = !!r.expiresAt && new Date(r.expiresAt).getTime() < Date.now();
     const impClass = (r.importance || 'Medium').toLowerCase();
     const isGeneral = (r.type || 'Subject') === 'General';
@@ -931,6 +940,12 @@ function renderReminders(){
       </div>` : '<div></div>'}
     </div>`;
   }).join('');
+  const toggleHtml = hasMore
+    ? `<button type="button" class="btn-ghost ann-toggle-btn" id="remToggleBtn">${remExpanded ? 'Show less ▲' : `Show ${sorted.length - REM_VISIBLE_COUNT} more ▾`}</button>`
+    : '';
+  list.innerHTML = rowsHtml + toggleHtml;
+  const toggleBtn = document.getElementById('remToggleBtn');
+  if(toggleBtn) toggleBtn.addEventListener('click', () => { remExpanded = !remExpanded; renderReminders(); });
 }
 
 function updateRemSubjectLabel(){
@@ -1050,7 +1065,7 @@ function renderAnnControls(){
 }
 
 let annExpanded = false;
-const ANN_VISIBLE_COUNT = 3;
+const ANN_VISIBLE_COUNT = 1;
 
 function renderAnnouncements(){
   const list = document.getElementById('annList');
