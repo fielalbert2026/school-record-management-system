@@ -6,48 +6,48 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Subject Scheduler — Personalized School Record Management System</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
-    --ink:#1B2A22;
-    --ink-soft:#28392F;
-    --paper:#F6F4EF;
-    --paper-line:#E1DDD0;
+    --ink:#101828;
+    --ink-soft:#1D2939;
+    --paper:#F7F8FA;
+    --paper-line:#E3E6EB;
     --card:#FFFFFF;
-    --graphite:#3E4A44;
-    --muted:#79817A;
-    --accent:#0E6B57;
-    --accent-hover:#0A5645;
-    --highlighter:#C08A1E;
-    --highlighter-ink:#5A3F0A;
-    --pencil-red:#B3261E;
-    --sage:#3F6B4F;
-    --sage-bg:#E6EEE7;
-    --radius:12px;
-    --shadow:0 1px 2px rgba(27,42,34,.06), 0 10px 28px rgba(27,42,34,.08);
+    --graphite:#344054;
+    --muted:#667085;
+    --accent:#155EEF;
+    --accent-hover:#0B4ECC;
+    --highlighter:#F79009;
+    --highlighter-ink:#93370D;
+    --pencil-red:#D92D20;
+    --sage:#039855;
+    --sage-bg:#ECFDF3;
+    --radius:10px;
+    --shadow:0 1px 2px rgba(16,24,40,.06), 0 4px 16px rgba(16,24,40,.08);
     color-scheme: light;
     /* Fixed regardless of theme — the Today panel is a deliberate
        "spotlight" accent, not a themeable surface, so it shouldn't invert. */
-    --accent-panel:#0E2A22;
-    --accent-panel-text:#F6F4EF;
+    --accent-panel:#0B1F44;
+    --accent-panel-text:#F7F8FA;
   }
   [data-theme="dark"]{
-    --ink:#F3F1EA;
-    --ink-soft:#E4E1D6;
-    --paper:#0E1512;
-    --paper-line:#26312B;
-    --card:#161D19;
-    --graphite:#D6D2C6;
-    --muted:#8D9389;
-    --accent:#2FA98A;
-    --accent-hover:#57C4A7;
-    --highlighter:#C08A1E;
-    --highlighter-ink:#3A2907;
-    --pencil-red:#E2665C;
-    --sage:#7FB98F;
-    --sage-bg:#16261C;
-    --shadow:0 1px 2px rgba(0,0,0,.5), 0 12px 28px rgba(0,0,0,.4);
+    --ink:#F5F5F6;
+    --ink-soft:#E4E4E7;
+    --paper:#0B0D12;
+    --paper-line:#242732;
+    --card:#15171E;
+    --graphite:#D0D2D8;
+    --muted:#8B8F9A;
+    --accent:#5B8DEF;
+    --accent-hover:#84A9F7;
+    --highlighter:#F79009;
+    --highlighter-ink:#2B1400;
+    --pencil-red:#F97066;
+    --sage:#32D583;
+    --sage-bg:#092C1D;
+    --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 24px rgba(0,0,0,.45);
     color-scheme: dark;
   }
   #themeToggleBtn:hover{ transform:scale(1.08); }
@@ -55,7 +55,7 @@
   select{ background:var(--card); color:var(--ink); border:1.5px solid var(--paper-line); border-radius:6px; font-family:'Inter',sans-serif; }
   body{
     margin:0;
-    background:radial-gradient(circle at 15% -10%, rgba(14,107,87,.06), transparent 55%), var(--paper);
+    background:radial-gradient(circle at 15% -10%, rgba(21,94,239,.05), transparent 55%), var(--paper);
     color:var(--graphite);
     font-family:'Inter',system-ui,sans-serif;
     -webkit-font-smoothing:antialiased;
@@ -93,7 +93,7 @@
     text-transform:uppercase; color:var(--sage); margin:0 0 6px;
   }
   h1{
-    font-family:'Lora',serif; font-weight:700; font-size:clamp(26px,4vw,38px);
+    font-family:'Manrope',sans-serif; font-weight:700; font-size:clamp(26px,4vw,38px);
     margin:0; color:var(--ink); line-height:1.05;
   }
   .connect-box{
@@ -114,7 +114,7 @@
     background:var(--card); border:1.5px dashed var(--paper-line); border-radius:var(--radius);
     padding:26px; text-align:center; margin-bottom:28px;
   }
-  #connectPanel h2, #tokenPanel h2{font-family:'Lora',serif; color:var(--ink); margin:0 0 6px; font-size:20px;}
+  #connectPanel h2, #tokenPanel h2{font-family:'Manrope',sans-serif; color:var(--ink); margin:0 0 6px; font-size:20px;}
   #connectPanel p, #tokenPanel p{color:var(--muted); font-size:13.5px; margin:0 0 18px; max-width:480px; margin-left:auto; margin-right:auto;}
   #connectPanel .actions, #tokenPanel .actions{display:flex; gap:10px; justify-content:center; flex-wrap:wrap; align-items:center;}
   #tokenPanel input[type="password"]{
@@ -130,7 +130,7 @@
   #todayHero.show{display:block;}
   .hero-top{display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px;}
   .hero-eyebrow{font-family:'IBM Plex Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:.12em; color:#B9C4E0;}
-  .hero-date{font-family:'Lora',serif; font-size:20px; font-weight:600;}
+  .hero-date{font-family:'Manrope',sans-serif; font-size:20px; font-weight:600;}
   .hero-list{display:flex; flex-direction:column; gap:0;}
   .hero-row{
     display:grid; grid-template-columns:100px 1fr auto; gap:14px; align-items:center;
@@ -178,10 +178,10 @@
 
   /* ---------- Add class toggle + form ---------- */
   .section-toolbar{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:10px;}
-  .section-toolbar h2{font-family:'Lora',serif; font-size:19px; color:var(--ink); margin:0;}
+  .section-toolbar h2{font-family:'Manrope',sans-serif; font-size:19px; color:var(--ink); margin:0;}
 
   .panel{
-    background:var(--card); border:1px solid var(--paper-line); border-top:3px solid var(--accent); border-radius:var(--radius);
+    background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius);
     box-shadow:var(--shadow); padding:22px 22px 18px; margin-bottom:24px; display:none;
   }
   .panel.open{display:block;}
@@ -278,7 +278,7 @@
     background:var(--card); border:1.5px dashed var(--paper-line); border-radius:var(--radius);
     padding:30px; text-align:center; margin-bottom:28px;
   }
-  #accessLockedPanel h2{font-family:'Lora',serif; color:var(--ink); margin:0 0 8px; font-size:20px;}
+  #accessLockedPanel h2{font-family:'Manrope',sans-serif; color:var(--ink); margin:0 0 8px; font-size:20px;}
   #accessLockedPanel p{color:var(--muted); font-size:13.5px; margin:0 0 18px;}
 
   @media (max-width:640px){
@@ -355,7 +355,7 @@
 
 
   <div class="panel" id="formPanel">
-    <h3 id="formTitle" style="font-family:'Lora',serif; margin:0 0 14px; color:var(--ink); font-size:17px;">Add a class session</h3>
+    <h3 id="formTitle" style="font-family:'Manrope',sans-serif; margin:0 0 14px; color:var(--ink); font-size:17px;">Add a class session</h3>
     <form id="subjectForm">
       <div class="field"><label for="f_code">Subject Code</label><input id="f_code" placeholder="MATH101" required></div>
       <div class="field wide"><label for="f_name">Subject Name</label><input id="f_name" placeholder="Calculus I" required></div>
