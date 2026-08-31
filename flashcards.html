@@ -6,53 +6,53 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flashcards — Personalized School Record Management System</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@600;700;800&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
-    --ink:#101828;
-    --ink-soft:#1D2939;
-    --paper:#F7F8FA;
-    --paper-line:#E3E6EB;
+    --ink:#14432A;
+    --ink-soft:#1F5A3B;
+    --paper:#F2F5F2;
+    --paper-line:#DCE3DE;
     --card:#FFFFFF;
-    --graphite:#344054;
-    --muted:#667085;
-    --accent:#155EEF;
-    --accent-hover:#0B4ECC;
-    --highlighter:#F79009;
-    --highlighter-ink:#93370D;
-    --pencil-red:#D92D20;
-    --sage:#039855;
-    --sage-bg:#ECFDF3;
+    --graphite:#3D473F;
+    --muted:#6B766E;
+    --accent:#14432A;
+    --accent-hover:#0D2E1C;
+    --highlighter:#C08A2E;
+    --highlighter-ink:#4A3410;
+    --pencil-red:#B3261E;
+    --sage:#2F7166;
+    --sage-bg:#E7F3F0;
     --radius:10px;
-    --shadow:0 1px 2px rgba(16,24,40,.06), 0 4px 16px rgba(16,24,40,.08);
+    --shadow:0 1px 2px rgba(20,67,42,.08), 0 6px 18px rgba(20,67,42,.10);
     color-scheme: light;
   }
   [data-theme="dark"]{
-    --ink:#F5F5F6;
-    --ink-soft:#E4E4E7;
-    --paper:#0B0D12;
-    --paper-line:#242732;
-    --card:#15171E;
-    --graphite:#D0D2D8;
-    --muted:#8B8F9A;
-    --accent:#5B8DEF;
-    --accent-hover:#84A9F7;
-    --highlighter:#F79009;
-    --highlighter-ink:#2B1400;
-    --pencil-red:#F97066;
-    --sage:#32D583;
-    --sage-bg:#092C1D;
+    --ink:#EDF3EE;
+    --ink-soft:#D7E6DB;
+    --paper:#0E1512;
+    --paper-line:#28352E;
+    --card:#16211C;
+    --graphite:#C9D3CC;
+    --muted:#8FA096;
+    --accent:#3E8F63;
+    --accent-hover:#58AC7C;
+    --highlighter:#D9A54A;
+    --highlighter-ink:#2B1D08;
+    --pencil-red:#E5695F;
+    --sage:#4FB39F;
+    --sage-bg:#0F2B24;
     --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 24px rgba(0,0,0,.45);
     color-scheme: dark;
   }
   #themeToggleBtn:hover{ transform:scale(1.08); }
   *{box-sizing:border-box;}
-  select{ background:var(--card); color:var(--ink); border:1.5px solid var(--paper-line); border-radius:6px; font-family:'Inter',sans-serif; }
-  body{ margin:0; background:radial-gradient(circle at 15% -10%, rgba(21,94,239,.05), transparent 55%), var(--paper); color:var(--graphite); font-family:'Inter',system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
+  select{ background:var(--card); color:var(--ink); border:1.5px solid var(--paper-line); border-radius:6px; font-family:'Public Sans',sans-serif; }
+  body{ margin:0; background:radial-gradient(circle at 15% -10%, rgba(20,67,42,.06), transparent 55%), var(--paper); color:var(--graphite); font-family:'Public Sans',system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
   .wrap{max-width:900px; margin:0 auto; padding:32px 26px 90px;}
   a{color:inherit;}
-  button{ font-family:'Inter',sans-serif; font-weight:600; font-size:13.5px; border-radius:7px; border:1.5px solid var(--ink); padding:9px 16px; cursor:pointer; background:transparent; color:var(--ink); transition:transform .12s ease, background .15s ease, opacity .15s ease; }
+  button{ font-family:'Public Sans',sans-serif; font-weight:600; font-size:13.5px; border-radius:7px; border:1.5px solid var(--ink); padding:9px 16px; cursor:pointer; background:transparent; color:var(--ink); transition:transform .12s ease, background .15s ease, opacity .15s ease; }
   button:hover{transform:translateY(-1px);}
   button:disabled{opacity:.45; cursor:not-allowed; transform:none;}
   .btn-primary{background:var(--accent); color:#fff;}
@@ -65,26 +65,26 @@
   .back-link:hover{color:var(--ink); border-bottom-color:var(--ink);}
   header{display:flex; align-items:flex-start; justify-content:space-between; gap:20px; flex-wrap:wrap; margin-bottom:22px;}
   .brand-eyebrow{ font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--sage); margin:8px 0 6px; }
-  h1{ font-family:'Manrope',sans-serif; font-weight:700; font-size:clamp(26px,4vw,38px); margin:0; color:var(--ink); line-height:1.05; }
+  h1{ font-family:'Roboto Slab',serif; font-weight:700; font-size:clamp(26px,4vw,38px); margin:0; color:var(--ink); line-height:1.05; }
   .session-strip{ display:none; align-items:center; gap:8px; font-size:12.5px; color:var(--muted); background:var(--card); border:1px solid var(--paper-line); border-radius:20px; padding:6px 14px; margin-top:10px; }
   .role-pill{ text-transform:uppercase; letter-spacing:.06em; font-size:10px; padding:3px 9px; border-radius:20px; }
   .role-pill.master{background:var(--sage-bg); color:var(--sage);}
   .role-pill.guest{background:var(--paper-line); color:var(--muted);}
   #accessLockedPanel, #loadPanel, #connectPanel, #tokenPanel{ background:var(--card); border:1.5px dashed var(--paper-line); border-radius:var(--radius); padding:26px; text-align:center; margin-bottom:28px; }
-  #accessLockedPanel h2, #loadPanel h2, #connectPanel h2, #tokenPanel h2{ font-family:'Manrope',sans-serif; color:var(--ink); margin:0 0 6px; font-size:20px; }
+  #accessLockedPanel h2, #loadPanel h2, #connectPanel h2, #tokenPanel h2{ font-family:'Roboto Slab',serif; color:var(--ink); margin:0 0 6px; font-size:20px; }
   #accessLockedPanel p, #loadPanel p, #connectPanel p, #tokenPanel p{ color:var(--muted); font-size:13.5px; margin:0 0 18px; max-width:480px; margin-left:auto; margin-right:auto; }
   .actions{display:flex; gap:10px; justify-content:center; flex-wrap:wrap; align-items:center;}
   #tokenPanel input[type="password"]{ font-family:'IBM Plex Mono',monospace; font-size:13px; padding:9px 10px; border:1.5px solid var(--paper-line); border-radius:6px; background:var(--card); color:var(--ink); }
 
   .section-toolbar{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:10px;}
-  .section-toolbar h2{font-family:'Manrope',sans-serif; font-size:19px; color:var(--ink); margin:0;}
-  select{ font-family:'Inter',sans-serif; font-size:13.5px; padding:8px 10px; border:1.5px solid var(--paper-line); border-radius:6px; background:var(--card); color:var(--ink); }
+  .section-toolbar h2{font-family:'Roboto Slab',serif; font-size:19px; color:var(--ink); margin:0;}
+  select{ font-family:'Public Sans',sans-serif; font-size:13.5px; padding:8px 10px; border:1.5px solid var(--paper-line); border-radius:6px; background:var(--card); color:var(--ink); }
 
   /* Review card */
   .review-wrap{ background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius); box-shadow:var(--shadow); padding:30px 26px; margin-bottom:24px; }
   .review-meta{ display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--muted); }
   .review-face{ min-height:140px; display:flex; align-items:center; justify-content:center; text-align:center; padding:20px; }
-  .review-text{ font-family:'Manrope',sans-serif; font-size:22px; color:var(--ink); line-height:1.5; }
+  .review-text{ font-family:'Roboto Slab',serif; font-size:22px; color:var(--ink); line-height:1.5; }
   .blank{ display:inline-block; min-width:64px; border-bottom:2.5px solid var(--muted); color:transparent; }
   .blank.revealed{ color:var(--pencil-red); border-bottom-color:var(--pencil-red); font-weight:700; }
   .review-back{ font-size:19px; color:var(--sage); margin-top:14px; font-weight:600; }
@@ -104,7 +104,7 @@
   .type-toggle button.active{ background:var(--ink); color:var(--paper); }
   .field{display:flex; flex-direction:column; gap:5px; margin-bottom:12px;}
   label{ font-size:11.5px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
-  input, textarea{ font-family:'Inter',sans-serif; font-size:14px; padding:9px 10px; border:1.5px solid var(--paper-line); border-radius:6px; background:var(--card); color:var(--ink); width:100%; }
+  input, textarea{ font-family:'Public Sans',sans-serif; font-size:14px; padding:9px 10px; border:1.5px solid var(--paper-line); border-radius:6px; background:var(--card); color:var(--ink); width:100%; }
   textarea{min-height:70px; resize:vertical;}
   .hint{font-size:12px; color:var(--muted); margin-top:-6px; margin-bottom:8px;}
   #cardFormError{color:var(--pencil-red); font-size:13px; display:none; margin-bottom:10px;}
@@ -221,7 +221,7 @@
     </div>
 
     <div class="panel" id="cardFormPanel">
-      <h3 id="cardFormTitle" style="font-family:'Manrope',sans-serif; margin:0 0 14px; color:var(--ink); font-size:17px;">Add a card</h3>
+      <h3 id="cardFormTitle" style="font-family:'Roboto Slab',serif; margin:0 0 14px; color:var(--ink); font-size:17px;">Add a card</h3>
       <div class="type-toggle">
         <button type="button" id="typeBasicBtn" class="active">Front / Back</button>
         <button type="button" id="typeClozeBtn">Fill in the blank</button>

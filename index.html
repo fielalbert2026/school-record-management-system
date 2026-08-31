@@ -6,54 +6,54 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Personalized School Record Management System</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@600;700;800&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
-    --ink:#1B2A22;
-    --ink-soft:#28392F;
-    --paper:#F6F4EF;
-    --paper-line:#E1DDD0;
+    --ink:#14432A;
+    --ink-soft:#1F5A3B;
+    --paper:#F2F5F2;
+    --paper-line:#DCE3DE;
     --card:#FFFFFF;
-    --graphite:#3E4A44;
-    --muted:#79817A;
-    --accent:#0E6B57;
-    --accent-hover:#0A5645;
-    --highlighter:#C08A1E;
-    --highlighter-ink:#5A3F0A;
+    --graphite:#3D473F;
+    --muted:#6B766E;
+    --accent:#14432A;
+    --accent-hover:#0D2E1C;
+    --highlighter:#C08A2E;
+    --highlighter-ink:#4A3410;
     --pencil-red:#B3261E;
-    --sage:#3F6B4F;
-    --sage-bg:#E6EEE7;
-    --radius:12px;
-    --shadow:0 1px 2px rgba(27,42,34,.06), 0 10px 28px rgba(27,42,34,.08);
+    --sage:#2F7166;
+    --sage-bg:#E7F3F0;
+    --radius:10px;
+    --shadow:0 1px 2px rgba(20,67,42,.08), 0 6px 18px rgba(20,67,42,.10);
     color-scheme: light;
   }
   [data-theme="dark"]{
-    --ink:#F3F1EA;
-    --ink-soft:#E4E1D6;
+    --ink:#EDF3EE;
+    --ink-soft:#D7E6DB;
     --paper:#0E1512;
-    --paper-line:#26312B;
-    --card:#161D19;
-    --graphite:#D6D2C6;
-    --muted:#8D9389;
-    --accent:#2FA98A;
-    --accent-hover:#57C4A7;
-    --highlighter:#C08A1E;
-    --highlighter-ink:#3A2907;
-    --pencil-red:#E2665C;
-    --sage:#7FB98F;
-    --sage-bg:#16261C;
-    --shadow:0 1px 2px rgba(0,0,0,.5), 0 12px 28px rgba(0,0,0,.4);
+    --paper-line:#28352E;
+    --card:#16211C;
+    --graphite:#C9D3CC;
+    --muted:#8FA096;
+    --accent:#3E8F63;
+    --accent-hover:#58AC7C;
+    --highlighter:#D9A54A;
+    --highlighter-ink:#2B1D08;
+    --pencil-red:#E5695F;
+    --sage:#4FB39F;
+    --sage-bg:#0F2B24;
+    --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 24px rgba(0,0,0,.45);
     color-scheme: dark;
   }
   #themeToggleBtn:hover{ transform:scale(1.08); }
   *{box-sizing:border-box;}
-  select{ background:var(--card); color:var(--ink); border:1.5px solid var(--paper-line); border-radius:6px; font-family:'Inter',sans-serif; }
+  select{ background:var(--card); color:var(--ink); border:1.5px solid var(--paper-line); border-radius:6px; font-family:'Public Sans',sans-serif; }
   body{
     margin:0;
-    background:radial-gradient(circle at 15% -10%, rgba(14,107,87,.06), transparent 55%), var(--paper);
+    background:radial-gradient(circle at 15% -10%, rgba(20,67,42,.06), transparent 55%), var(--paper);
     color:var(--graphite);
-    font-family:'Inter',system-ui,sans-serif;
+    font-family:'Public Sans',system-ui,sans-serif;
     -webkit-font-smoothing:antialiased;
   }
   .wrap{max-width:min(1680px, 96vw); margin:0 auto; padding:56px 26px 90px;}
@@ -81,7 +81,7 @@
     text-transform:uppercase; color:var(--sage); margin:0 0 14px;
   }
   h1{
-    font-family:'Lora',serif; font-weight:700; font-size:clamp(32px,5vw,52px);
+    font-family:'Roboto Slab',serif; font-weight:700; font-size:clamp(32px,5vw,52px);
     margin:0 0 14px; color:var(--ink); line-height:1.05;
   }
   .tagline{
@@ -103,29 +103,32 @@
   }
   .modules{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:44px;}
   .mod-card{
-    background:var(--card); border:1px solid var(--paper-line); border-top:3px solid var(--accent); border-radius:var(--radius);
-    box-shadow:var(--shadow); padding:26px 24px; display:flex; flex-direction:column;
+    background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius);
+    box-shadow:var(--shadow); padding:0; display:flex; flex-direction:column;
     text-decoration:none; color:inherit; position:relative; overflow:hidden;
     transition:transform .15s ease, box-shadow .15s ease;
   }
   .mod-card.live{cursor:pointer;}
-  .mod-card.live:hover{transform:translateY(-3px); box-shadow:0 4px 8px rgba(27,42,34,.08), 0 14px 28px rgba(27,42,34,.1);}
+  .mod-card.live:hover{transform:translateY(-4px); box-shadow:0 6px 14px rgba(20,67,42,.14), 0 22px 36px rgba(20,67,42,.16);}
   .mod-card.soon{opacity:.72; cursor:default;}
-  .mod-index{
-    font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted); margin-bottom:14px;
+  .mod-plaque{
+    background:#14432A; padding:22px 24px 18px;
+    display:flex; align-items:baseline; justify-content:space-between; gap:10px;
   }
-  .mod-icon{
-    width:40px; height:40px; border-radius:9px; display:flex; align-items:center; justify-content:center;
-    margin-bottom:16px; font-size:19px; background:var(--sage-bg); color:var(--sage);
+  .mod-card.soon .mod-plaque{background:var(--muted);}
+  .mod-eyebrow{
+    font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:.14em;
+    text-transform:uppercase; color:rgba(242,245,242,.68);
   }
-  .mod-card.soon .mod-icon{background:var(--paper-line); color:var(--muted);}
+  .mod-num{ font-family:'Roboto Slab',serif; font-weight:800; font-size:42px; color:var(--highlighter); line-height:1; }
+  .mod-body{ padding:20px 24px 24px; display:flex; flex-direction:column; flex-grow:1; }
   .mod-title{
-    font-family:'Lora',serif; font-size:21px; font-weight:700; color:var(--ink); margin:0 0 8px;
+    font-family:'Roboto Slab',serif; font-size:19px; font-weight:700; color:var(--ink); margin:0 0 8px;
   }
   .mod-desc{font-size:13.5px; color:var(--muted); line-height:1.55; margin:0 0 20px; flex-grow:1;}
   .mod-foot{display:flex; align-items:center; justify-content:space-between; gap:10px;}
   .mod-cta{
-    font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600; color:var(--ink);
+    font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600; color:var(--accent);
   }
   .mod-card.live .mod-cta::after{content:" →"; }
   .badge-soon{
@@ -147,7 +150,7 @@
 
   /* ---------- Sign-in gate ---------- */
   button{
-    font-family:'Inter',sans-serif; font-weight:600; font-size:13.5px;
+    font-family:'Public Sans',sans-serif; font-weight:600; font-size:13.5px;
     border-radius:7px; border:1.5px solid var(--ink); padding:10px 18px;
     cursor:pointer; background:var(--ink); color:var(--paper);
     transition:transform .12s ease, opacity .15s ease;
@@ -158,7 +161,7 @@
     max-width:380px; margin:0 auto 52px; background:var(--card); border:1px solid var(--paper-line);
     border-radius:var(--radius); box-shadow:var(--shadow); padding:30px 28px; text-align:center;
   }
-  #signinPanel h2{font-family:'Lora',serif; color:var(--ink); font-size:20px; margin:0 0 8px;}
+  #signinPanel h2{font-family:'Roboto Slab',serif; color:var(--ink); font-size:20px; margin:0 0 8px;}
   #signinPanel p{color:var(--muted); font-size:13px; line-height:1.55; margin:0 0 20px;}
   #signinForm{display:flex; flex-direction:column; gap:12px;}
   #idInput, #passInput{
@@ -199,8 +202,8 @@
   .btn-text{border:none; background:none; padding:2px 6px; font-size:12.5px; text-decoration:underline; cursor:pointer;}
 
   /* ---------- Announcements ---------- */
-  .section-toolbar{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:10px;}
-  .section-toolbar h2{font-family:'Lora',serif; font-size:19px; color:var(--ink); margin:0;}
+  .section-toolbar{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:10px; padding-bottom:10px; border-bottom:2px solid var(--ink);}
+  .section-toolbar h2{font-family:'Roboto Slab',serif; font-size:19px; color:var(--ink); margin:0;}
   .ann-controls{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
   .ann-status{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted);}
 
@@ -208,7 +211,7 @@
     background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius);
     box-shadow:var(--shadow); padding:22px 24px; margin-bottom:22px; text-align:center;
   }
-  #tokenPanel h2{font-family:'Lora',serif; color:var(--ink); margin:0 0 6px; font-size:18px;}
+  #tokenPanel h2{font-family:'Roboto Slab',serif; color:var(--ink); margin:0 0 6px; font-size:18px;}
   #tokenPanel p{color:var(--muted); font-size:13px; margin:0 0 16px; max-width:480px; margin-left:auto; margin-right:auto;}
   #tokenPanel .actions{display:flex; gap:10px; justify-content:center; flex-wrap:wrap; align-items:center;}
   #tokenPanel input[type="password"]{
@@ -218,15 +221,15 @@
   #tokenPanel input[type="password"]:focus{outline:none; border-color:var(--ink);}
 
   .ann-panel{
-    display:none; background:var(--card); border:1px solid var(--paper-line); border-top:3px solid var(--accent); border-radius:var(--radius);
+    display:none; background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius);
     box-shadow:var(--shadow); padding:22px 24px; margin-bottom:22px;
   }
   .ann-panel.open{display:block;}
-  .ann-panel h3{font-family:'Lora',serif; margin:0 0 14px; color:var(--ink); font-size:17px;}
+  .ann-panel h3{font-family:'Roboto Slab',serif; margin:0 0 14px; color:var(--ink); font-size:17px;}
   .ann-panel label{display:block; font-family:'IBM Plex Mono',monospace; font-size:11px; text-transform:uppercase;
     letter-spacing:.06em; color:var(--muted); margin:0 0 6px;}
   .ann-panel input[type="text"], .ann-panel input[type="datetime-local"], .ann-panel textarea{
-    width:100%; font-family:'Inter',sans-serif; font-size:14px; padding:10px 12px;
+    width:100%; font-family:'Public Sans',sans-serif; font-size:14px; padding:10px 12px;
     border:1.5px solid var(--paper-line); border-radius:7px; background:var(--card); color:var(--ink);
     margin-bottom:14px; resize:vertical;
   }
@@ -236,7 +239,7 @@
   @media (max-width:520px){ .field-row-2{grid-template-columns:1fr;} }
   .pin-field{margin-bottom:14px;}
   .pin-checkbox-label{
-    display:flex; align-items:center; gap:8px; font-family:'Inter',sans-serif; font-size:13.5px;
+    display:flex; align-items:center; gap:8px; font-family:'Public Sans',sans-serif; font-size:13.5px;
     color:var(--graphite); text-transform:none; letter-spacing:normal; cursor:pointer;
     border:1.5px solid var(--paper-line); border-radius:7px; padding:10px 12px; background:var(--card);
   }
@@ -257,12 +260,6 @@
   .rem-importance.medium{background:var(--highlighter); color:var(--highlighter-ink);}
   .rem-importance.high{background:var(--pencil-red); color:#fff;}
   .rem-actions{display:flex; gap:4px;}
-  .ann-expand-btn, .rem-expand-btn{
-    width:28px; height:28px; padding:0; flex:none; border-radius:50%;
-    display:inline-flex; align-items:center; justify-content:center;
-    font-size:16px; line-height:1; color:var(--accent); border-color:var(--paper-line);
-  }
-  .ann-expand-btn:hover, .rem-expand-btn:hover{background:var(--sage-bg); border-color:var(--accent);}
   .rem-actions button{padding:5px 8px; font-size:12px; border-radius:5px;}
   @media (max-width:560px){
     .rem-row{grid-template-columns:1fr; gap:6px;}
@@ -283,8 +280,7 @@
   .ann-badge.pinned{background:var(--highlighter); color:var(--highlighter-ink);}
   .ann-badge.expired{background:#EDEAE2; color:var(--muted);}
   .ann-badge.expiring{background:var(--sage-bg); color:var(--sage);}
-  .ann-card h3{font-family:'Lora',serif; font-size:17px; color:var(--ink); margin:0;}
-  .ann-title-row{display:flex; align-items:center; justify-content:space-between; gap:12px;}
+  .ann-card h3{font-family:'Roboto Slab',serif; font-size:17px; color:var(--ink); margin:0 0 8px;}
   .ann-card p{font-size:13.5px; color:var(--graphite); line-height:1.6; margin:0 0 14px; white-space:pre-wrap;}
   .ann-foot{
     display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
@@ -433,42 +429,46 @@
   <div class="modules">
 
     <a href="subject_scheduler_dashboard.html" class="mod-card live">
-      <div class="mod-index">Module 01</div>
-      <div class="mod-icon">🗓</div>
-      <h2 class="mod-title">Weekly Schedule</h2>
-      <p class="mod-desc">Your weekly class schedule — professors, rooms, Classroom and Meet links, plus a live "today" view of what's now and next.</p>
-      <div class="mod-foot">
-        <span class="mod-cta">Open module</span>
+      <div class="mod-plaque"><span class="mod-eyebrow">Module</span><span class="mod-num">01</span></div>
+      <div class="mod-body">
+        <h2 class="mod-title">Weekly Schedule</h2>
+        <p class="mod-desc">Your weekly class schedule — professors, rooms, Classroom and Meet links, plus a live "today" view of what's now and next.</p>
+        <div class="mod-foot">
+          <span class="mod-cta">Open module</span>
+        </div>
       </div>
     </a>
 
     <a href="flashcards.html" class="mod-card live">
-      <div class="mod-index">Module 02</div>
-      <div class="mod-icon">🗂</div>
-      <h2 class="mod-title">Flashcard Reviewer</h2>
-      <p class="mod-desc">Review decks — plain front/back cards, or fill-in-the-blank cards. Masters build the decks; anyone signed in can study them.</p>
-      <div class="mod-foot">
-        <span class="mod-cta">Open module</span>
+      <div class="mod-plaque"><span class="mod-eyebrow">Module</span><span class="mod-num">02</span></div>
+      <div class="mod-body">
+        <h2 class="mod-title">Flashcard Reviewer</h2>
+        <p class="mod-desc">Review decks — plain front/back cards, or fill-in-the-blank cards. Masters build the decks; anyone signed in can study them.</p>
+        <div class="mod-foot">
+          <span class="mod-cta">Open module</span>
+        </div>
       </div>
     </a>
 
     <a href="card_drafter.html" class="mod-card live">
-      <div class="mod-index">Module 03</div>
-      <div class="mod-icon">✨</div>
-      <h2 class="mod-title">Card Drafter</h2>
-      <p class="mod-desc">Upload a file from a class — PDF, Word, text, or spreadsheet — and get a batch of draft flashcards to review and edit before anything is saved. Masters can push approved cards straight into the shared deck.</p>
-      <div class="mod-foot">
-        <span class="mod-cta">Open module</span>
+      <div class="mod-plaque"><span class="mod-eyebrow">Module</span><span class="mod-num">03</span></div>
+      <div class="mod-body">
+        <h2 class="mod-title">Card Drafter</h2>
+        <p class="mod-desc">Upload a file from a class — PDF, Word, text, or spreadsheet — and get a batch of draft flashcards to review and edit before anything is saved. Masters can push approved cards straight into the shared deck.</p>
+        <div class="mod-foot">
+          <span class="mod-cta">Open module</span>
+        </div>
       </div>
     </a>
 
     <a href="audit_log.html" class="mod-card live" id="auditLogCard" style="display:none;">
-      <div class="mod-index">Module 04</div>
-      <div class="mod-icon">🧾</div>
-      <h2 class="mod-title">Audit Log</h2>
-      <p class="mod-desc">Read-only history of sign-ins and changes made across the system. Visible only to the account owner.</p>
-      <div class="mod-foot">
-        <span class="mod-cta">Open module</span>
+      <div class="mod-plaque"><span class="mod-eyebrow">Module</span><span class="mod-num">04</span></div>
+      <div class="mod-body">
+        <h2 class="mod-title">Audit Log</h2>
+        <p class="mod-desc">Read-only history of sign-ins and changes made across the system. Visible only to the account owner.</p>
+        <div class="mod-foot">
+          <span class="mod-cta">Open module</span>
+        </div>
       </div>
     </a>
 
@@ -911,7 +911,6 @@ function sortReminders(list){
 
 let remExpanded = false;
 const REM_VISIBLE_COUNT = 1;
-let remOpenIds = new Set();
 function renderReminders(){
   const list = document.getElementById('remList');
   // Past-deadline reminders stay visible for a couple of days (same grace
@@ -929,22 +928,20 @@ function renderReminders(){
     const expired = !!r.expiresAt && new Date(r.expiresAt).getTime() < Date.now();
     const impClass = (r.importance || 'Medium').toLowerCase();
     const isGeneral = (r.type || 'Subject') === 'General';
-    const isOpen = remOpenIds.has(r.id);
     return `<div class="rem-row">
       <span class="rem-importance ${impClass}">${escapeHtml(r.importance || 'Medium')}</span>
       <div>
         <div class="rem-subject">
           ${isGeneral ? `<span style="font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--sage); background:var(--sage-bg); padding:2px 7px; border-radius:10px; margin-right:6px; vertical-align:middle;">General</span>` : ''}${escapeHtml(r.subject)}
         </div>
-        ${isOpen ? `
         ${r.description ? `<div class="rem-meta">${escapeHtml(r.description)}</div>` : ''}
         <div class="rem-meta">
           Added ${escapeHtml(fmtDateOnly(r.dateAdded))}
           ${r.expiresAt ? ` · ${expired ? 'Deadline passed' : 'Deadline'} ${escapeHtml(fmtDate(r.expiresAt))}` : ''}
-        </div>` : ''}
+        </div>
       </div>
-      <button type="button" class="btn-ghost rem-expand-btn" onclick="toggleRemExpand('${r.id}')" aria-expanded="${isOpen}" title="${isOpen ? 'Collapse' : 'Expand'}">${isOpen ? '−' : '+'}</button>
-      ${(isOpen && isMaster && annEditingEnabled) ? `<div class="rem-actions">
+      <div></div>
+      ${(isMaster && annEditingEnabled) ? `<div class="rem-actions">
         <button class="btn-ghost" onclick="startRemEdit('${r.id}')">Edit</button>
         <button class="btn-text" onclick="deleteReminder('${r.id}')" style="color:var(--pencil-red);">Delete</button>
       </div>` : '<div></div>'}
@@ -956,10 +953,6 @@ function renderReminders(){
   list.innerHTML = rowsHtml + toggleHtml;
   const toggleBtn = document.getElementById('remToggleBtn');
   if(toggleBtn) toggleBtn.addEventListener('click', () => { remExpanded = !remExpanded; renderReminders(); });
-}
-function toggleRemExpand(id){
-  if(remOpenIds.has(id)) remOpenIds.delete(id); else remOpenIds.add(id);
-  renderReminders();
 }
 
 function updateRemSubjectLabel(){
@@ -1080,7 +1073,6 @@ function renderAnnControls(){
 
 let annExpanded = false;
 const ANN_VISIBLE_COUNT = 1;
-let annOpenIds = new Set();
 
 function renderAnnouncements(){
   const list = document.getElementById('annList');
@@ -1094,7 +1086,6 @@ function renderAnnouncements(){
   const visible = annExpanded ? sorted : sorted.slice(0, ANN_VISIBLE_COUNT);
   const cardsHtml = visible.map(a => {
     const expired = isExpired(a);
-    const isOpen = annOpenIds.has(a.id);
     const badges = [
       a.pinned && !expired ? '<span class="ann-badge pinned">📌 Pinned</span>' : '',
       expired ? '<span class="ann-badge expired">Expired</span>' : '',
@@ -1103,11 +1094,7 @@ function renderAnnouncements(){
     return `
     <div class="ann-card${a.pinned && !expired ? ' pinned' : ''}${expired ? ' expired' : ''}">
       ${badges ? `<div class="ann-badges">${badges}</div>` : ''}
-      <div class="ann-title-row">
-        <h3>${escapeHtml(a.title)}</h3>
-        <button type="button" class="btn-ghost ann-expand-btn" onclick="toggleAnnExpand('${a.id}')" aria-expanded="${isOpen}" title="${isOpen ? 'Collapse' : 'Expand'}">${isOpen ? '−' : '+'}</button>
-      </div>
-      ${isOpen ? `
+      <h3>${escapeHtml(a.title)}</h3>
       <p>${escapeHtml(a.message)}</p>
       <div class="ann-foot">
         <div class="ann-attrib">
@@ -1118,7 +1105,7 @@ function renderAnnouncements(){
           <button class="btn-text" onclick="startAnnEdit('${a.id}')">Edit</button>
           <button class="btn-text" onclick="deleteAnnouncement('${a.id}')" style="color:var(--pencil-red);">Delete</button>
         </div>` : ''}
-      </div>` : ''}
+      </div>
     </div>`;
   }).join('');
   const toggleHtml = hasMore
@@ -1127,10 +1114,6 @@ function renderAnnouncements(){
   list.innerHTML = cardsHtml + toggleHtml;
   const toggleBtn = document.getElementById('annToggleBtn');
   if(toggleBtn) toggleBtn.addEventListener('click', () => { annExpanded = !annExpanded; renderAnnouncements(); });
-}
-function toggleAnnExpand(id){
-  if(annOpenIds.has(id)) annOpenIds.delete(id); else annOpenIds.add(id);
-  renderAnnouncements();
 }
 
 async function loadAnnouncements(){
