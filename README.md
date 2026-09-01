@@ -185,7 +185,7 @@ In the Vercel project → **Settings → Environment Variables**, add:
 | `GITHUB_TOKEN` | A GitHub fine-grained Personal Access Token — **your own account only**, scoped to just this repo, permission `Contents: Read and write`. This is the one and only GitHub credential the whole system uses. |
 | `SESSION_SECRET` | Any long random string (e.g. generate one with `openssl rand -hex 32`, or any password generator producing 40+ random characters). Used to sign edit sessions — treat it like a password; if it ever leaks, rotate it and every active edit session is instantly invalidated. |
 | `GEMINI_API_KEY` | A **free** Google Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey) — no credit card required. Used only by `/api/draft-cards` to power Card Drafter's question drafting. Without this set, reading/reviewing/managing flashcards still works fine — only the Card Drafter's "Draft cards from this file" button needs it. |
-| `GEMINI_MODEL` *(optional)* | Defaults to `gemini-2.5-flash-lite` (the largest free daily allowance). Set to `gemini-2.5-flash` for somewhat better drafting quality at a smaller free allowance, if Lite's drafts aren't good enough. |
+| `GEMINI_MODEL` *(optional)* | Defaults to `gemini-3.5-flash-lite` (the current free low-cost model as of September 2026 — Google renames/retires these periodically). Set to `gemini-3.6-flash` for somewhat better drafting quality at a smaller free daily allowance, if Lite's drafts aren't good enough. If drafting ever errors with "model ... no longer available," the error names the replacement — put that name here. |
 
 Redeploy after adding these (Vercel prompts for this automatically, or
 trigger it with an empty commit). That's the entire setup — no other Master

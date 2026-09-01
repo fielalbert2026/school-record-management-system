@@ -12,12 +12,12 @@
 // anywhere until a Master approves and the app calls /api/save separately.
 //
 // Get a free key (no credit card): https://aistudio.google.com/apikey
-// Free-tier daily/per-minute caps are generous for personal use but not
-// unlimited — GEMINI_MODEL defaults to gemini-2.5-flash-lite, which has
-// the largest free allowance (about 1,000 requests/day, 15/minute as of
-// 2026). Set GEMINI_MODEL=gemini-2.5-flash for higher-quality drafts at a
-// smaller free allowance (~250/day, 10/minute) if the lite model's drafts
-// aren't good enough.
+// Model naming moves fairly often on Google's side — GEMINI_MODEL defaults
+// to gemini-3.5-flash-lite, the current free-tier low-cost model as of
+// September 2026. Set GEMINI_MODEL=gemini-3.6-flash for higher-quality
+// drafts (smaller free daily allowance) if Lite's drafts aren't good
+// enough. If drafting ever errors with "model ... no longer available",
+// that error names the current replacement — put it in GEMINI_MODEL.
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
@@ -45,7 +45,7 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite';
+  const model = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
   const geminiBody = {
     contents: [{ role: 'user', parts: [{ text: userText }] }],
     generationConfig: {
