@@ -640,7 +640,7 @@ function renderDeckBrowser(){
           <span class="db-name">${escapeHtml(deck)}</span>
           <span class="db-meta">${deckCards.length} card${deckCards.length===1?'':'s'} · ${metaBits.join(' · ')}</span>
         </div>
-        <button type="button" class="btn-primary db-start-btn" data-start-deck="${escapeHtml(deck)}" onclick="event.stopPropagation()">Start review</button>
+        <button type="button" class="btn-primary db-start-btn" data-start-deck="${escapeHtml(deck)}">Start review</button>
       </summary>
       <div class="db-preview">
         <div class="card-list">${deckCards.map(c => `
@@ -659,7 +659,7 @@ function renderDeckBrowser(){
 }
 document.getElementById('deckBrowser').addEventListener('click', (e) => {
   const btn = e.target.closest('[data-start-deck]');
-  if(btn) enterReview(btn.dataset.startDeck);
+  if(btn){ e.preventDefault(); enterReview(btn.dataset.startDeck); }
 });
 document.getElementById('startAllBtn').addEventListener('click', () => enterReview('__all__'));
 document.getElementById('backToDecksBtn').addEventListener('click', showDeckBrowser);

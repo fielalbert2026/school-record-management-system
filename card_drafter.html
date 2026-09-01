@@ -245,7 +245,7 @@
       </div>
       <div class="status" id="exportStatus"></div>
 
-      <div class="warn-box">Drafting sends only the extracted file text to Claude, instructed to extract questions as-is and not add anything the file doesn't say — never your school ID, passphrase, or editing token. Saving to the shared deck is a separate step that goes through the same sign-in check as every other change in this app.</div>
+      <div class="warn-box">Drafting sends only the extracted file text through this app's own server (never your school ID, passphrase, or editing token) to Claude, instructed to extract questions as-is and not add anything the file doesn't say. Saving to the shared deck is a separate step that goes through the same sign-in check as every other change in this app.</div>
     </section>
   </div>
 
@@ -708,7 +708,7 @@ async function draftCardsFromChunk(chunk, style, count, focusNote){
     '', '--- SOURCE TEXT ---', chunk
   ].filter(Boolean).join('\n');
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  const res = await fetch('/api/draft-cards', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -720,6 +720,7 @@ async function draftCardsFromChunk(chunk, style, count, focusNote){
     })
   });
   const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `Drafting failed (${res.status})`);
   const textOut = (data.content || []).map(b => b.text || '').join('\n').trim();
   const cleaned = textOut.replace(/^```(json)?/i, '').replace(/```$/, '').trim();
   let arr;
