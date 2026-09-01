@@ -1,15 +1,23 @@
 // api/draft-cards.js
 //
-// Server-side proxy to the Anthropic Messages API, used only by
-// card_drafter.html. A browser cannot call api.anthropic.com directly —
-// there's no API key on the page and Anthropic's API doesn't accept
-// arbitrary browser CORS requests, so a direct client-side fetch fails
-// (that's the "Failed to fetch" error). This function holds the one
-// server-side credential and forwards the already-built prompt.
+// Server-side proxy for Card Drafter's question drafting. Uses Google's
+// Gemini API (Google AI Studio), which has a genuinely free tier — no
+// credit card required — unlike the Anthropic API. A browser can't call
+// either provider directly (no key on the page, and neither API allows
+// arbitrary browser CORS), so this function holds the one server-side key
+// and forwards the already-built prompt, same pattern as verify-master/save.
 //
 // This endpoint never touches Subject_Scheduler.xlsx and needs no signed
 // edit session — drafting produces suggestions only, nothing is saved
 // anywhere until a Master approves and the app calls /api/save separately.
+//
+// Get a free key (no credit card): https://aistudio.google.com/apikey
+// Free-tier daily/per-minute caps are generous for personal use but not
+// unlimited — GEMINI_MODEL defaults to gemini-2.5-flash-lite, which has
+// the largest free allowance (about 1,000 requests/day, 15/minute as of
+// 2026). Set GEMINI_MODEL=gemini-2.5-flash for higher-quality drafts at a
+// smaller free allowance (~250/day, 10/minute) if the lite model's drafts
+// aren't good enough.
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
@@ -17,49 +25,66 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    res.status(500).json({ error: 'Card drafting is not configured on this server yet (missing ANTHROPIC_API_KEY).' });
+    res.status(500).json({ error: 'Card drafting is not configured on this server yet (missing GEMINI_API_KEY).' });
     return;
   }
 
-  const { system, messages, model, max_tokens, temperature } = req.body || {};
+  const { system, messages, max_tokens, temperature } = req.body || {};
   if (!Array.isArray(messages) || messages.length === 0) {
     res.status(400).json({ error: 'Missing messages.' });
     return;
   }
 
-  // Basic size guard so a stray/abusive request can't run up an unbounded bill.
-  const approxLen = (system ? system.length : 0) + JSON.stringify(messages).length;
+  // Basic size guard so a stray/abusive request can't blow through the free quota in one call.
+  const userText = messages.map(m => (m && m.content) || '').join('\n\n');
+  const approxLen = (system ? system.length : 0) + userText.length;
   if (approxLen > 60000) {
     res.status(400).json({ error: 'That chunk of source text is too large for one drafting request.' });
     return;
   }
 
-  try {
-    const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: model || 'claude-sonnet-4-6',
-        max_tokens: Math.min(max_tokens || 2048, 4096),
-        temperature: temperature != null ? temperature : 0.2,
-        system: system || undefined,
-        messages
-      })
-    });
+  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite';
+  const geminiBody = {
+    contents: [{ role: 'user', parts: [{ text: userText }] }],
+    generationConfig: {
+      maxOutputTokens: Math.min(max_tokens || 2048, 4096),
+      temperature: temperature != null ? temperature : 0.2
+    }
+  };
+  if (system) geminiBody.systemInstruction = { parts: [{ text: system }] };
 
-    const json = await anthropicRes.json();
-    if (!anthropicRes.ok) {
-      res.status(anthropicRes.status).json({ error: (json.error && json.error.message) || 'Anthropic API error.' });
+  // Free-tier rate limits are tight enough that a burst of chunk requests
+  // (Card Drafter can fire several in a row) may hit 429s — retry those
+  // with backoff instead of surfacing a spurious "nothing came back".
+  async function callGemini(attempt){
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify(geminiBody)
+    });
+    if (r.status === 429 && attempt < 3) {
+      await new Promise(resolve => setTimeout(resolve, 1500 * (attempt + 1)));
+      return callGemini(attempt + 1);
+    }
+    return r;
+  }
+
+  try {
+    const geminiRes = await callGemini(0);
+    const json = await geminiRes.json();
+    if (!geminiRes.ok) {
+      res.status(geminiRes.status).json({ error: (json.error && json.error.message) || 'Gemini API error.' });
       return;
     }
-    res.status(200).json(json);
+    const parts = (json.candidates && json.candidates[0] && json.candidates[0].content && json.candidates[0].content.parts) || [];
+    const text = parts.map(p => p.text || '').join('');
+    // Normalize to the same {content:[{text}]} shape the client already parses,
+    // so card_drafter.html doesn't need to know which provider is behind this.
+    res.status(200).json({ content: [{ type: 'text', text }] });
   } catch (err) {
-    res.status(502).json({ error: 'Could not reach Anthropic: ' + (err && err.message ? err.message : String(err)) });
+    res.status(502).json({ error: 'Could not reach Gemini: ' + (err && err.message ? err.message : String(err)) });
   }
 };

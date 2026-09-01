@@ -23,7 +23,7 @@ audit_log.html                     Module 03 — Audit Log (owner only)
 Subject_Scheduler.xlsx             All app data (the "database")
 api/verify-master.js               Server-side ID+passphrase check → signed edit session
 api/save.js                        Server-side commit to GitHub, using the signed session
-api/draft-cards.js                 Server-side proxy to Claude for card_drafter.html (keeps the Anthropic key off the browser)
+api/draft-cards.js                 Server-side proxy to Google's free Gemini API for card_drafter.html (keeps the API key off the browser)
 package.json                       Declares the xlsx dependency the functions above need
 ```
 
@@ -173,7 +173,7 @@ serverless functions stand between the app and GitHub:
   serves static files only and has nowhere to run `/api/verify-master`.
   Card Drafter's "Draft cards from this file" button is in the same boat —
   it calls `/api/draft-cards`, so it also needs Vercel (and the
-  `ANTHROPIC_API_KEY` env var below) to work; everything else on that page
+  `GEMINI_API_KEY` env var below) to work; everything else on that page
   (upload, export to Anki/.xlsx/CSV) works anywhere.
 
 ### One-time server setup (only the repo owner needs to do this)
@@ -184,7 +184,8 @@ In the Vercel project → **Settings → Environment Variables**, add:
 |---|---|
 | `GITHUB_TOKEN` | A GitHub fine-grained Personal Access Token — **your own account only**, scoped to just this repo, permission `Contents: Read and write`. This is the one and only GitHub credential the whole system uses. |
 | `SESSION_SECRET` | Any long random string (e.g. generate one with `openssl rand -hex 32`, or any password generator producing 40+ random characters). Used to sign edit sessions — treat it like a password; if it ever leaks, rotate it and every active edit session is instantly invalidated. |
-| `ANTHROPIC_API_KEY` | An Anthropic API key (from console.anthropic.com), used only by `/api/draft-cards` to power Card Drafter's question drafting. Without this set, reading/reviewing/managing flashcards still works fine — only the Card Drafter's "Draft cards from this file" button needs it. |
+| `GEMINI_API_KEY` | A **free** Google Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey) — no credit card required. Used only by `/api/draft-cards` to power Card Drafter's question drafting. Without this set, reading/reviewing/managing flashcards still works fine — only the Card Drafter's "Draft cards from this file" button needs it. |
+| `GEMINI_MODEL` *(optional)* | Defaults to `gemini-2.5-flash-lite` (the largest free daily allowance). Set to `gemini-2.5-flash` for somewhat better drafting quality at a smaller free allowance, if Lite's drafts aren't good enough. |
 
 Redeploy after adding these (Vercel prompts for this automatically, or
 trigger it with an empty commit). That's the entire setup — no other Master
