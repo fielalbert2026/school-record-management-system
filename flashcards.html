@@ -153,6 +153,24 @@
   .deck-group summary .deck-pill{margin-right:0;}
   .deck-group summary .note{margin-left:auto;}
 
+  /* Deck browser — Flashcards landing view: decks visible, cards hidden
+     until a deck is expanded; reviewing only starts on explicit click. */
+  .deck-browser-all{ background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px 18px; margin-bottom:14px; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; }
+  .dba-title{font-family:'Roboto Slab',serif; font-size:16px; color:var(--ink); font-weight:700;}
+  .db-card{ background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius); margin-bottom:10px; box-shadow:var(--shadow); overflow:hidden; }
+  .db-card summary{ list-style:none; cursor:pointer; padding:14px 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .db-card summary::-webkit-details-marker{display:none;}
+  .db-card summary::before{content:'▸'; display:inline-block; color:var(--muted); font-size:11px; transition:transform .15s ease; width:10px; flex-shrink:0;}
+  .db-card[open] summary::before{transform:rotate(90deg);}
+  .db-info{display:flex; flex-direction:column; gap:3px; flex:1; min-width:0;}
+  .db-name{font-family:'Roboto Slab',serif; font-size:16px; color:var(--ink); font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .db-meta{font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--muted);}
+  .db-start-btn{flex-shrink:0; padding:8px 16px;}
+  .db-preview{padding:4px 16px 14px;}
+  .db-preview .card-list{padding:2px 0 0;}
+  .db-preview .front-snip{white-space:normal; overflow:visible; text-overflow:clip;}
+  .db-empty-hint{ text-align:center; color:var(--muted); font-size:13.5px; padding:24px 10px; background:var(--card); border:1.5px dashed var(--paper-line); border-radius:var(--radius); }
+
   footer{text-align:center; color:var(--muted); font-size:12px; margin-top:36px;}
 </style>
 </head>
@@ -199,14 +217,28 @@
   </div>
 
   <div id="content" style="display:none;">
-    <div class="section-toolbar">
-      <h2>Review</h2>
+    <div class="section-toolbar" id="deckBrowserToolbar">
+      <h2>Decks</h2>
+      <span class="note" id="deckBrowserSummary"></span>
+    </div>
+    <div id="deckBrowserWrap">
+      <div class="deck-browser-all">
+        <div>
+          <div class="dba-title">All decks</div>
+          <div class="note" id="allDecksNote">0 cards total</div>
+        </div>
+        <button class="btn-primary" id="startAllBtn">Review all decks</button>
+      </div>
+      <div id="deckBrowser"></div>
+    </div>
+
+    <div class="section-toolbar" id="reviewToolbar" style="display:none;">
+      <h2><button class="btn-text" id="backToDecksBtn" type="button" style="font-size:15px; text-decoration:none; margin-right:4px;">←</button>Reviewing: <span id="reviewingDeckName"></span></h2>
       <div style="display:flex; gap:8px; align-items:center;">
-        <select id="deckSelect"></select>
         <button class="btn-ghost" id="shuffleBtn">Shuffle</button>
       </div>
     </div>
-    <div class="review-wrap">
+    <div class="review-wrap" id="reviewWrap" style="display:none;">
       <div class="review-meta">
         <span id="reviewPos">0 of 0</span>
         <span id="reviewType"></span>
@@ -448,9 +480,8 @@ async function loadFromGitHub(){
     panel.style.display = 'none';
     document.getElementById('content').style.display = 'block';
     document.getElementById('addCardToggleBtn').style.display = isMaster ? '' : 'none';
-    renderDeckSelect();
+    renderDeckBrowser();
     renderMasterList();
-    startReview();
   }catch(e){
     connected = false;
     document.getElementById('connectPanelTitle').textContent = "Couldn't load flashcards";
@@ -565,17 +596,93 @@ let queue = [];
 let snoozed = []; // [{id, dueAt}]
 let revealed = false;
 let stats = {again:0, hard:0, snoozed:0, seen:0};
+let currentView = 'decks'; // 'decks' | 'review' — entering Flashcards always lands on the deck list first
+let openDeckPreviews = new Set(); // deck names currently expanded in the browser (collapsed by default)
 
-function renderDeckSelect(){
-  const sel = document.getElementById('deckSelect');
-  const decks = [...new Set(cards.map(c => c.deck).filter(Boolean))].sort();
-  sel.innerHTML = `<option value="__all__">All decks (${cards.length})</option>` +
-    decks.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)} (${cards.filter(c=>c.deck===d).length})</option>`).join('');
-  sel.value = reviewDeck;
-  document.getElementById('deckDatalist').innerHTML = decks.map(d => `<option value="${escapeHtml(d)}">`).join('');
+// Called any time the card set could have changed (add/edit/delete). Always
+// refreshes the deck list; only touches the live review queue if a review
+// is actually in progress, so browsing the deck list never auto-starts one.
+function refreshAfterCardChange(){
+  renderDeckBrowser();
+  if(currentView === 'review') startReview();
 }
-document.getElementById('deckSelect').addEventListener('change', (e) => { reviewDeck = e.target.value; startReview(); });
+
+function deckTypeCounts(list){
+  let basic = 0, cloze = 0;
+  list.forEach(c => c.type === 'cloze' ? cloze++ : basic++);
+  return {basic, cloze};
+}
+
+function renderDeckBrowser(){
+  document.getElementById('deckDatalist').innerHTML = [...new Set(cards.map(c => c.deck).filter(Boolean))].sort()
+    .map(d => `<option value="${escapeHtml(d)}">`).join('');
+
+  document.getElementById('allDecksNote').textContent = `${cards.length} card${cards.length===1?'':'s'} total across ${[...new Set(cards.map(c=>c.deck))].filter(Boolean).length} deck${[...new Set(cards.map(c=>c.deck))].length===1?'':'s'}`;
+  document.getElementById('startAllBtn').disabled = cards.length === 0;
+  document.getElementById('deckBrowserSummary').textContent = cards.length ? '' : 'No decks yet';
+
+  const wrap = document.getElementById('deckBrowser');
+  const decks = [...new Set(cards.map(c => c.deck).filter(Boolean))].sort((a,b) => a.localeCompare(b));
+  if(!decks.length){
+    wrap.innerHTML = '<div class="db-empty-hint">No flashcard decks yet.' + (isMaster ? ' Add a card below to create the first one.' : ' Check back once a Master has added some.') + '</div>';
+    return;
+  }
+  wrap.innerHTML = decks.map(deck => {
+    const deckCards = cards.filter(c => c.deck === deck);
+    const tc = deckTypeCounts(deckCards);
+    const metaBits = [];
+    if(tc.basic) metaBits.push(`${tc.basic} basic`);
+    if(tc.cloze) metaBits.push(`${tc.cloze} cloze`);
+    const isOpen = openDeckPreviews.has(deck);
+    return `<details class="db-card" data-deck="${escapeHtml(deck)}" ${isOpen ? 'open' : ''}>
+      <summary>
+        <div class="db-info">
+          <span class="db-name">${escapeHtml(deck)}</span>
+          <span class="db-meta">${deckCards.length} card${deckCards.length===1?'':'s'} · ${metaBits.join(' · ')}</span>
+        </div>
+        <button type="button" class="btn-primary db-start-btn" data-start-deck="${escapeHtml(deck)}" onclick="event.stopPropagation()">Start review</button>
+      </summary>
+      <div class="db-preview">
+        <div class="card-list">${deckCards.map(c => `
+          <div class="card-row" style="border-bottom:1px dashed var(--paper-line);">
+            <span class="front-snip">${escapeHtml(c.type==='cloze' ? c.front.replace(CLOZE_MARKER,'⬚') : c.front)}</span>
+          </div>`).join('')}</div>
+      </div>
+    </details>`;
+  }).join('');
+
+  wrap.querySelectorAll('.db-card').forEach(el => {
+    el.addEventListener('toggle', () => {
+      if(el.open) openDeckPreviews.add(el.dataset.deck); else openDeckPreviews.delete(el.dataset.deck);
+    });
+  });
+}
+document.getElementById('deckBrowser').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-start-deck]');
+  if(btn) enterReview(btn.dataset.startDeck);
+});
+document.getElementById('startAllBtn').addEventListener('click', () => enterReview('__all__'));
+document.getElementById('backToDecksBtn').addEventListener('click', showDeckBrowser);
 document.getElementById('shuffleBtn').addEventListener('click', () => { startReview(true); });
+
+function enterReview(deckName){
+  reviewDeck = deckName;
+  currentView = 'review';
+  document.getElementById('deckBrowserToolbar').style.display = 'none';
+  document.getElementById('deckBrowserWrap').style.display = 'none';
+  document.getElementById('reviewToolbar').style.display = 'flex';
+  document.getElementById('reviewWrap').style.display = 'block';
+  document.getElementById('reviewingDeckName').textContent = deckName === '__all__' ? 'All decks' : deckName;
+  startReview();
+}
+function showDeckBrowser(){
+  currentView = 'decks';
+  document.getElementById('deckBrowserToolbar').style.display = 'flex';
+  document.getElementById('deckBrowserWrap').style.display = 'block';
+  document.getElementById('reviewToolbar').style.display = 'none';
+  document.getElementById('reviewWrap').style.display = 'none';
+  renderDeckBrowser();
+}
 
 function shuffleArr(arr){
   for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
@@ -736,11 +843,10 @@ document.getElementById('submitCardBtn').addEventListener('click', async () => {
     cards.push({ id:uid(), deck, type:currentType, front, back, createdBy:session.name, createdAt:now, updatedAt:now });
   }
   closeCardForm();
-  renderDeckSelect();
+  refreshAfterCardChange();
   renderMasterList();
-  startReview();
   const ok = await persistCards(wasEditing ? 'Edit Flashcard' : 'Add Flashcard', label);
-  if(!ok){ cards = snapshot; renderDeckSelect(); renderMasterList(); startReview(); }
+  if(!ok){ cards = snapshot; refreshAfterCardChange(); renderMasterList(); }
 });
 
 function startCardEdit(id){
@@ -768,11 +874,10 @@ async function deleteCard(id){
   const target = cards.find(c => c.id === id);
   const snapshot = cards.slice();
   cards = cards.filter(c => c.id !== id);
-  renderDeckSelect();
+  refreshAfterCardChange();
   renderMasterList();
-  startReview();
   const ok = await persistCards('Delete Flashcard', target ? (target.deck+' — '+target.front.slice(0,40)) : id);
-  if(!ok){ cards = snapshot; renderDeckSelect(); renderMasterList(); startReview(); }
+  if(!ok){ cards = snapshot; refreshAfterCardChange(); renderMasterList(); }
 }
 window.deleteCard = deleteCard;
 
@@ -898,12 +1003,11 @@ document.getElementById('deleteSelectedBtn').addEventListener('click', async () 
   const removed = cards.filter(c => idSet.has(c.id));
   cards = cards.filter(c => !idSet.has(c.id));
   selectedCardIds.clear();
-  renderDeckSelect();
+  refreshAfterCardChange();
   renderMasterList();
-  startReview();
   const deckSummary = [...new Set(removed.map(c => c.deck))].join(', ');
   const ok = await persistCards('Delete Flashcards (bulk)', `${removed.length} cards — ${deckSummary}`);
-  if(!ok){ cards = snapshot; renderDeckSelect(); renderMasterList(); startReview(); }
+  if(!ok){ cards = snapshot; refreshAfterCardChange(); renderMasterList(); }
 });
 
 /* ---------------- Boot ---------------- */

@@ -209,7 +209,7 @@
         <span class="status" id="genStatus"></span>
       </div>
       <div class="progress-track" id="progressTrack"><div class="progress-fill" id="progressFill"></div></div>
-      <p class="hint" style="margin-top:10px;">An AI pass reads the extracted text and pulls out candidate cards — it's told explicitly to extract only, not to add outside explanation, filler, or examples. It's better at handling material that doesn't fit a rigid "Term: definition" shape, but it's still a draft: check it against the source before approving.</p>
+      <p class="hint" style="margin-top:10px;">An AI pass reads the extracted text and pulls out candidate cards — it's told to extract only (no outside explanation, filler, or examples) and to skip agenda lines, page numbers, and other non-testable fragments rather than force a card out of them. It's better at handling material that doesn't fit a rigid "Term: definition" shape, but it's still a draft: check it against the source before approving.</p>
     </section>
 
     <section class="panel">
@@ -566,7 +566,7 @@ async function handleFile(file){
     else if (ext === 'xlsx' || ext === 'xls') extractedText = await parseXlsx(file);
     else extractedText = await parseAsText(file);
 
-    extractedText = (extractedText || '').trim();
+    extractedText = cleanExtractedText((extractedText || '').trim());
     if (!extractedText) {
       parseStatus.className = 'status err';
       parseStatus.textContent = 'Could not find readable text in this file. Try a .txt/.docx export of it instead.';
@@ -582,6 +582,23 @@ async function handleFile(file){
     parseStatus.textContent = 'Could not read this file: ' + (err && err.message ? err.message : err);
   }
 }
+// Light cleanup pass before drafting: strips lines that are pure noise
+// (page/slide numbers, lone dashes/bullets, near-empty lines) so they never
+// become candidate card material. Doesn't touch real content.
+function cleanExtractedText(text){
+  return text.split('\n')
+    .filter(line => {
+      const t = line.trim();
+      if (!t) return true; // keep blank lines, they mark paragraph breaks
+      if (/^(page|slide)\s*\d+(\s*(of|\/)\s*\d+)?$/i.test(t)) return false;
+      if (/^[-–—•*_=]{1,3}$/.test(t)) return false;
+      if (/^\d+$/.test(t) && t.length <= 3) return false;
+      return true;
+    })
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n');
+}
+
 function parseAsText(file){
   return new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -650,35 +667,57 @@ function chunkText(text, maxLen){
 }
 
 // The whole point of this tool is to pull cards OUT of the file, not write
-// new material into it — so the prompt is deliberately strict about that.
-const EXTRACTION_INSTRUCTION = 'Generate questions strictly based on the uploaded file/document text below. Do not add outside knowledge, filler wording, examples, or elaboration that is not already present in the text. The goal is to extract study questions from the material as-is, as if preparing it for memorization — not to teach or explain it further.';
+// new material into it — so the instructions are deliberately strict about
+// that. They're also deliberately strict about QUALITY: earlier versions
+// happily turned agenda lines, page numbers, and course-logistics fragments
+// into "cards", which is where the pointless-question complaints came from.
+// The fix is a real quality bar with concrete good/bad examples, plus a
+// higher token budget and lower temperature so multi-sentence JSON items
+// don't get cut off or drift.
+const EXTRACTION_SYSTEM_PROMPT = [
+  'You turn source material (lecture notes, slides, textbook excerpts) into flashcards for a student who needs to memorize it, extracting only — never adding outside knowledge, elaboration, or examples the text does not contain.',
+  '',
+  'QUALITY BAR — a good card tests ONE specific, testable fact and reads naturally on its own, with no need to see the source formatting:',
+  '  GOOD basic: front "What is the powerhouse of the cell?" back "the mitochondria"',
+  '  GOOD basic: front "What year did the Philippine Revolution begin?" back "1896"',
+  '  GOOD cloze: sentence "Photosynthesis converts light energy into chemical energy stored in glucose." answer "chemical energy"',
+  '  BAD (reject, do not emit): front "What does the document mention?" — too vague to be a real question',
+  '  BAD (reject, do not emit): front "What is covered in this lecture?" back "SDLC, requirements, design" — this is an agenda/outline, not a testable fact',
+  '  BAD (reject, do not emit): a card built from a page number, slide number, course code, date stamp, header/footer, or a sentence fragment split mid-clause',
+  '  BAD (reject, do not emit): two cards that test the same underlying fact with different wording',
+  '',
+  'Before writing each card, silently check it against the QUALITY BAR above; if it fails, skip that piece of content rather than forcing a card out of it. Returning fewer, better cards is always preferred over hitting the target count with weak ones.',
+  '',
+  'Output format: return ONLY a JSON array, no markdown fences, no commentary, no keys other than specified. Each item is one of:',
+  '{"type":"basic","front":"<a complete, specific question>","back":"<the exact term/answer, copied from the text>"}',
+  '{"type":"cloze","sentence":"<a complete sentence copied from the text, with the key term still in place>","answer":"<the exact key term/phrase from that sentence to blank out>"}',
+  'Every front, back, sentence, and answer must be traceable to the supplied text — do not paraphrase definitions into your own words and do not add context the text does not state.'
+].join('\n');
 
 async function draftCardsFromChunk(chunk, style, count, focusNote){
   const styleInstruction = style === 'basic'
-    ? 'Only produce "basic" type cards: a short identification-style question and the exact answer as it appears in the text (a term, name, phrase, or short fact — not a paraphrase).'
+    ? 'Only produce "basic" type cards.'
     : style === 'cloze'
-      ? 'Only produce "cloze" type cards: a sentence copied (or very lightly trimmed) directly from the text, with one key term/phrase from that same sentence to blank out.'
+      ? 'Only produce "cloze" type cards.'
       : 'Produce a mix of "basic" and "cloze" type cards, roughly half and half.';
 
-  const prompt = [
-    EXTRACTION_INSTRUCTION,
-    'Return ONLY a JSON array — no markdown fences, no commentary, no keys other than specified.',
-    'Each array item is one of:',
-    '{"type":"basic","front":"<identification-style question>","back":"<the exact term/answer, copied from the text>"}',
-    '{"type":"cloze","sentence":"<a sentence copied from the text, with the key term still in place>","answer":"<the exact key term/phrase from that sentence to blank out>"}',
+  const userPrompt = [
     styleInstruction,
-    'Every front, back, sentence, and answer must be traceable to the text below — do not paraphrase definitions into your own words, do not add context the text does not state, and do not invent examples.',
-    'Skip content that is too vague or fragmentary to make a clean question from, rather than padding it out.',
-    'Avoid duplicate or near-duplicate questions.',
     focusNote ? ('Prioritize material related to: ' + focusNote) : '',
-    'Generate up to ' + count + ' cards — fewer is fine if the text does not support that many.',
-    '', '--- FILE TEXT ---', chunk
+    'Generate up to ' + count + ' cards that clear the quality bar — fewer is fine if the text does not support that many good ones.',
+    '', '--- SOURCE TEXT ---', chunk
   ].filter(Boolean).join('\n');
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, messages: [{ role: 'user', content: prompt }] })
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 2048,
+      temperature: 0.2,
+      system: EXTRACTION_SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: userPrompt }]
+    })
   });
   const data = await res.json();
   const textOut = (data.content || []).map(b => b.text || '').join('\n').trim();
