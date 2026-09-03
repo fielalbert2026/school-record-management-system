@@ -6,47 +6,47 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Subject Scheduler — Personalized School Record Management System</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@600;700;800&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@700;900&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
-    --ink:#14432A;
-    --ink-soft:#1F5A3B;
-    --paper:#F2F5F2;
-    --paper-line:#DCE3DE;
+    --ink:#0A2A52;
+    --ink-soft:#123B6E;
+    --paper:#F5F7FB;
+    --paper-line:#DBE3EF;
     --card:#FFFFFF;
-    --graphite:#3D473F;
-    --muted:#6B766E;
-    --accent:#14432A;
-    --accent-hover:#0D2E1C;
-    --highlighter:#C08A2E;
-    --highlighter-ink:#4A3410;
+    --graphite:#2E3E56;
+    --muted:#66748C;
+    --accent:#0A2A52;
+    --accent-hover:#0F3E7C;
+    --highlighter:#C79A32;
+    --highlighter-ink:#5A430C;
     --pencil-red:#B3261E;
-    --sage:#2F7166;
-    --sage-bg:#E7F3F0;
+    --sage:#2E6E62;
+    --sage-bg:#E4EFEC;
     --radius:10px;
-    --shadow:0 1px 2px rgba(20,67,42,.08), 0 6px 18px rgba(20,67,42,.10);
+    --shadow:0 1px 2px rgba(10,42,82,.08), 0 6px 18px rgba(10,42,82,.10);
     color-scheme: light;
     /* Fixed regardless of theme — the Today panel is a deliberate
        "spotlight" accent, not a themeable surface, so it shouldn't invert. */
-    --accent-panel:#0D2E1C;
-    --accent-panel-text:#F2F5F2;
+    --accent-panel:#0F3E7C;
+    --accent-panel-text:#F5F7FB;
   }
   [data-theme="dark"]{
-    --ink:#EDF3EE;
-    --ink-soft:#D7E6DB;
-    --paper:#0E1512;
-    --paper-line:#28352E;
-    --card:#16211C;
-    --graphite:#C9D3CC;
-    --muted:#8FA096;
-    --accent:#3E8F63;
-    --accent-hover:#58AC7C;
-    --highlighter:#D9A54A;
-    --highlighter-ink:#2B1D08;
+    --ink:#EAF1FC;
+    --ink-soft:#D3E1F5;
+    --paper:#08101E;
+    --paper-line:#20304C;
+    --card:#0E1B30;
+    --graphite:#C7D3E6;
+    --muted:#8798B4;
+    --accent:#4C86D6;
+    --accent-hover:#6FA3E8;
+    --highlighter:#DDBA6A;
+    --highlighter-ink:#3B2C08;
     --pencil-red:#E5695F;
-    --sage:#4FB39F;
-    --sage-bg:#0F2B24;
+    --sage:#5FAE9E;
+    --sage-bg:#122A24;
     --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 24px rgba(0,0,0,.45);
     color-scheme: dark;
   }
@@ -55,7 +55,7 @@
   select{ background:var(--card); color:var(--ink); border:1.5px solid var(--paper-line); border-radius:6px; font-family:'Public Sans',sans-serif; }
   body{
     margin:0;
-    background:radial-gradient(circle at 15% -10%, rgba(20,67,42,.06), transparent 55%), var(--paper);
+    background:radial-gradient(circle at 15% -10%, rgba(10,42,82,.06), transparent 55%), var(--paper);
     color:var(--graphite);
     font-family:'Public Sans',system-ui,sans-serif;
     -webkit-font-smoothing:antialiased;
@@ -93,7 +93,7 @@
     text-transform:uppercase; color:var(--sage); margin:0 0 6px;
   }
   h1{
-    font-family:'Roboto Slab',serif; font-weight:700; font-size:clamp(26px,4vw,38px);
+    font-family:'Merriweather',serif; font-weight:700; font-size:clamp(26px,4vw,38px);
     margin:0; color:var(--ink); line-height:1.05;
   }
   .connect-box{
@@ -114,7 +114,7 @@
     background:var(--card); border:1.5px dashed var(--paper-line); border-radius:var(--radius);
     padding:26px; text-align:center; margin-bottom:28px;
   }
-  #connectPanel h2, #tokenPanel h2{font-family:'Roboto Slab',serif; color:var(--ink); margin:0 0 6px; font-size:20px;}
+  #connectPanel h2, #tokenPanel h2{font-family:'Merriweather',serif; color:var(--ink); margin:0 0 6px; font-size:20px;}
   #connectPanel p, #tokenPanel p{color:var(--muted); font-size:13.5px; margin:0 0 18px; max-width:480px; margin-left:auto; margin-right:auto;}
   #connectPanel .actions, #tokenPanel .actions{display:flex; gap:10px; justify-content:center; flex-wrap:wrap; align-items:center;}
   #tokenPanel input[type="password"]{
@@ -130,7 +130,7 @@
   #todayHero.show{display:block;}
   .hero-top{display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px;}
   .hero-eyebrow{font-family:'IBM Plex Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:.12em; color:#B9C4E0;}
-  .hero-date{font-family:'Roboto Slab',serif; font-size:20px; font-weight:600;}
+  .hero-date{font-family:'Merriweather',serif; font-size:20px; font-weight:700;}
   .hero-list{display:flex; flex-direction:column; gap:0;}
   .hero-row{
     display:grid; grid-template-columns:100px 1fr auto; gap:14px; align-items:center;
@@ -178,7 +178,7 @@
 
   /* ---------- Add class toggle + form ---------- */
   .section-toolbar{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:10px;}
-  .section-toolbar h2{font-family:'Roboto Slab',serif; font-size:19px; color:var(--ink); margin:0;}
+  .section-toolbar h2{font-family:'Merriweather',serif; font-size:19px; color:var(--ink); margin:0;}
 
   .panel{
     background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius);
@@ -278,7 +278,7 @@
     background:var(--card); border:1.5px dashed var(--paper-line); border-radius:var(--radius);
     padding:30px; text-align:center; margin-bottom:28px;
   }
-  #accessLockedPanel h2{font-family:'Roboto Slab',serif; color:var(--ink); margin:0 0 8px; font-size:20px;}
+  #accessLockedPanel h2{font-family:'Merriweather',serif; color:var(--ink); margin:0 0 8px; font-size:20px;}
   #accessLockedPanel p{color:var(--muted); font-size:13.5px; margin:0 0 18px;}
 
   @media (max-width:640px){
@@ -355,7 +355,7 @@
 
 
   <div class="panel" id="formPanel">
-    <h3 id="formTitle" style="font-family:'Roboto Slab',serif; margin:0 0 14px; color:var(--ink); font-size:17px;">Add a class session</h3>
+    <h3 id="formTitle" style="font-family:'Merriweather',serif; margin:0 0 14px; color:var(--ink); font-size:17px;">Add a class session</h3>
     <form id="subjectForm">
       <div class="field"><label for="f_code">Subject Code</label><input id="f_code" placeholder="MATH101" required></div>
       <div class="field wide"><label for="f_name">Subject Name</label><input id="f_name" placeholder="Calculus I" required></div>
@@ -395,7 +395,7 @@
   <div class="day-panel" id="dayPanel"><div class="empty">Loading your schedule…</div></div>
   </div>
 
-  <footer>Personalized School Record Management System · Subject Scheduler</footer>
+  <footer>DFCAMCLP · Personalized School Record Management System · Subject Scheduler</footer>
 </div>
 
 <script>

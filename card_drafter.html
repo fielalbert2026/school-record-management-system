@@ -6,52 +6,52 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Card Drafter — Personalized School Record Management System</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@600;700;800&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@700;900&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
   :root{
-    --ink:#14432A;
-    --ink-soft:#1F5A3B;
-    --paper:#F2F5F2;
-    --paper-line:#DCE3DE;
+    --ink:#0A2A52;
+    --ink-soft:#123B6E;
+    --paper:#F5F7FB;
+    --paper-line:#DBE3EF;
     --card:#FFFFFF;
-    --graphite:#3D473F;
-    --muted:#6B766E;
-    --accent:#14432A;
-    --accent-hover:#0D2E1C;
-    --highlighter:#C08A2E;
-    --highlighter-ink:#4A3410;
+    --graphite:#2E3E56;
+    --muted:#66748C;
+    --accent:#0A2A52;
+    --accent-hover:#0F3E7C;
+    --highlighter:#C79A32;
+    --highlighter-ink:#5A430C;
     --pencil-red:#B3261E;
-    --sage:#2F7166;
-    --sage-bg:#E7F3F0;
+    --sage:#2E6E62;
+    --sage-bg:#E4EFEC;
     --radius:10px;
-    --shadow:0 1px 2px rgba(20,67,42,.08), 0 6px 18px rgba(20,67,42,.10);
+    --shadow:0 1px 2px rgba(10,42,82,.08), 0 6px 18px rgba(10,42,82,.10);
     color-scheme: light;
   }
   [data-theme="dark"]{
-    --ink:#EDF3EE;
-    --ink-soft:#D7E6DB;
-    --paper:#0E1512;
-    --paper-line:#28352E;
-    --card:#16211C;
-    --graphite:#C9D3CC;
-    --muted:#8FA096;
-    --accent:#3E8F63;
-    --accent-hover:#58AC7C;
-    --highlighter:#D9A54A;
-    --highlighter-ink:#2B1D08;
+    --ink:#EAF1FC;
+    --ink-soft:#D3E1F5;
+    --paper:#08101E;
+    --paper-line:#20304C;
+    --card:#0E1B30;
+    --graphite:#C7D3E6;
+    --muted:#8798B4;
+    --accent:#4C86D6;
+    --accent-hover:#6FA3E8;
+    --highlighter:#DDBA6A;
+    --highlighter-ink:#3B2C08;
     --pencil-red:#E5695F;
-    --sage:#4FB39F;
-    --sage-bg:#0F2B24;
+    --sage:#5FAE9E;
+    --sage-bg:#122A24;
     --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 24px rgba(0,0,0,.45);
     color-scheme: dark;
   }
   #themeToggleBtn:hover{ transform:scale(1.08); }
   *{box-sizing:border-box;}
   select{ background:var(--card); color:var(--ink); border:1.5px solid var(--paper-line); border-radius:6px; font-family:'Public Sans',sans-serif; }
-  body{ margin:0; background:radial-gradient(circle at 15% -10%, rgba(20,67,42,.06), transparent 55%), var(--paper); color:var(--graphite); font-family:'Public Sans',system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
+  body{ margin:0; background:radial-gradient(circle at 15% -10%, rgba(10,42,82,.06), transparent 55%), var(--paper); color:var(--graphite); font-family:'Public Sans',system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
   .wrap{max-width:900px; margin:0 auto; padding:32px 26px 90px;}
   a{color:inherit;}
   button{ font-family:'Public Sans',sans-serif; font-weight:600; font-size:13.5px; border-radius:7px; border:1.5px solid var(--ink); padding:9px 16px; cursor:pointer; background:transparent; color:var(--ink); transition:transform .12s ease, background .15s ease, opacity .15s ease; }
@@ -68,14 +68,14 @@
   .back-link:hover{color:var(--ink); border-bottom-color:var(--ink);}
   header{display:flex; align-items:flex-start; justify-content:space-between; gap:20px; flex-wrap:wrap; margin-bottom:22px;}
   .brand-eyebrow{ font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--sage); margin:8px 0 6px; }
-  h1{ font-family:'Roboto Slab',serif; font-weight:700; font-size:clamp(26px,4vw,38px); margin:0; color:var(--ink); line-height:1.05; }
-  h2{font-family:'Roboto Slab',serif; font-size:19px; color:var(--ink); margin:0 0 4px;}
+  h1{ font-family:'Merriweather',serif; font-weight:700; font-size:clamp(26px,4vw,38px); margin:0; color:var(--ink); line-height:1.05; }
+  h2{font-family:'Merriweather',serif; font-size:19px; color:var(--ink); margin:0 0 4px;}
   .session-strip{ display:none; align-items:center; gap:8px; font-size:12.5px; color:var(--muted); background:var(--card); border:1px solid var(--paper-line); border-radius:20px; padding:6px 14px; margin-top:10px; }
   .role-pill{ text-transform:uppercase; letter-spacing:.06em; font-size:10px; padding:3px 9px; border-radius:20px; }
   .role-pill.master{background:var(--sage-bg); color:var(--sage);}
   .role-pill.guest{background:var(--paper-line); color:var(--muted);}
   #accessLockedPanel, #connectPanel, #tokenPanel{ background:var(--card); border:1.5px dashed var(--paper-line); border-radius:var(--radius); padding:26px; text-align:center; margin-bottom:28px; }
-  #accessLockedPanel h2, #connectPanel h2, #tokenPanel h2{ font-family:'Roboto Slab',serif; color:var(--ink); margin:0 0 6px; font-size:20px; }
+  #accessLockedPanel h2, #connectPanel h2, #tokenPanel h2{ font-family:'Merriweather',serif; color:var(--ink); margin:0 0 6px; font-size:20px; }
   #accessLockedPanel p, #connectPanel p, #tokenPanel p{ color:var(--muted); font-size:13.5px; margin:0 0 18px; max-width:480px; margin-left:auto; margin-right:auto; }
   .actions{display:flex; gap:10px; justify-content:center; flex-wrap:wrap; align-items:center;}
   #tokenPanel input[type="password"], #tokenPanel input[type="text"]{ font-family:'IBM Plex Mono',monospace; font-size:13px; padding:9px 10px; border:1.5px solid var(--paper-line); border-radius:6px; background:var(--card); color:var(--ink); }
@@ -249,7 +249,7 @@
     </section>
   </div>
 
-  <footer>Personalized School Record Management System · Card Drafter</footer>
+  <footer>DFCAMCLP · Personalized School Record Management System · Card Drafter</footer>
 </div>
 
 <script>
