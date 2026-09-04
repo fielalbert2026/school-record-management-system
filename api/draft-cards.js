@@ -25,7 +25,18 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  // Cheap presence probe — the client calls this on page load to decide
+  // which drafting path to use. Returns {ok:true} without hitting Gemini.
+  if (req.body && req.body.probe === true) {
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  // A user-supplied API key (forwarded from the browser) takes precedence
+  // over the server env var. This lets a student supply their own free
+  // Gemini key to a server they trust, instead of calling Google directly
+  // from the browser. Falls back to the env var when not provided.
+  const apiKey = (req.body && req.body.userApiKey) || process.env.GEMINI_API_KEY;
   if (!apiKey) {
     res.status(500).json({ error: 'Card drafting is not configured on this server yet (missing GEMINI_API_KEY).' });
     return;

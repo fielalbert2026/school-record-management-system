@@ -8,68 +8,25 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@700;900&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="shared/design-tokens.css">
+<link rel="stylesheet" href="shared/components.css">
+<script src="shared/theme.js" defer></script>
+<script src="shared/aria-utils.js" defer></script>
 <style>
-  :root{
-    --ink:#0A2A52;
-    --ink-soft:#123B6E;
-    --paper:#F5F7FB;
-    --paper-line:#DBE3EF;
-    --card:#FFFFFF;
-    --graphite:#2E3E56;
-    --muted:#66748C;
-    --accent:#0A2A52;
-    --accent-hover:#0F3E7C;
-    --highlighter:#C79A32;
-    --highlighter-ink:#5A430C;
-    --pencil-red:#B3261E;
-    --sage:#2E6E62;
-    --sage-bg:#E4EFEC;
-    --radius:10px;
-    --shadow:0 1px 2px rgba(10,42,82,.08), 0 6px 18px rgba(10,42,82,.10);
-    color-scheme: light;
-  }
-  [data-theme="dark"]{
-    --ink:#EAF1FC;
-    --ink-soft:#D3E1F5;
-    --paper:#08101E;
-    --paper-line:#20304C;
-    --card:#0E1B30;
-    --graphite:#C7D3E6;
-    --muted:#8798B4;
-    --accent:#4C86D6;
-    --accent-hover:#6FA3E8;
-    --highlighter:#DDBA6A;
-    --highlighter-ink:#3B2C08;
-    --pencil-red:#E5695F;
-    --sage:#5FAE9E;
-    --sage-bg:#122A24;
-    --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 24px rgba(0,0,0,.45);
-    color-scheme: dark;
-  }
-  #themeToggleBtn:hover{ transform:scale(1.08); }
+  /* Page-specific layout only — colors / spacing / typography / shared
+     components come from shared/design-tokens.css and shared/components.css.
+     Legacy var names are aliased at the bottom of design-tokens.css. */
   *{box-sizing:border-box;}
   select{ background:var(--card); color:var(--ink); border:1.5px solid var(--paper-line); border-radius:6px; font-family:'Public Sans',sans-serif; }
   body{ margin:0; background:radial-gradient(circle at 15% -10%, rgba(10,42,82,.06), transparent 55%), var(--paper); color:var(--graphite); font-family:'Public Sans',system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
   .wrap{max-width:900px; margin:0 auto; padding:32px 26px 90px;}
   a{color:inherit;}
-  button{ font-family:'Public Sans',sans-serif; font-weight:600; font-size:13.5px; border-radius:7px; border:1.5px solid var(--ink); padding:9px 16px; cursor:pointer; background:transparent; color:var(--ink); transition:transform .12s ease, background .15s ease, opacity .15s ease; }
-  button:hover{transform:translateY(-1px);}
-  button:disabled{opacity:.45; cursor:not-allowed; transform:none;}
-  .btn-primary{background:var(--accent); color:#fff;}
-  .btn-primary:hover{background:var(--accent-hover);}
-  .btn-highlight{background:var(--highlighter); border-color:var(--highlighter); color:var(--highlighter-ink);}
-  .btn-highlight:hover{background:#f0c453;}
-  .btn-ghost{border-color:var(--paper-line); color:var(--graphite); background:var(--card);}
-  .btn-text{border:none; background:none; padding:2px 6px; font-size:12.5px; text-decoration:underline;}
+  /* Button, .btn-*, .role-pill, .session-strip come from shared/components.css. */
   .back-link{ font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--muted); text-decoration:none; border-bottom:1px solid transparent; }
   .back-link:hover{color:var(--ink); border-bottom-color:var(--ink);}
   header{display:flex; align-items:flex-start; justify-content:space-between; gap:20px; flex-wrap:wrap; margin-bottom:22px;}
   .brand-eyebrow{ font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--sage); margin:8px 0 6px; }
   h1{ font-family:'Merriweather',serif; font-weight:700; font-size:clamp(26px,4vw,38px); margin:0; color:var(--ink); line-height:1.05; }
-  .session-strip{ display:none; align-items:center; gap:8px; font-size:12.5px; color:var(--muted); background:var(--card); border:1px solid var(--paper-line); border-radius:20px; padding:6px 14px; margin-top:10px; }
-  .role-pill{ text-transform:uppercase; letter-spacing:.06em; font-size:10px; padding:3px 9px; border-radius:20px; }
-  .role-pill.master{background:var(--sage-bg); color:var(--sage);}
-  .role-pill.guest{background:var(--paper-line); color:var(--muted);}
   #accessLockedPanel, #loadPanel, #connectPanel, #tokenPanel{ background:var(--card); border:1.5px dashed var(--paper-line); border-radius:var(--radius); padding:26px; text-align:center; margin-bottom:28px; }
   #accessLockedPanel h2, #loadPanel h2, #connectPanel h2, #tokenPanel h2{ font-family:'Merriweather',serif; color:var(--ink); margin:0 0 6px; font-size:20px; }
   #accessLockedPanel p, #loadPanel p, #connectPanel p, #tokenPanel p{ color:var(--muted); font-size:13.5px; margin:0 0 18px; max-width:480px; margin-left:auto; margin-right:auto; }
@@ -85,8 +42,8 @@
   .review-meta{ display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--muted); }
   .review-face{ min-height:140px; display:flex; align-items:center; justify-content:center; text-align:center; padding:20px; }
   .review-text{ font-family:'Merriweather',serif; font-size:22px; color:var(--ink); line-height:1.5; }
-  .blank{ display:inline-block; min-width:64px; border-bottom:2.5px solid var(--muted); color:transparent; }
-  .blank.revealed{ color:var(--pencil-red); border-bottom-color:var(--pencil-red); font-weight:700; }
+  .blank{ display:inline-block; min-width:64px; border-bottom:2.5px solid var(--highlighter); background:rgba(199,154,50,0.12); color:transparent; padding:0 4px; border-radius:3px 3px 0 0; }
+  .blank.revealed{ color:var(--pencil-red); border-bottom-color:var(--pencil-red); background:transparent; font-weight:700; }
   .review-back{ font-size:19px; color:var(--sage); margin-top:14px; font-weight:600; }
   .review-controls{ display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-top:20px; }
   .review-controls .review-show-btn{ grid-column:1 / -1; justify-self:center; padding:10px 28px; }
@@ -175,7 +132,7 @@
 </style>
 </head>
 <body>
-<button id="themeToggleBtn" type="button" aria-label="Toggle dark mode" title="Toggle dark mode" style="position:fixed; top:14px; right:14px; z-index:9999; width:42px; height:42px; border-radius:50%; border:none; background:var(--ink); color:var(--paper); display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,.25), 0 6px 16px rgba(0,0,0,.2); padding:0; transition:transform .15s ease;">🌙</button>
+<button id="themeToggleBtn" class="theme-toggle" type="button" aria-label="Toggle color theme" title="Toggle dark mode">🌙</button>
 <div class="wrap">
   <header>
     <div>
@@ -213,7 +170,7 @@
       <button type="submit" class="btn-primary">Enable</button>
       <button type="button" class="btn-ghost" id="cancelTokenBtn">Cancel</button>
     </form>
-    <p id="tokenFormError" style="font-size:12.5px; color:var(--pencil-red); margin-top:10px; margin-bottom:0; display:none;"></p>
+    <p id="tokenFormError" class="error-banner" aria-live="polite" role="status" style="display:none;"></p>
   </div>
 
   <div id="content" style="display:none;">
@@ -234,7 +191,15 @@
 
     <div class="section-toolbar" id="reviewToolbar" style="display:none;">
       <h2><button class="btn-text" id="backToDecksBtn" type="button" style="font-size:15px; text-decoration:none; margin-right:4px;">←</button>Reviewing: <span id="reviewingDeckName"></span></h2>
-      <div style="display:flex; gap:8px; align-items:center;">
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <div class="mode-selector" role="radiogroup" aria-label="Review mode">
+          <button type="button" class="mode-chip" data-mode="flashcards" aria-pressed="true">Flashcards</button>
+          <button type="button" class="mode-chip" data-mode="multiple-choice" aria-pressed="false">Multiple Choice</button>
+          <button type="button" class="mode-chip" data-mode="type" aria-pressed="false">Type</button>
+          <button type="button" class="mode-chip" data-mode="match" aria-pressed="false">Match</button>
+          <button type="button" class="mode-chip" data-mode="speed" aria-pressed="false" title="Speed 60s — pick MC or Type when you tap">Speed 60s</button>
+        </div>
+        <span class="speed-timer" id="speedTimer" aria-live="off"></span>
         <button class="btn-ghost" id="shuffleBtn">Shuffle</button>
       </div>
     </div>
@@ -272,7 +237,7 @@
         <div class="hint">Wrap the word or phrase to hide in double brackets, like <code>[[powerhouse]]</code>.</div>
       </div>
 
-      <div id="cardFormError">Fill in a deck, and either both Front/Back, or a sentence with one [[blank]] marked.</div>
+      <div id="cardFormError" class="error-banner" aria-live="polite" role="status">Fill in a deck, and either both Front/Back, or a sentence with one [[blank]] marked.</div>
       <div class="form-actions">
         <button type="button" class="btn-ghost" id="cancelCardBtn">Cancel</button>
         <button type="button" class="btn-primary" id="submitCardBtn">Add card</button>
@@ -295,19 +260,12 @@
 
 <script>
 
-/* ---------------- Theme toggle (light/dark) ---------------- */
-function getTheme(){ try{ return localStorage.getItem('srms_theme') || 'light'; }catch(e){ return 'light'; } }
-function applyTheme(t){
-  document.documentElement.setAttribute('data-theme', t);
-  try{ localStorage.setItem('srms_theme', t); }catch(e){}
-  const btn = document.getElementById('themeToggleBtn');
-  if(btn) btn.textContent = t === 'dark' ? '☀️' : '🌙';
-}
-function toggleTheme(){ applyTheme(getTheme() === 'dark' ? 'light' : 'dark'); }
-applyTheme(getTheme());
-document.getElementById('themeToggleBtn').addEventListener('click', toggleTheme);
+/* Theme toggle is handled by shared/theme.js (loaded with defer). */
 const SESSION_KEY = 'srms_session';
 function getSession(){ try{ return JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); }catch(e){ return null; } }
+</script>
+<script src="flashcard-modes.js"></script>
+<script>
 const session = getSession();
 const isMaster = !!session && session.role === 'Master';
 
@@ -599,6 +557,20 @@ let stats = {again:0, hard:0, snoozed:0, seen:0};
 let currentView = 'decks'; // 'decks' | 'review' — entering Flashcards always lands on the deck list first
 let openDeckPreviews = new Set(); // deck names currently expanded in the browser (collapsed by default)
 
+// Multi-mode reviewer state. window.SRMS.modes reads from `state` and the
+// existing globals (cards, queue, stats, reviewDeck, escapeHtml, CLOZE_MARKER).
+const state = {
+  mode: (window.SRMS && window.SRMS.modes ? window.SRMS.modes.loadMode() : 'flashcards'),
+  // Multiple Choice
+  mcOptions: null, mcPicked: null, mcRevealed: false, mcFeedback: null, mcCorrect: null,
+  // Type-the-answer
+  typeRevealed: false, typeResult: null, typeFeedback: null,
+  // Match
+  matchRound: null, matchRights: null, matchSelected: null, matchMatched: [], matchRoundsLeft: 0,
+  // Speed round
+  speedSub: 'type', speedStart: 0, speedDuration: 60, speedCorrect: 0, speedTotal: 0, speedTimer: null
+};
+
 // Called any time the card set could have changed (add/edit/delete). Always
 // refreshes the deck list; only touches the live review queue if a review
 // is actually in progress, so browsing the deck list never auto-starts one.
@@ -656,6 +628,8 @@ function renderDeckBrowser(){
       if(el.open) openDeckPreviews.add(el.dataset.deck); else openDeckPreviews.delete(el.dataset.deck);
     });
   });
+  // Update mode-chip availability based on the card count.
+  if(window.SRMS && window.SRMS.modes) window.SRMS.modes.syncModeAvailability();
 }
 document.getElementById('deckBrowser').addEventListener('click', (e) => {
   const btn = e.target.closest('[data-start-deck]');
@@ -673,6 +647,7 @@ function enterReview(deckName){
   document.getElementById('reviewToolbar').style.display = 'flex';
   document.getElementById('reviewWrap').style.display = 'block';
   document.getElementById('reviewingDeckName').textContent = deckName === '__all__' ? 'All decks' : deckName;
+  if(window.SRMS && window.SRMS.modes) window.SRMS.modes.syncModeAvailability();
   startReview();
 }
 function showDeckBrowser(){
@@ -700,7 +675,9 @@ function startReview(shuffle){
 
 // Every 15s, pull any snoozed cards whose 10 minutes are up back into the
 // queue at a random spot, and re-render if that changes what's on screen.
+// Only applies to Flashcards mode — other modes don't have a snooze concept.
 setInterval(() => {
+  if(state.mode !== 'flashcards') return;
   if(!snoozed.length) return;
   const now = Date.now();
   const ready = snoozed.filter(s => s.dueAt <= now);
@@ -714,6 +691,18 @@ setInterval(() => {
 }, 15000);
 
 function renderReview(){
+  // Dispatcher: Flashcards uses the original render path; the other modes
+  // delegate to window.SRMS.modes in flashcard-modes.js.
+  if(state.mode === 'flashcards'){
+    renderFlashcardMode();
+  } else {
+    const handled = window.SRMS && window.SRMS.modes && window.SRMS.modes.renderMode();
+    if(handled === false || handled === undefined && !window.SRMS) renderFlashcardMode();
+  }
+}
+
+// The original Flashcard mode renderer — extracted from the old renderReview().
+function renderFlashcardMode(){
   const area = document.getElementById('reviewArea');
   const controls = document.getElementById('reviewControls');
   const pos = document.getElementById('reviewPos');
@@ -760,6 +749,12 @@ function renderReview(){
 }
 
 function gradeCurrent(grade){
+  // Only Flashcards mode uses Again/Hard/Snooze. Other modes handle their
+  // own grade/next flow inside their per-mode renderer.
+  if(state.mode !== 'flashcards'){
+    if(window.SRMS && window.SRMS.modes) window.SRMS.modes.gradeFromShortcut(grade);
+    return;
+  }
   const id = queue.shift();
   revealed = false;
   if(grade === 'again'){
@@ -1016,6 +1011,11 @@ if(!session){
   document.getElementById('connectPanel').style.display = 'none';
 } else {
   renderSessionStrip();
+  // Wire the mode chips (flashcard-modes.js) and restore the last-used chip.
+  if(window.SRMS && window.SRMS.modes){
+    window.SRMS.modes.wireModeChips();
+    window.SRMS.modes.setMode(state.mode);
+  }
   try{
     const saved = localStorage.getItem(TOKEN_KEY);
     if(saved && isMaster){ ghToken = saved; editingEnabled = true; }

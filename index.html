@@ -8,47 +8,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@700;900&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="shared/design-tokens.css">
+<link rel="stylesheet" href="shared/components.css">
+<script src="shared/theme.js" defer></script>
+<script src="shared/aria-utils.js" defer></script>
 <style>
-  :root{
-    --ink:#0A2A52;
-    --ink-soft:#123B6E;
-    --paper:#F5F7FB;
-    --paper-line:#DBE3EF;
-    --card:#FFFFFF;
-    --graphite:#2E3E56;
-    --muted:#66748C;
-    --accent:#0A2A52;
-    --accent-hover:#0F3E7C;
-    --highlighter:#C79A32;
-    --highlighter-ink:#5A430C;
-    --pencil-red:#B3261E;
-    --sage:#2E6E62;
-    --sage-bg:#E4EFEC;
-    --radius:10px;
-    --shadow:0 1px 2px rgba(10,42,82,.08), 0 6px 18px rgba(10,42,82,.10);
-    color-scheme: light;
-  }
-  [data-theme="dark"]{
-    --ink:#EAF1FC;
-    --ink-soft:#D3E1F5;
-    --paper:#08101E;
-    --paper-line:#20304C;
-    --card:#0E1B30;
-    --graphite:#C7D3E6;
-    --muted:#8798B4;
-    --accent:#4C86D6;
-    --accent-hover:#6FA3E8;
-    --highlighter:#DDBA6A;
-    --highlighter-ink:#3B2C08;
-    --pencil-red:#E5695F;
-    --sage:#5FAE9E;
-    --sage-bg:#122A24;
-    --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 24px rgba(0,0,0,.45);
-    color-scheme: dark;
-  }
-  #themeToggleBtn:hover{ transform:scale(1.08); }
+  /* Page-specific layout only — colors / spacing / typography / shared
+     components come from shared/design-tokens.css and shared/components.css. */
   *{box-sizing:border-box;}
-  select{ background:var(--card); color:var(--ink); border:1.5px solid var(--paper-line); border-radius:6px; font-family:'Public Sans',sans-serif; }
   body{
     margin:0;
     background:radial-gradient(circle at 15% -10%, rgba(10,42,82,.06), transparent 55%), var(--paper);
@@ -168,7 +135,7 @@
     font-family:'IBM Plex Mono',monospace; font-size:15px; text-align:center; letter-spacing:.04em;
     padding:11px 12px; border:1.5px solid var(--paper-line); border-radius:7px; background:var(--card); color:var(--ink);
   }
-  #idInput:focus, #passInput:focus{outline:none; border-color:var(--ink);}
+  #idInput:focus, #passInput:focus{outline:2px solid var(--color-focus-ring); outline-offset:1px; border-color:var(--color-brand);}
   #signinError{color:var(--pencil-red); font-size:12.5px; display:none;}
   #signinNote{font-size:11.5px; color:var(--muted); margin-top:14px;}
 
@@ -218,7 +185,7 @@
     font-family:'IBM Plex Mono',monospace; font-size:13.5px; padding:10px 12px;
     border:1.5px solid var(--paper-line); border-radius:7px; background:var(--card); color:var(--ink);
   }
-  #tokenPanel input[type="password"]:focus{outline:none; border-color:var(--ink);}
+  #tokenPanel input[type="password"]:focus{outline:2px solid var(--color-focus-ring); outline-offset:1px; border-color:var(--color-brand);}
 
   .ann-panel{
     display:none; background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius);
@@ -233,7 +200,7 @@
     border:1.5px solid var(--paper-line); border-radius:7px; background:var(--card); color:var(--ink);
     margin-bottom:14px; resize:vertical;
   }
-  .ann-panel input[type="text"]:focus, .ann-panel input[type="datetime-local"]:focus, .ann-panel textarea:focus{outline:none; border-color:var(--ink);}
+  .ann-panel input[type="text"]:focus, .ann-panel input[type="datetime-local"]:focus, .ann-panel textarea:focus{outline:2px solid var(--color-focus-ring); outline-offset:1px; border-color:var(--color-brand);}
   .ann-panel .actions{display:flex; gap:10px; flex-wrap:wrap;}
   .field-row-2{display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:end;}
   @media (max-width:520px){ .field-row-2{grid-template-columns:1fr;} }
@@ -297,7 +264,7 @@
 </style>
 </head>
 <body>
-<button id="themeToggleBtn" type="button" aria-label="Toggle dark mode" title="Toggle dark mode" style="position:fixed; top:14px; right:14px; z-index:9999; width:42px; height:42px; border-radius:50%; border:none; background:var(--ink); color:var(--paper); display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,.25), 0 6px 16px rgba(0,0,0,.2); padding:0; transition:transform .15s ease;">🌙</button>
+<button id="themeToggleBtn" class="theme-toggle" type="button" aria-label="Toggle color theme" title="Toggle dark mode">🌙</button>
 <div class="wrap">
 
   <div class="masthead">
@@ -316,8 +283,8 @@
       <input id="passInput" type="password" autocomplete="off" placeholder="Owner passphrase — Master accounts only">
       <button type="submit" id="signinBtn">Sign in</button>
     </form>
-    <div id="signinError">ID not recognized. Check with the system owner if this seems wrong.</div>
-    <div id="signinLocked" style="display:none; color:var(--pencil-red); font-size:12.5px;"></div>
+    <div id="signinError" class="error-banner" aria-live="polite" role="status">ID not recognized. Check with the system owner if this seems wrong.</div>
+    <div id="signinLocked" class="error-banner" aria-live="polite" role="status" style="display:none;"></div>
     <p id="signinNote">Your ID is hashed in this browser before it's checked — the plain ID is never sent or stored anywhere. Master accounts also need the owner passphrase.</p>
   </div>
 
@@ -335,7 +302,7 @@
       <button type="submit" class="btn-primary">Enable</button>
       <button type="button" class="btn-ghost" id="cancelTokenBtn">Cancel</button>
     </form>
-    <p id="tokenFormError" style="font-size:12.5px; color:var(--pencil-red); margin-top:10px; margin-bottom:0; display:none;"></p>
+    <p id="tokenFormError" class="error-banner" aria-live="polite" role="status" style="display:none;"></p>
     <p style="font-size:12px; color:var(--muted); margin-top:12px; margin-bottom:0;">
       This unlocks editing everywhere (Scheduler, Flashcards, Announcements) — no need to repeat it per module.
     </p>
@@ -500,17 +467,7 @@
 
 <script>
 
-/* ---------------- Theme toggle (light/dark) ---------------- */
-function getTheme(){ try{ return localStorage.getItem('srms_theme') || 'light'; }catch(e){ return 'light'; } }
-function applyTheme(t){
-  document.documentElement.setAttribute('data-theme', t);
-  try{ localStorage.setItem('srms_theme', t); }catch(e){}
-  const btn = document.getElementById('themeToggleBtn');
-  if(btn) btn.textContent = t === 'dark' ? '☀️' : '🌙';
-}
-function toggleTheme(){ applyTheme(getTheme() === 'dark' ? 'light' : 'dark'); }
-applyTheme(getTheme());
-document.getElementById('themeToggleBtn').addEventListener('click', toggleTheme);
+/* Theme toggle is handled by shared/theme.js (loaded with defer). */
 /* ---------------- Sign-in ----------------
  * The ID is hashed (SHA-256 + a fixed, non-secret salt) before it's ever
  * compared, and only the hash is checked against Valid_Users. This keeps

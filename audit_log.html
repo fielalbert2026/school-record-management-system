@@ -8,62 +8,23 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@700;900&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="shared/design-tokens.css">
+<link rel="stylesheet" href="shared/components.css">
+<script src="shared/theme.js" defer></script>
+<script src="shared/aria-utils.js" defer></script>
 <style>
-  :root{
-    --ink:#0A2A52;
-    --ink-soft:#123B6E;
-    --paper:#F5F7FB;
-    --paper-line:#DBE3EF;
-    --card:#FFFFFF;
-    --graphite:#2E3E56;
-    --muted:#66748C;
-    --accent:#0A2A52;
-    --accent-hover:#0F3E7C;
-    --highlighter:#C79A32;
-    --highlighter-ink:#5A430C;
-    --pencil-red:#B3261E;
-    --sage:#2E6E62;
-    --sage-bg:#E4EFEC;
-    --radius:10px;
-    --shadow:0 1px 2px rgba(10,42,82,.08), 0 6px 18px rgba(10,42,82,.10);
-    color-scheme: light;
-  }
-  [data-theme="dark"]{
-    --ink:#EAF1FC;
-    --ink-soft:#D3E1F5;
-    --paper:#08101E;
-    --paper-line:#20304C;
-    --card:#0E1B30;
-    --graphite:#C7D3E6;
-    --muted:#8798B4;
-    --accent:#4C86D6;
-    --accent-hover:#6FA3E8;
-    --highlighter:#DDBA6A;
-    --highlighter-ink:#3B2C08;
-    --pencil-red:#E5695F;
-    --sage:#5FAE9E;
-    --sage-bg:#122A24;
-    --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 24px rgba(0,0,0,.45);
-    color-scheme: dark;
-  }
-  #themeToggleBtn:hover{ transform:scale(1.08); }
+  /* Page-specific layout only — colors / spacing / typography / shared
+     components come from shared/design-tokens.css and shared/components.css.
+     Legacy var names are aliased at the bottom of design-tokens.css. */
   *{box-sizing:border-box;}
-  select{ background:var(--card); color:var(--ink); border:1.5px solid var(--paper-line); border-radius:6px; font-family:'Public Sans',sans-serif; }
   body{ margin:0; background:radial-gradient(circle at 15% -10%, rgba(10,42,82,.06), transparent 55%), var(--paper); color:var(--graphite); font-family:'Public Sans',system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
   .wrap{max-width:1100px; margin:0 auto; padding:32px 26px 90px;}
   a{color:inherit;}
-  button{ font-family:'Public Sans',sans-serif; font-weight:600; font-size:13.5px; border-radius:7px; border:1.5px solid var(--ink); padding:9px 16px; cursor:pointer; background:transparent; color:var(--ink); }
-  .btn-primary{background:var(--accent); color:#fff;}
-  .btn-ghost{border-color:var(--paper-line); color:var(--graphite); background:var(--card);}
   .back-link{ font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--muted); text-decoration:none; border-bottom:1px solid transparent; }
   .back-link:hover{color:var(--ink); border-bottom-color:var(--ink);}
   header{display:flex; align-items:flex-start; justify-content:space-between; gap:20px; flex-wrap:wrap; margin-bottom:22px;}
   .brand-eyebrow{ font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--sage); margin:8px 0 6px; }
   h1{ font-family:'Merriweather',serif; font-weight:700; font-size:clamp(26px,4vw,38px); margin:0; color:var(--ink); line-height:1.05; }
-  .session-strip{ display:none; align-items:center; gap:8px; font-size:12.5px; color:var(--muted); background:var(--card); border:1px solid var(--paper-line); border-radius:20px; padding:6px 14px; margin-top:10px; }
-  .role-pill{ text-transform:uppercase; letter-spacing:.06em; font-size:10px; padding:3px 9px; border-radius:20px; }
-  .role-pill.master{background:var(--sage-bg); color:var(--sage);}
-  .role-pill.guest{background:var(--paper-line); color:var(--muted);}
   #accessLockedPanel, #loadPanel{ background:var(--card); border:1.5px dashed var(--paper-line); border-radius:var(--radius); padding:26px; text-align:center; margin-bottom:28px; }
   #accessLockedPanel h2, #loadPanel h2{ font-family:'Merriweather',serif; color:var(--ink); margin:0 0 6px; font-size:20px; }
   #accessLockedPanel p, #loadPanel p{ color:var(--muted); font-size:13.5px; margin:0 0 18px; max-width:480px; margin-left:auto; margin-right:auto; }
@@ -78,10 +39,42 @@
   td.action{font-weight:600; color:var(--ink);}
   .empty{ text-align:center; color:var(--muted); font-size:14px; padding:34px 10px; background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius); }
   footer{text-align:center; color:var(--muted); font-size:12px; margin-top:36px;}
+
+  /* Mobile: convert the audit table to a stacked card list. Each cell carries
+     a data-label attribute (set in renderTable) so the label appears above
+     the value. Default layout is the table; the override kicks in <640px. */
+  @media (max-width: 640px) {
+    table, thead, tbody, tr, th, td { display: block; width: 100%; }
+    thead { display: none; }
+    tbody tr {
+      background: var(--card);
+      border: 1px solid var(--paper-line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin-bottom: 12px;
+      padding: 8px 0;
+    }
+    tbody td {
+      border-bottom: 1px dashed var(--paper-line);
+      padding: 8px 14px;
+    }
+    tbody td:last-child { border-bottom: none; }
+    tbody td::before {
+      content: attr(data-label);
+      display: block;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10.5px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 2px;
+    }
+    .wrap { padding: 24px 14px 70px; }
+  }
 </style>
 </head>
 <body>
-<button id="themeToggleBtn" type="button" aria-label="Toggle dark mode" title="Toggle dark mode" style="position:fixed; top:14px; right:14px; z-index:9999; width:42px; height:42px; border-radius:50%; border:none; background:var(--ink); color:var(--paper); display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,.25), 0 6px 16px rgba(0,0,0,.2); padding:0; transition:transform .15s ease;">🌙</button>
+<button id="themeToggleBtn" class="theme-toggle" type="button" aria-label="Toggle color theme" title="Toggle dark mode">🌙</button>
 <div class="wrap">
   <header>
     <div>
@@ -100,7 +93,7 @@
 
   <div id="loadPanel">
     <h2>Loading audit log…</h2>
-    <p id="loadText">Fetching the log.</p>
+    <p id="loadText" aria-live="polite" role="status">Fetching the log.</p>
   </div>
 
   <div id="content" style="display:none;">
@@ -123,17 +116,7 @@
 
 <script>
 
-/* ---------------- Theme toggle (light/dark) ---------------- */
-function getTheme(){ try{ return localStorage.getItem('srms_theme') || 'light'; }catch(e){ return 'light'; } }
-function applyTheme(t){
-  document.documentElement.setAttribute('data-theme', t);
-  try{ localStorage.setItem('srms_theme', t); }catch(e){}
-  const btn = document.getElementById('themeToggleBtn');
-  if(btn) btn.textContent = t === 'dark' ? '☀️' : '🌙';
-}
-function toggleTheme(){ applyTheme(getTheme() === 'dark' ? 'light' : 'dark'); }
-applyTheme(getTheme());
-document.getElementById('themeToggleBtn').addEventListener('click', toggleTheme);
+/* Theme toggle is handled by shared/theme.js (loaded with defer). */
 const SESSION_KEY = 'srms_session';
 function getSession(){ try{ return JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); }catch(e){ return null; } }
 const session = getSession();
@@ -208,11 +191,11 @@ function renderTable(){
     <thead><tr><th>Timestamp</th><th>Actor</th><th>Role</th><th>Action</th><th>Details</th></tr></thead>
     <tbody>
       ${filtered.map(e => `<tr>
-        <td class="ts">${escapeHtml((e.ts||'').replace('T',' ').replace('+08:00',' PHT'))}</td>
-        <td>${escapeHtml(e.actor)}</td>
-        <td>${escapeHtml(e.role)}</td>
-        <td class="action">${escapeHtml(e.action)}</td>
-        <td>${escapeHtml(e.details)}</td>
+        <td class="ts" data-label="Timestamp">${escapeHtml((e.ts||'').replace('T',' ').replace('+08:00',' PHT'))}</td>
+        <td data-label="Actor">${escapeHtml(e.actor)}</td>
+        <td data-label="Role">${escapeHtml(e.role)}</td>
+        <td class="action" data-label="Action">${escapeHtml(e.action)}</td>
+        <td data-label="Details">${escapeHtml(e.details)}</td>
       </tr>`).join('')}
     </tbody>
   </table>`;

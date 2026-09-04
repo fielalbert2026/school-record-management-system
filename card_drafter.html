@@ -10,47 +10,23 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<link rel="stylesheet" href="shared/design-tokens.css">
+<link rel="stylesheet" href="shared/components.css">
+<script src="shared/theme.js" defer></script>
+<script src="shared/aria-utils.js" defer></script>
+<script src="shared/api-fallback.js" defer></script>
 <style>
-  :root{
-    --ink:#0A2A52;
-    --ink-soft:#123B6E;
-    --paper:#F5F7FB;
-    --paper-line:#DBE3EF;
-    --card:#FFFFFF;
-    --graphite:#2E3E56;
-    --muted:#66748C;
-    --accent:#0A2A52;
-    --accent-hover:#0F3E7C;
-    --highlighter:#C79A32;
-    --highlighter-ink:#5A430C;
-    --pencil-red:#B3261E;
-    --sage:#2E6E62;
-    --sage-bg:#E4EFEC;
-    --radius:10px;
-    --shadow:0 1px 2px rgba(10,42,82,.08), 0 6px 18px rgba(10,42,82,.10);
-    color-scheme: light;
-  }
-  [data-theme="dark"]{
-    --ink:#EAF1FC;
-    --ink-soft:#D3E1F5;
-    --paper:#08101E;
-    --paper-line:#20304C;
-    --card:#0E1B30;
-    --graphite:#C7D3E6;
-    --muted:#8798B4;
-    --accent:#4C86D6;
-    --accent-hover:#6FA3E8;
-    --highlighter:#DDBA6A;
-    --highlighter-ink:#3B2C08;
-    --pencil-red:#E5695F;
-    --sage:#5FAE9E;
-    --sage-bg:#122A24;
-    --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 24px rgba(0,0,0,.45);
-    color-scheme: dark;
-  }
-  #themeToggleBtn:hover{ transform:scale(1.08); }
+  /* Page-specific layout only — colors / spacing / typography / shared
+     components come from shared/design-tokens.css and shared/components.css.
+     Legacy var names are aliased at the bottom of design-tokens.css. */
   *{box-sizing:border-box;}
   select{ background:var(--card); color:var(--ink); border:1.5px solid var(--paper-line); border-radius:6px; font-family:'Public Sans',sans-serif; }
+  /* Mobile: stack the form vertically. The .row utility switches to block. */
+  @media (max-width: 640px) {
+    .row { flex-direction: column; align-items: stretch; }
+    .row .field { width: 100%; }
+    .card-item .top { flex-direction: column; align-items: flex-start; }
+  }
   body{ margin:0; background:radial-gradient(circle at 15% -10%, rgba(10,42,82,.06), transparent 55%), var(--paper); color:var(--graphite); font-family:'Public Sans',system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
   .wrap{max-width:900px; margin:0 auto; padding:32px 26px 90px;}
   a{color:inherit;}
@@ -85,11 +61,7 @@
   .field{display:flex; flex-direction:column; gap:5px; min-width:160px; margin-bottom:0;}
   .field.grow{flex:1;}
   label{font-size:11.5px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:var(--muted);}
-  input[type=text], input[type=number], select, textarea{
-    font-family:'Public Sans',sans-serif; font-size:13.5px; padding:9px 10px; border-radius:6px;
-    border:1.5px solid var(--paper-line); background:var(--card); color:var(--ink); width:100%;
-  }
-  input:focus, select:focus, textarea:focus{outline:2px solid var(--sage); outline-offset:1px; border-color:var(--sage);}
+  /* Base input/textarea/select styles come from shared/components.css. */
   textarea{resize:vertical; font-family:inherit; line-height:1.45; min-height:44px;}
   .dropzone{border:1.5px dashed var(--paper-line); border-radius:var(--radius); padding:24px; text-align:center; cursor:pointer; background:#fdfcfa;}
   .dropzone.drag{border-color:var(--sage); background:var(--sage-bg);}
@@ -119,7 +91,7 @@
 </style>
 </head>
 <body>
-<button id="themeToggleBtn" type="button" aria-label="Toggle dark mode" title="Toggle dark mode" style="position:fixed; top:14px; right:14px; z-index:9999; width:42px; height:42px; border-radius:50%; border:none; background:var(--ink); color:var(--paper); display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,.25), 0 6px 16px rgba(0,0,0,.2); padding:0; transition:transform .15s ease;">🌙</button>
+<button id="themeToggleBtn" class="theme-toggle" type="button" aria-label="Toggle color theme" title="Toggle dark mode">🌙</button>
 <div class="wrap">
   <header>
     <div>
@@ -138,7 +110,7 @@
 
   <div id="connectPanel">
     <h2 id="connectPanelTitle">Loading the deck…</h2>
-    <p id="connectPanelText">Fetching the shared Flashcards sheet, so drafts can be checked against what already exists.</p>
+    <p id="connectPanelText" aria-live="polite" role="status">Fetching the shared Flashcards sheet, so drafts can be checked against what already exists.</p>
     <div class="actions" id="connectActions" style="display:none;">
       <button class="btn-ghost" id="retryLoadBtn">Retry load</button>
     </div>
@@ -156,7 +128,7 @@
       <button type="submit" class="btn-primary">Enable</button>
       <button type="button" class="btn-ghost" id="cancelTokenBtn">Cancel</button>
     </form>
-    <p id="tokenFormError" style="font-size:12.5px; color:var(--pencil-red); margin-top:10px; margin-bottom:0; display:none;"></p>
+    <p id="tokenFormError" class="error-banner" aria-live="polite" role="status" style="display:none;"></p>
   </div>
 
   <div id="content" style="display:none;">
@@ -170,7 +142,7 @@
         <input type="file" id="fileInput" style="display:none" accept=".pdf,.docx,.txt,.xlsx,.xls,.csv,.md">
       </div>
       <div id="filePillWrap"></div>
-      <div class="status" id="parseStatus"></div>
+      <div class="status" id="parseStatus" aria-live="polite" role="status"></div>
       <details class="preview" id="previewWrap" style="display:none;">
         <summary>Preview extracted text</summary>
         <pre class="extract" id="extractPreview"></pre>
@@ -178,7 +150,13 @@
     </section>
 
     <section class="panel">
-      <h2><span class="step-num">2</span>Draft options</h2>
+      <div class="panel-header">
+        <h2><span class="step-num">2</span>Draft options</h2>
+        <div class="drafter-status-row">
+          <span class="badge" id="drafterBadge">No setup required</span>
+          <button type="button" class="btn-icon" id="openDrafterSettings" aria-label="Drafter settings" title="Drafter settings">⚙</button>
+        </div>
+      </div>
       <div class="row">
         <div class="field grow">
           <label for="deckNameInput">Deck</label>
@@ -204,9 +182,24 @@
           <input type="text" id="focusNote" placeholder="e.g. SDLC — lines containing this are drafted first">
         </div>
       </div>
+
+      <details class="drafter-fallback" id="drafterFallback">
+        <summary>Use my own Google AI key <span class="badge badge-info" style="margin-left:8px;">No signup needed</span></summary>
+        <p class="hint">AI drafting works through the server when it's set up, and falls back to your own free Google Gemini key when it isn't. Get one at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">aistudio.google.com/apikey</a> — no credit card required.</p>
+        <div class="field">
+          <label for="geminiKeyInput">Google Gemini API key (free tier)</label>
+          <input type="password" id="geminiKeyInput" autocomplete="off" placeholder="AIza…">
+        </div>
+        <div class="row">
+          <button type="button" class="btn-primary" id="saveGeminiKey">Save key</button>
+          <button type="button" class="btn-ghost" id="clearGeminiKey">Clear key</button>
+        </div>
+        <p class="hint" id="keyStatusHint" aria-live="polite" role="status"></p>
+      </details>
+
       <div class="row" style="margin-top:16px;">
         <button class="btn-primary" id="generateBtn" disabled>Draft cards from this file</button>
-        <span class="status" id="genStatus"></span>
+        <span class="status" id="genStatus" aria-live="polite" role="status"></span>
       </div>
       <div class="progress-track" id="progressTrack"><div class="progress-fill" id="progressFill"></div></div>
       <p class="hint" style="margin-top:10px;">An AI pass reads the extracted text and pulls out candidate cards — it's told to extract only (no outside explanation, filler, or examples) and to skip agenda lines, page numbers, and other non-testable fragments rather than force a card out of them. It's better at handling material that doesn't fit a rigid "Term: definition" shape, but it's still a draft: check it against the source before approving.</p>
@@ -231,7 +224,7 @@
 
       <div class="row" style="margin-top:14px;">
         <button class="btn-highlight" id="saveSharedBtn" disabled>Save to shared deck</button>
-        <span class="status" id="saveStatus"></span>
+        <span class="status" id="saveStatus" aria-live="polite" role="status"></span>
       </div>
       <p class="lede" id="masterHint" style="margin-top:6px;"></p>
 
@@ -243,7 +236,7 @@
         <button class="btn-ghost" id="exportXlsxBtn" disabled>Download .xlsx (Flashcards sheet)</button>
         <button class="btn-ghost" id="exportCsvBtn" disabled>Copy as CSV rows</button>
       </div>
-      <div class="status" id="exportStatus"></div>
+      <div class="status" id="exportStatus" aria-live="polite" role="status"></div>
 
       <div class="warn-box">Drafting sends only the extracted file text through this app's own server (never your school ID, passphrase, or editing token) to Google's Gemini API, instructed to extract questions as-is and not add anything the file doesn't say. Saving to the shared deck is a separate step that goes through the same sign-in check as every other change in this app.</div>
     </section>
@@ -253,17 +246,8 @@
 </div>
 
 <script>
-/* ================= Shared scaffolding (same as other modules) ================= */
-function getTheme(){ try{ return localStorage.getItem('srms_theme') || 'light'; }catch(e){ return 'light'; } }
-function applyTheme(t){
-  document.documentElement.setAttribute('data-theme', t);
-  try{ localStorage.setItem('srms_theme', t); }catch(e){}
-  const btn = document.getElementById('themeToggleBtn');
-  if(btn) btn.textContent = t === 'dark' ? '☀️' : '🌙';
-}
-function toggleTheme(){ applyTheme(getTheme() === 'dark' ? 'light' : 'dark'); }
-applyTheme(getTheme());
-document.getElementById('themeToggleBtn').addEventListener('click', toggleTheme);
+/* ================= Shared scaffolding (same as other modules) =================
+ * Theme toggle is handled by shared/theme.js (loaded with defer). */
 
 const SESSION_KEY = 'srms_session';
 function getSession(){ try{ return JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); }catch(e){ return null; } }
@@ -708,18 +692,15 @@ async function draftCardsFromChunk(chunk, style, count, focusNote){
     '', '--- SOURCE TEXT ---', chunk
   ].filter(Boolean).join('\n');
 
-  const res = await fetch('/api/draft-cards', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      max_tokens: 2048,
-      temperature: 0.2,
-      system: EXTRACTION_SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: userPrompt }]
-    })
+  // Use the hybrid API fallback (shared/api-fallback.js). It tries the
+  // Vercel server first; if not configured, falls back to the user's
+  // localStorage-pasted Gemini key. Returns Anthropic-normalized shape.
+  const data = await window.SRMS.draftCards({
+    max_tokens: 2048,
+    temperature: 0.2,
+    system: EXTRACTION_SYSTEM_PROMPT,
+    messages: [{ role: 'user', content: userPrompt }]
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || `Drafting failed (${res.status})`);
   const textOut = (data.content || []).map(b => b.text || '').join('\n').trim();
   const cleaned = textOut.replace(/^```(json)?/i, '').replace(/```$/, '').trim();
   let arr;
@@ -987,6 +968,61 @@ exportCsvBtn.addEventListener('click', async () => {
     s.textContent = 'Clipboard was unavailable — downloaded a .csv instead.';
   }
 });
+
+/* ================= Drafter settings: key paste + status badge ================= */
+function updateDrafterBadge(path){
+  var badge = document.getElementById('drafterBadge');
+  if(!badge) return;
+  if(path === 'user-key'){
+    badge.textContent = 'Using your key';
+    badge.className = 'badge badge-info';
+  } else if(path === 'server'){
+    badge.textContent = 'Using server';
+    badge.className = 'badge badge-success';
+  } else {
+    badge.textContent = 'No setup required';
+    badge.className = 'badge';
+  }
+}
+async function refreshDrafterBadge(){
+  if(!window.SRMS) return;
+  var path = await window.SRMS.probeServer();
+  updateDrafterBadge(path);
+}
+document.getElementById('openDrafterSettings').addEventListener('click', function(){
+  var el = document.getElementById('drafterFallback');
+  el.open = !el.open;
+  if(el.open) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+});
+document.getElementById('saveGeminiKey').addEventListener('click', function(){
+  var k = (document.getElementById('geminiKeyInput').value || '').trim();
+  if(!k){
+    SRMS.announce(document.getElementById('keyStatusHint'), 'Paste a key first.');
+    return;
+  }
+  SRMS.setGeminiKey(k);
+  SRMS.announce(document.getElementById('keyStatusHint'), 'Key saved in this browser. Drafting will use it directly.');
+  // Restore the generate button in case it was disabled by an earlier fallback.
+  if(extractedText) generateBtn.disabled = false;
+  refreshDrafterBadge();
+});
+document.getElementById('clearGeminiKey').addEventListener('click', function(){
+  SRMS.clearGeminiKey();
+  document.getElementById('geminiKeyInput').value = '';
+  SRMS.announce(document.getElementById('keyStatusHint'), 'Key cleared.');
+  refreshDrafterBadge();
+});
+// On load, populate the key field from localStorage (masked) so the user
+// knows one is saved, and probe the server for the status badge.
+(function initDrafterSettings(){
+  if(!window.SRMS) return;
+  var k = SRMS.getGeminiKey();
+  if(k){
+    var input = document.getElementById('geminiKeyInput');
+    if(input) input.placeholder = '••••••••' + k.slice(-4) + ' (saved — paste a new key to replace)';
+  }
+  refreshDrafterBadge();
+})();
 
 /* ================= Boot ================= */
 if(!session){

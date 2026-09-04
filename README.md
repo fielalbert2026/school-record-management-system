@@ -19,11 +19,18 @@ device.
 index.html                         Landing page / module hub
 subject_scheduler_dashboard.html   Module 01 — Subject Scheduler
 flashcards.html                    Module 02 — Flashcards
+card_drafter.html                  Module 02b — Card Drafter (upload a file, get AI-drafted cards)
 audit_log.html                     Module 03 — Audit Log (owner only)
 Subject_Scheduler.xlsx             All app data (the "database")
+shared/design-tokens.css           DFCAMCLP design tokens (color, type, spacing, radius, shadow)
+shared/components.css              Shared UI primitives (button, panel, input, role-pill, mode chips, …)
+shared/theme.js                    Theme toggle (light/dark), localStorage-backed
+shared/aria-utils.js               Tiny ARIA live-region helpers
+shared/api-fallback.js             Card Drafter's hybrid AI: server-first, user-pasted Gemini-key fallback
+flashcard-modes.js                 Multi-mode reviewer (Multiple Choice, Type, Match, Speed 60s)
 api/verify-master.js               Server-side ID+passphrase check → signed edit session
 api/save.js                        Server-side commit to GitHub, using the signed session
-api/draft-cards.js                 Server-side proxy to Google's free Gemini API for card_drafter.html (keeps the API key off the browser)
+api/draft-cards.js                 Server-side proxy to Google's free Gemini API for card_drafter.html
 package.json                       Declares the xlsx dependency the functions above need
 ```
 
@@ -353,6 +360,35 @@ The passphrase — generated or typed — is shown once, in your browser only,
 and is never written anywhere; the tool doesn't remember it after you leave
 or refresh the page.
 
+## Card Drafter
+
+`card_drafter.html` — Master accounts upload a file (PDF, DOCX, XLSX, CSV,
+TXT, MD), get a batch of AI-drafted flashcards from it, edit anything that's
+off, then save the keepers into the shared deck.
+
+* **Three working paths for the AI**, picked automatically on load:
+  * **Using server** — the page probes `/api/draft-cards` once on load. If
+    the server returns 200, the drafter uses it. This is the cheapest
+    path; the API key lives in Vercel, not the browser.
+  * **Using your key** — if the server is missing the `GEMINI_API_KEY`
+    (or the route isn't deployed), the drafter surfaces a "Use my own
+    Google AI key" panel. Paste a free Gemini key from
+    [aistudio.google.com/apikey](https://aistudio.google.com/apikey) — no
+    credit card required — and the page calls Google directly. The key is
+    stored in `localStorage` under `srms_gemini_key` and sent only to
+    Google's API. Reload-persistent, free, single-purpose.
+  * **No setup required** — if neither is configured, the drafter
+    gracefully disables the "Draft cards" button and shows a hint that
+    you can still type cards in by hand. Nothing silently fails.
+* **A status badge** in the "Draft options" header shows which path is
+  active, and a ⚙ button opens the key panel at any time.
+* **What's extracted**: identification and cloze (fill-in-the-blank) cards
+  only — the prompt explicitly forbids filler, agenda fragments, page
+  numbers, and ungrounded material. Every front and back must be
+  traceable to the supplied text.
+* **Dedupe against the live deck** — drafts that overlap with cards
+  already in the shared `Flashcards` sheet are dropped before review.
+
 ## Audit Log
 
 `audit_log.html` is a read-only history of sign-ins and changes, restricted
@@ -412,6 +448,25 @@ to a single account — not "Masters in general."
 
 `flashcards.html` — Master accounts build decks, anyone signed in can study
 them.
+
+* **Multiple review modes** — pick one from the chip group at the top of
+  the review screen; the last-used mode is restored next visit.
+  * **Flashcards** (default) — the original front/back + cloze drill loop
+    with **Again / Hard / Snooze 10 min** grading.
+  * **Multiple Choice** — every question shows 4 options (1 correct +
+    3 distractors pulled from the same deck). Pick one; correct auto-advances,
+    wrong shows the right answer and waits for "Next".
+  * **Type the answer** — type your answer; the grader is fuzzy: exact
+    match → "Got it", first 3 chars + ≥ 70% Levenshtein similarity →
+    "Almost", else "Missed — answer: …".
+  * **Match the pairs** — 8 cards in a round, two columns (fronts in
+    order, backs shuffled). Click a term then a definition; correct pairs
+    lock, wrong pairs flash red and reset. When all matched, the next
+    round starts automatically.
+  * **Speed 60s** — wraps Type or Multiple Choice with a 60-second timer.
+    Auto-advance on correct answers. At the end, a summary shows your
+    score; tap Restart or Exit Speed.
+* All modes read the same `Flashcards` sheet — no schema change.
 
 * **Stored as its own sheet** (`Flashcards`) in `Subject_Scheduler.xlsx` —
   columns `ID, Deck, Type, Front, Back, CreatedBy, CreatedAt, UpdatedAt`.
@@ -487,8 +542,39 @@ page.
   a live "Today" view with Now/Next/Later/Done status, and a live countdown
   to your next class.
 * **Flashcard Reviewer** (live) — Front/Back and fill-in-the-blank decks;
-  Masters build them, anyone signed in can study them.
+  Masters build them, anyone signed in can study them. **Five review
+  modes** (Flashcards / Multiple Choice / Type-the-answer / Match / Speed
+  60s) all reading from the same sheet.
 * **Audit Log** (live, owner-only) — read-only history of sign-ins and
   changes across the system.
+* **Card Drafter** (live) — upload a class file, get AI-drafted
+  flashcards. Works through the server if `GEMINI_API_KEY` is set, or
+  through a user-pasted free Gemini key (no setup, no credit card).
+  See the **Card Drafter** section above for the full flow.
+
+## Design system
+
+The styling across all pages comes from `shared/design-tokens.css` and
+`shared/components.css`. Per-page `<style>` blocks hold layout only.
+
+* **Tokens** — every color, font, spacing, radius, and shadow is a CSS
+  variable under `shared/design-tokens.css`. Dark mode is a single
+  `[data-theme="dark"]` block that re-binds the same names. A small
+  legacy alias block at the bottom of the file maps the old
+  `--ink` / `--paper` / `--card` / `--accent` / `--highlighter` /
+  `--pencil-red` / `--sage` names to their new equivalents so older
+  per-page CSS keeps working.
+* **Components** — `.btn` + `.btn-primary` / `.btn-ghost` / `.btn-highlight`
+  / `.btn-danger` / `.btn-text`, `.panel` + `.panel-header`, `.role-pill`,
+  `.session-strip`, `.theme-toggle`, `.input` (with a real
+  `:focus-visible` ring), `.error-banner`, `.badge`, `.mode-selector`,
+  `.speed-timer`, and `.drafter-fallback` all live in
+  `shared/components.css` and are identical on every page.
+* **Scripts** — `shared/theme.js` owns the theme toggle; `shared/aria-utils.js`
+  has a tiny `SRMS.announce()` helper; `shared/api-fallback.js` powers the
+  Card Drafter's hybrid AI path.
+
+When you change a color, font, or shadow, change it once in
+`shared/design-tokens.css` and every page follows.
 
 
