@@ -1,6 +1,8 @@
 /* ==========================================================================
    DFCAMCLP Design System — Shared Design Tokens
    A professional, accessible, non-generic design system for the SRMS project.
+   Aligned with the Minimalism & Swiss direction: clean type hierarchy,
+   generous whitespace, restrained color, sharp focus.
    ========================================================================== */
 
 /* ---- Color Primitives ---- */
@@ -183,19 +185,20 @@
   --color-info-subtle: var(--color-info-50);
   --color-info-text: var(--color-info-800);
 
-  /* Shadows */
-  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-  --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  /* Shadows — Minimalism & Swiss: prefer flat surfaces over drop shadows.
+     These stay for cards that need a slight lift; panels rely on borders. */
+  --shadow-xs: 0 1px 0 0 rgb(15 23 42 / 0.04);
+  --shadow-sm: 0 1px 2px 0 rgb(15 23 42 / 0.06);
+  --shadow-md: 0 1px 3px 0 rgb(15 23 42 / 0.08), 0 1px 2px -1px rgb(15 23 42 / 0.06);
+  --shadow-lg: 0 4px 12px -2px rgb(15 23 42 / 0.10);
+  --shadow-xl: 0 12px 24px -6px rgb(15 23 42 / 0.12);
+  --shadow-2xl: 0 24px 48px -12px rgb(15 23 42 / 0.18);
 
-  /* Focus ring */
-  --focus-ring: 0 0 0 3px var(--color-brand-200);
-  --focus-ring-dark: 0 0 0 3px var(--color-brand-800);
+  /* Focus ring — Minimalism & Swiss: sharp 2px offset ring, brand color. */
+  --focus-ring: 0 0 0 2px var(--color-bg-elevated), 0 0 0 4px var(--color-brand-500);
+  --focus-ring-dark: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-brand-400);
 
-  /* Transitions */
+  /* Transitions — keep these fast and consistent. */
   --transition-fast: 120ms ease;
   --transition-base: 200ms ease;
   --transition-slow: 300ms ease;

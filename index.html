@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="shared/components.css">
 <script src="shared/theme.js" defer></script>
 <script src="shared/aria-utils.js" defer></script>
+<script src="shared/presence.js" defer></script>
 <style>
   /* Page-specific layout only — colors / spacing / typography / shared
      components come from shared/design-tokens.css and shared/components.css. */
@@ -42,18 +43,18 @@
   a{color:inherit;}
 
   /* ---------- Hero / masthead ---------- */
-  .masthead{text-align:center; margin-bottom:52px;}
+  .masthead{text-align:center; margin-bottom:64px; padding-top:8px;}
   .brand-eyebrow{
     font-family:'IBM Plex Mono',monospace; font-size:11.5px; letter-spacing:.16em;
-    text-transform:uppercase; color:var(--sage); margin:0 0 14px;
+    text-transform:uppercase; color:var(--sage); margin:0 0 18px;
   }
   h1{
     font-family:'Merriweather',serif; font-weight:700; font-size:clamp(32px,5vw,52px);
-    margin:0 0 14px; color:var(--ink); line-height:1.05;
+    margin:0 0 16px; color:var(--ink); line-height:1.05; letter-spacing:-0.02em;
   }
   .tagline{
     color:var(--muted); font-size:15.5px; max-width:480px; margin:0 auto;
-    line-height:1.55;
+    line-height:1.6;
   }
   .id-strip{
     display:inline-flex; align-items:center; gap:8px; margin-top:22px;
@@ -73,10 +74,10 @@
     background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius);
     box-shadow:var(--shadow); padding:0; display:flex; flex-direction:column;
     text-decoration:none; color:inherit; position:relative; overflow:hidden;
-    transition:transform .15s ease, box-shadow .15s ease;
+    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
   }
   .mod-card.live{cursor:pointer;}
-  .mod-card.live:hover{transform:translateY(-4px); box-shadow:0 6px 14px rgba(10,42,82,.14), 0 22px 36px rgba(10,42,82,.16);}
+  .mod-card.live:hover{transform:translateY(-2px); border-color:var(--ink); box-shadow:0 1px 2px rgba(10,42,82,.06), 0 8px 18px rgba(10,42,82,.10);}
   .mod-card.soon{opacity:.72; cursor:default;}
   .mod-plaque{
     background:#0A2A52; padding:22px 24px 18px;
@@ -91,9 +92,10 @@
   .mod-body{ padding:20px 24px 24px; display:flex; flex-direction:column; flex-grow:1; }
   .mod-title{
     font-family:'Merriweather',serif; font-size:19px; font-weight:700; color:var(--ink); margin:0 0 8px;
+    letter-spacing:-0.01em;
   }
-  .mod-desc{font-size:13.5px; color:var(--muted); line-height:1.55; margin:0 0 20px; flex-grow:1;}
-  .mod-foot{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+  .mod-desc{font-size:13.5px; color:var(--muted); line-height:1.6; margin:0 0 20px; flex-grow:1;}
+  .mod-foot{display:flex; align-items:center; justify-content:space-between; gap:10px; padding-top:14px; border-top:1px solid var(--paper-line); margin-top:auto;}
   .mod-cta{
     font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600; color:var(--accent);
   }
@@ -304,7 +306,7 @@
     </form>
     <p id="tokenFormError" class="error-banner" aria-live="polite" role="status" style="display:none;"></p>
     <p style="font-size:12px; color:var(--muted); margin-top:12px; margin-bottom:0;">
-      This unlocks editing everywhere (Scheduler, Flashcards, Announcements) — no need to repeat it per module.
+      This unlocks editing everywhere (Scheduler, Study Hub, Announcements) — no need to repeat it per module.
     </p>
   </div>
 
@@ -409,8 +411,8 @@
     <a href="flashcards.html" class="mod-card live">
       <div class="mod-plaque"><span class="mod-eyebrow">Module</span><span class="mod-num">02</span></div>
       <div class="mod-body">
-        <h2 class="mod-title">Flashcard Reviewer</h2>
-        <p class="mod-desc">Review decks — plain front/back cards, or fill-in-the-blank cards. Masters build the decks; anyone signed in can study them.</p>
+        <h2 class="mod-title">Study Hub</h2>
+        <p class="mod-desc">Five ways to drill a deck — front/back flashcards, multiple choice, typed answers, match-the-pairs, and a 60-second speed round. Masters build the decks; anyone signed in can study them.</p>
         <div class="mod-foot">
           <span class="mod-cta">Open module</span>
         </div>
@@ -421,7 +423,7 @@
       <div class="mod-plaque"><span class="mod-eyebrow">Module</span><span class="mod-num">03</span></div>
       <div class="mod-body">
         <h2 class="mod-title">Card Drafter</h2>
-        <p class="mod-desc">Upload a file from a class — PDF, Word, text, or spreadsheet — and get a batch of draft flashcards to review and edit before anything is saved. Masters can push approved cards straight into the shared deck.</p>
+        <p class="mod-desc">Upload a file from a class — PDF, Word, text, or spreadsheet — and get a batch of draft cards to review and edit before anything is saved. Masters can push approved cards straight into the shared Study Hub deck.</p>
         <div class="mod-foot">
           <span class="mod-cta">Open module</span>
         </div>
@@ -433,6 +435,17 @@
       <div class="mod-body">
         <h2 class="mod-title">Audit Log</h2>
         <p class="mod-desc">Read-only history of sign-ins and changes made across the system. Visible only to the account owner.</p>
+        <div class="mod-foot">
+          <span class="mod-cta">Open module</span>
+        </div>
+      </div>
+    </a>
+
+    <a href="active_users.html" class="mod-card live" id="activeUsersCard" style="display:none;">
+      <div class="mod-plaque"><span class="mod-eyebrow">Module</span><span class="mod-num">05</span></div>
+      <div class="mod-body">
+        <h2 class="mod-title">Active Users</h2>
+        <p class="mod-desc">Live list of everyone currently signed in and active in any module, with their most recent page. Visible only to the account owner.</p>
         <div class="mod-foot">
           <span class="mod-cta">Open module</span>
         </div>
@@ -691,6 +704,7 @@ function renderSignedIn(s){
   document.getElementById('signinPanel').style.display = 'none';
   document.getElementById('hubContent').classList.add('show');
   document.getElementById('auditLogCard').style.display = session.isOwner ? '' : 'none';
+  document.getElementById('activeUsersCard').style.display = session.isOwner ? '' : 'none';
   const strip = document.getElementById('sessionStrip');
   strip.classList.add('show');
   const roleClass = isMaster ? 'master' : 'guest';
@@ -714,6 +728,9 @@ function renderSignedIn(s){
     flushAuditNow('Login', session.role).catch(() => {});
   }
   loadAnnouncements();
+  // Start broadcasting presence to the Active_Sessions sheet so the
+  // owner can see who is online.
+  if(window.SRMS && window.SRMS.presence) window.SRMS.presence.start();
 }
 
 /* ---------------- Announcements ----------------

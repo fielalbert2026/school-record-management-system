@@ -18,15 +18,17 @@ device.
 ```
 index.html                         Landing page / module hub
 subject_scheduler_dashboard.html   Module 01 — Subject Scheduler
-flashcards.html                    Module 02 — Flashcards
-card_drafter.html                  Module 02b — Card Drafter (upload a file, get AI-drafted cards)
-audit_log.html                     Module 03 — Audit Log (owner only)
+flashcards.html                    Module 02 — Study Hub (multi-mode reviewer: flashcards, MC, type, match, speed)
+card_drafter.html                  Module 03 — Card Drafter (upload a file, get AI-drafted cards)
+audit_log.html                     Module 04 — Audit Log (owner only)
+active_users.html                  Module 05 — Active Users (owner only)
 Subject_Scheduler.xlsx             All app data (the "database")
 shared/design-tokens.css           DFCAMCLP design tokens (color, type, spacing, radius, shadow)
 shared/components.css              Shared UI primitives (button, panel, input, role-pill, mode chips, …)
 shared/theme.js                    Theme toggle (light/dark), localStorage-backed
 shared/aria-utils.js               Tiny ARIA live-region helpers
-shared/api-fallback.js             Card Drafter's hybrid AI: server-first, user-pasted Gemini-key fallback
+shared/api-fallback.js             Card Drafter's AI client: probes the server, falls back gracefully when the universal key isn't set
+shared/presence.js                 Lightweight presence library for the Active Users module (heartbeat → Active_Sessions sheet)
 flashcard-modes.js                 Multi-mode reviewer (Multiple Choice, Type, Match, Speed 60s)
 api/verify-master.js               Server-side ID+passphrase check → signed edit session
 api/save.js                        Server-side commit to GitHub, using the signed session
@@ -370,16 +372,13 @@ off, then save the keepers into the shared deck.
   * **Using server** — the page probes `/api/draft-cards` once on load. If
     the server returns 200, the drafter uses it. This is the cheapest
     path; the API key lives in Vercel, not the browser.
-  * **Using your key** — if the server is missing the `GEMINI_API_KEY`
-    (or the route isn't deployed), the drafter surfaces a "Use my own
-    Google AI key" panel. Paste a free Gemini key from
-    [aistudio.google.com/apikey](https://aistudio.google.com/apikey) — no
-    credit card required — and the page calls Google directly. The key is
-    stored in `localStorage` under `srms_gemini_key` and sent only to
-    Google's API. Reload-persistent, free, single-purpose.
-  * **No setup required** — if neither is configured, the drafter
-    gracefully disables the "Draft cards" button and shows a hint that
-    you can still type cards in by hand. Nothing silently fails.
+  * **Universal key** — the server holds one `GEMINI_API_KEY` and uses it
+    for every drafter call. Once it's set, every signed-in user gets AI
+    drafting without having to paste their own key.
+  * **No setup required** — if the key isn't set (or the route isn't
+    deployed), the drafter gracefully disables the "Draft cards" button
+    and shows a hint that you can still type cards in by hand. Nothing
+    silently fails.
 * **A status badge** in the "Draft options" header shows which path is
   active, and a ⚙ button opens the key panel at any time.
 * **What's extracted**: identification and cloze (fill-in-the-blank) cards
@@ -541,16 +540,18 @@ page.
   rooms, Google Classroom and Google Meet links, School Year (SY) and Term,
   a live "Today" view with Now/Next/Later/Done status, and a live countdown
   to your next class.
-* **Flashcard Reviewer** (live) — Front/Back and fill-in-the-blank decks;
+* **Study Hub** (live) — Front/Back and fill-in-the-blank decks.
   Masters build them, anyone signed in can study them. **Five review
   modes** (Flashcards / Multiple Choice / Type-the-answer / Match / Speed
   60s) all reading from the same sheet.
 * **Audit Log** (live, owner-only) — read-only history of sign-ins and
   changes across the system.
 * **Card Drafter** (live) — upload a class file, get AI-drafted
-  flashcards. Works through the server if `GEMINI_API_KEY` is set, or
-  through a user-pasted free Gemini key (no setup, no credit card).
-  See the **Card Drafter** section above for the full flow.
+  cards through the server's universal Gemini key. See the **Card
+  Drafter** section above for the full flow.
+* **Active Users** (live, owner-only) — live list of everyone currently
+  signed in and active in any module, with their most recent page. Same
+  `isOwner` access check as Audit Log.
 
 ## Design system
 

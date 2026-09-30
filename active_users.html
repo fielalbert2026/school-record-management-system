@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script>(function(){try{var t=localStorage.getItem('srms_theme')||'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Active Users — Personalized School Record Management System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@700;900&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="shared/design-tokens.css">
+<link rel="stylesheet" href="shared/components.css">
+<script src="shared/theme.js" defer></script>
+<script src="shared/aria-utils.js" defer></script>
+<style>
+  /* Page-specific layout only — colors / spacing / typography / shared
+     components come from shared/design-tokens.css and shared/components.css. */
+  *{box-sizing:border-box;}
+  body{ margin:0; background:radial-gradient(circle at 15% -10%, rgba(10,42,82,.06), transparent 55%), var(--paper); color:var(--graphite); font-family:'Public Sans',system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
+  .wrap{max-width:1100px; margin:0 auto; padding:32px 26px 90px;}
+  a{color:inherit;}
+  .back-link{ font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--muted); text-decoration:none; border-bottom:1px solid transparent; }
+  .back-link:hover{color:var(--ink); border-bottom-color:var(--ink);}
+  header{display:flex; align-items:flex-start; justify-content:space-between; gap:20px; flex-wrap:wrap; margin-bottom:22px;}
+  .brand-eyebrow{ font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--sage); margin:8px 0 6px; }
+  h1{ font-family:'Merriweather',serif; font-weight:700; font-size:clamp(26px,4vw,38px); margin:0; color:var(--ink); line-height:1.05; }
+  #accessLockedPanel, #loadPanel{ background:var(--card); border:1.5px dashed var(--paper-line); border-radius:var(--radius); padding:26px; text-align:center; margin-bottom:28px; }
+  #accessLockedPanel h2, #loadPanel h2{ font-family:'Merriweather',serif; color:var(--ink); margin:0 0 6px; font-size:20px; }
+  #accessLockedPanel p, #loadPanel p{ color:var(--muted); font-size:13.5px; margin:0 0 18px; max-width:480px; margin-left:auto; margin-right:auto; }
+  .toolbar{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between; margin-bottom:16px; }
+  .toolbar .left{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .toolbar input{ font-family:'Public Sans',sans-serif; font-size:13px; padding:8px 10px; border:1.5px solid var(--paper-line); border-radius:6px; background:var(--card); color:var(--ink); }
+  .note{ font-size:12px; color:var(--muted); }
+  .pulse-dot{
+    display:inline-block; width:9px; height:9px; border-radius:50%;
+    background: var(--sage); margin-right:7px; vertical-align:middle;
+    box-shadow: 0 0 0 0 rgba(94,133,103,.55);
+    animation: presence-pulse 2.4s ease-out infinite;
+  }
+  @keyframes presence-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(94,133,103,.55); }
+    70%  { box-shadow: 0 0 0 10px rgba(94,133,103,0); }
+    100% { box-shadow: 0 0 0 0 rgba(94,133,103,0); }
+  }
+  [data-theme="dark"] .pulse-dot{ background: var(--sage); }
+  .live-stat{ display:flex; align-items:center; gap:14px; }
+  .live-stat .num{ font-family:'Merriweather',serif; font-weight:900; font-size:32px; color:var(--ink); line-height:1; }
+  .live-stat .lbl{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
+  .role-row{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
+  @media (max-width:560px){ .role-row{grid-template-columns:1fr;} }
+  .role-card{ background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px 20px; }
+  .role-card.master{ border-color: var(--sage); }
+  .role-card.guest{ border-color: var(--paper-line); }
+  .role-card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .role-card h3{ font-family:'Merriweather',serif; font-size:15px; color:var(--ink); margin:0; }
+  .role-card .count{ font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--muted); }
+  ul.user-list{ list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:6px; }
+  ul.user-list li{ display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:6px; background:var(--paper); border:1px solid var(--paper-line); font-size:13.5px; }
+  [data-theme="dark"] ul.user-list li{ background: rgba(255,255,255,.03); }
+  ul.user-list li .who{ display:flex; flex-direction:column; min-width:0; flex:1; }
+  ul.user-list li .who b{ color:var(--ink); font-weight:600; font-size:13.5px; }
+  ul.user-list li .who .meta{ font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted); margin-top:2px; }
+  ul.user-list li .when{ font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted); white-space:nowrap; }
+  .empty{ text-align:center; color:var(--muted); font-size:13.5px; padding:18px 8px; }
+  table{ width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow); }
+  thead th{ text-align:left; font-family:'IBM Plex Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); background:var(--paper-line); padding:10px 14px; border-bottom:1px solid var(--paper-line); }
+  tbody td{ padding:10px 14px; font-size:13px; border-bottom:1px dashed var(--paper-line); vertical-align:top; }
+  tbody tr:last-child td{border-bottom:none;}
+  td.ts{ font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--muted); white-space:nowrap; }
+  td.name{ font-weight:600; color:var(--ink); }
+  @media (max-width: 640px) {
+    table, thead, tbody, tr, th, td { display: block; width: 100%; }
+    thead { display: none; }
+    tbody tr {
+      background: var(--card);
+      border: 1px solid var(--paper-line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin-bottom: 12px;
+      padding: 8px 0;
+    }
+    tbody td {
+      border-bottom: 1px dashed var(--paper-line);
+      padding: 8px 14px;
+    }
+    tbody td:last-child { border-bottom: none; }
+    tbody td::before {
+      content: attr(data-label);
+      display: block;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10.5px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 2px;
+    }
+    .wrap { padding: 24px 14px 70px; }
+  }
+  footer{text-align:center; color:var(--muted); font-size:12px; margin-top:36px;}
+</style>
+</head>
+<body>
+<button id="themeToggleBtn" class="theme-toggle" type="button" aria-label="Toggle color theme" title="Toggle dark mode">🌙</button>
+<div class="wrap">
+  <header>
+    <div>
+      <a href="index.html" class="back-link">← Personalized School Record Management System</a>
+      <p class="brand-eyebrow">Module · Master Only</p>
+      <h1>Active Users</h1>
+      <div class="session-strip" id="sessionStrip"></div>
+    </div>
+  </header>
+
+  <div id="accessLockedPanel" style="display:none;">
+    <h2 id="lockedTitle">Sign in required</h2>
+    <p id="lockedText">Sign in with your school ID on the hub page to open this module.</p>
+    <a href="index.html"><button class="btn-primary" type="button">Go to sign in</button></a>
+  </div>
+
+  <div id="loadPanel">
+    <h2>Loading active users…</h2>
+    <p id="loadText" aria-live="polite" role="status">Fetching the live presence list.</p>
+  </div>
+
+  <div id="content" style="display:none;">
+    <div class="toolbar">
+      <div class="left">
+        <div class="live-stat">
+          <span class="pulse-dot" aria-hidden="true"></span>
+          <div>
+            <div class="num" id="onlineCount">0</div>
+            <div class="lbl">Online now</div>
+          </div>
+        </div>
+        <div class="note" id="lastSyncNote">Synced just now</div>
+      </div>
+      <div class="left">
+        <input id="searchInput" type="text" placeholder="Filter by name or page…" style="flex:1; min-width:220px;">
+        <button class="btn-ghost" id="refreshBtn" type="button">Refresh</button>
+      </div>
+    </div>
+
+    <p class="note" style="margin-bottom:16px;">
+      Live list of everyone currently signed in and active in any module. Presence is broadcast every 2 minutes from each open tab; entries go offline after 5 minutes of no heartbeat. Owners and Masters can sign in to be counted; Guests are not currently tracked. All timestamps are in Philippines time (UTC+8).
+    </p>
+
+    <div class="role-row">
+      <section class="role-card master">
+        <div class="role-card-head">
+          <h3>Masters online</h3>
+          <span class="count" id="masterCount">0</span>
+        </div>
+        <ul class="user-list" id="masterList"></ul>
+      </section>
+      <section class="role-card guest">
+        <div class="role-card-head">
+          <h3>Recently offline</h3>
+          <span class="count" id="recentCount">0</span>
+        </div>
+        <ul class="user-list" id="recentList"></ul>
+      </section>
+    </div>
+
+    <h2 style="font-family:'Merriweather',serif; font-size:17px; color:var(--ink); margin:0 0 10px;">All sessions</h2>
+    <div id="tableWrap"></div>
+  </div>
+
+  <footer>DFCAMCLP · Personalized School Record Management System · Active Users</footer>
+</div>
+
+<script src="shared/presence.js" defer></script>
+<script>
+/* Theme toggle is handled by shared/theme.js (loaded with defer). */
+const SESSION_KEY = 'srms_session';
+function getSession(){ try{ return JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); }catch(e){ return null; } }
+const session = getSession();
+const isMaster = !!session && session.role === 'Master';
+
+function escapeHtml(str){
+  return (str||'').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function renderSessionStrip(){
+  if(!session) return;
+  const strip = document.getElementById('sessionStrip');
+  strip.style.display = 'inline-flex';
+  const roleClass = isMaster ? 'master' : 'guest';
+  const auditLink = session.isOwner ? ' <a href="audit_log.html" style="margin-left:8px; font-size:12px; text-decoration:underline;">Audit Log</a>' : '';
+  strip.innerHTML = `Signed in as <b>${escapeHtml(session.name)}</b> <span class="role-pill ${roleClass}">${escapeHtml(session.role)}</span>${auditLink} <button id="logoutBtn" type="button" style="border:none;background:none;text-decoration:underline;cursor:pointer;font-size:12.5px;margin-left:4px;">Log out</button>`;
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    sessionStorage.removeItem(SESSION_KEY);
+    window.location.href = 'index.html';
+  });
+}
+
+let lastFetch = null;
+let lastData = null;
+
+function fmtAgo(iso){
+  if(!iso) return '—';
+  var t = Date.parse(iso);
+  if(!isFinite(t)) return iso;
+  var diffSec = Math.max(0, Math.round((Date.now() - t) / 1000));
+  if(diffSec < 30) return 'just now';
+  if(diffSec < 60) return diffSec + 's ago';
+  var m = Math.floor(diffSec / 60);
+  if(m < 60) return m + ' min ago';
+  var h = Math.floor(m / 60);
+  if(h < 24) return h + 'h ago';
+  return new Date(t).toLocaleString();
+}
+
+function fmtPHT(iso){
+  if(!iso) return '—';
+  return iso.replace('T', ' ').replace('+08:00', ' PHT');
+}
+
+function renderUserList(ul, rows){
+  if(!rows.length){
+    ul.innerHTML = '<li class="empty" style="border:none; background:transparent; padding:10px 4px;">No one here right now.</li>';
+    return;
+  }
+  ul.innerHTML = rows.map(r => `
+    <li>
+      <div class="who">
+        <b>${escapeHtml(r.name)}${r.isOwner ? ' <span class="role-pill master" style="font-size:9px;">Owner</span>' : ''}</b>
+        <span class="meta">${escapeHtml(r.page || '—')}</span>
+      </div>
+      <span class="when" title="${escapeHtml(fmtPHT(r.lastSeen))}">${fmtAgo(r.lastSeen)}</span>
+    </li>`).join('');
+}
+
+function renderTable(rows){
+  const wrap = document.getElementById('tableWrap');
+  if(!rows.length){
+    wrap.innerHTML = '<div class="empty">No matching sessions.</div>';
+    return;
+  }
+  wrap.innerHTML = `<table>
+    <thead><tr><th>Name</th><th>Role</th><th>Page</th><th>Last seen</th></tr></thead>
+    <tbody>
+      ${rows.map(r => `<tr>
+        <td class="name" data-label="Name">${escapeHtml(r.name)}${r.isOwner ? ' <span class="role-pill master" style="font-size:9px; margin-left:4px;">Owner</span>' : ''}</td>
+        <td data-label="Role">${escapeHtml(r.role)}</td>
+        <td data-label="Page" style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--muted);">${escapeHtml(r.page || '—')}</td>
+        <td class="ts" data-label="Last seen" title="${escapeHtml(fmtPHT(r.lastSeen))}">${fmtAgo(r.lastSeen)}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+function render(){
+  if(!lastData) return;
+  const q = (document.getElementById('searchInput').value || '').toLowerCase();
+  const filterFn = r => !q || (r.name + ' ' + r.page + ' ' + r.role).toLowerCase().includes(q);
+  const online = lastData.online.filter(filterFn);
+  const masters = online.filter(r => r.role === 'Master');
+  const recentlyOffline = lastData.recentlyOffline.filter(filterFn);
+  document.getElementById('onlineCount').textContent = online.length;
+  document.getElementById('masterCount').textContent = masters.length;
+  document.getElementById('recentCount').textContent = recentlyOffline.length;
+  renderUserList(document.getElementById('masterList'), masters);
+  renderUserList(document.getElementById('recentList'), recentlyOffline);
+  renderTable(online.concat(recentlyOffline));
+  if(lastFetch){
+    const secs = Math.max(0, Math.round((Date.now() - lastFetch) / 1000));
+    document.getElementById('lastSyncNote').textContent = secs < 5 ? 'Synced just now' : 'Synced ' + secs + 's ago';
+  }
+}
+
+async function loadActive(){
+  if(!window.SRMS || !window.SRMS.presence) {
+    document.getElementById('loadText').textContent = 'Presence library failed to load. Reload the page to try again.';
+    return;
+  }
+  try{
+    lastData = await window.SRMS.presence.readActive();
+    lastFetch = Date.now();
+    document.getElementById('loadPanel').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+    render();
+  }catch(e){
+    document.getElementById('loadText').textContent = "Couldn't load active users: " + e.message;
+  }
+}
+
+document.getElementById('searchInput').addEventListener('input', render);
+document.getElementById('refreshBtn').addEventListener('click', loadActive);
+// Auto-refresh every 60s so the "synced Xs ago" line stays honest.
+setInterval(() => { render(); loadActive(); }, 60000);
+
+/* ---------------- Boot ---------------- */
+// Same access pattern as audit_log.html: only the account owner can see it.
+if(!session){
+  document.getElementById('accessLockedPanel').style.display = 'block';
+  document.getElementById('loadPanel').style.display = 'none';
+} else if(!session.isOwner){
+  document.getElementById('lockedTitle').textContent = 'Restricted';
+  document.getElementById('lockedText').textContent = "The active users list is only visible to the account owner.";
+  document.getElementById('accessLockedPanel').style.display = 'block';
+  document.getElementById('loadPanel').style.display = 'none';
+  renderSessionStrip();
+} else {
+  renderSessionStrip();
+  // Fire our own heartbeat so opening this page counts as activity.
+  if(window.SRMS && window.SRMS.presence) window.SRMS.presence.heartbeat({ force: true });
+  loadActive();
+}
+</script>
+</body>
+</html>

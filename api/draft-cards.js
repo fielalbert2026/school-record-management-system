@@ -11,6 +11,12 @@
 // edit session — drafting produces suggestions only, nothing is saved
 // anywhere until a Master approves and the app calls /api/save separately.
 //
+// Universal key: GEMINI_API_KEY is set once on the server (Vercel env var
+// or .env locally) and used for every drafting request. There is no
+// per-user key path anymore — that flow is kept here only as a last-resort
+// override for the site owner if the universal key has been rate-limited
+// or revoked. Users no longer need to paste their own free Gemini key.
+//
 // Get a free key (no credit card): https://aistudio.google.com/apikey
 // Model naming moves fairly often on Google's side — GEMINI_MODEL defaults
 // to gemini-3.5-flash-lite, the current free-tier low-cost model as of
@@ -32,11 +38,13 @@ module.exports = async (req, res) => {
     return;
   }
 
-  // A user-supplied API key (forwarded from the browser) takes precedence
-  // over the server env var. This lets a student supply their own free
-  // Gemini key to a server they trust, instead of calling Google directly
-  // from the browser. Falls back to the env var when not provided.
-  const apiKey = (req.body && req.body.userApiKey) || process.env.GEMINI_API_KEY;
+  // A user-supplied API key (forwarded from the browser) is only honored
+  // when the server has no universal key set, and only then as a
+  // convenience for the site owner. The default is the server env var —
+  // one key, paid for once, used by everyone.
+  const serverKey = process.env.GEMINI_API_KEY;
+  const ownerKey = process.env.OWNER_GEMINI_OVERRIDE; // optional, owner-only escape hatch
+  const apiKey = serverKey || (req.body && req.body.userApiKey) || ownerKey;
   if (!apiKey) {
     res.status(500).json({ error: 'Card drafting is not configured on this server yet (missing GEMINI_API_KEY).' });
     return;

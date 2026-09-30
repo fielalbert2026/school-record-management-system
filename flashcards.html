@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <script>(function(){try{var t=localStorage.getItem('srms_theme')||'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Flashcards — Personalized School Record Management System</title>
+<title>Study Hub — Personalized School Record Management System</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@700;900&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="shared/components.css">
 <script src="shared/theme.js" defer></script>
 <script src="shared/aria-utils.js" defer></script>
+<script src="shared/presence.js" defer></script>
 <style>
   /* Page-specific layout only — colors / spacing / typography / shared
      components come from shared/design-tokens.css and shared/components.css.
@@ -137,8 +138,8 @@
   <header>
     <div>
       <a href="index.html" class="back-link">← Personalized School Record Management System</a>
-      <p class="brand-eyebrow">Module 02 · Flashcard Reviewer</p>
-      <h1>Flashcards</h1>
+      <p class="brand-eyebrow">Module 02 · Study Hub</p>
+      <h1>Study Hub</h1>
       <div class="session-strip" id="sessionStrip"></div>
     </div>
     <div id="connectBox"></div>
@@ -146,7 +147,7 @@
 
   <div id="accessLockedPanel" style="display:none;">
     <h2>Sign in required</h2>
-    <p>Sign in with your school ID on the hub page to open the Flashcards module.</p>
+    <p>Sign in with your school ID on the hub page to open the Study Hub module.</p>
     <a href="index.html"><button class="btn-primary" type="button">Go to sign in</button></a>
   </div>
 
@@ -255,7 +256,7 @@
     <div id="masterListWrap"></div>
   </div>
 
-  <footer>DFCAMCLP · Personalized School Record Management System · Flashcards</footer>
+  <footer>DFCAMCLP · Personalized School Record Management System · Study Hub</footer>
 </div>
 
 <script>
@@ -1021,6 +1022,8 @@ if(!session){
     if(saved && isMaster){ ghToken = saved; editingEnabled = true; }
   }catch(e){}
   loadFromGitHub();
+  // Start broadcasting presence to the Active_Sessions sheet.
+  if(window.SRMS && window.SRMS.presence) window.SRMS.presence.start();
 }
 </script>
 </body>

@@ -409,3 +409,40 @@ select { background: var(--color-bg-elevated); color: var(--color-text-primary);
   color: var(--color-text-tertiary);
   margin-top: var(--space-2);
 }
+
+/* ==========================================================================
+   Shared refinements — Minimalism & Swiss
+   These touch the most-reused surfaces only. Per-page layout still lives
+   in each HTML file's <style> block.
+   ========================================================================== */
+
+/* Stronger, more consistent focus ring across the whole app. The double-
+   ring (white halo + brand color) is easier to spot than the old
+   single outline, especially on filled brand buttons. */
+*:focus-visible {
+  outline: 2px solid var(--color-bg-elevated);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--color-brand-500);
+  border-radius: var(--radius-sm);
+}
+[data-theme="dark"] *:focus-visible {
+  outline-color: var(--color-bg);
+  box-shadow: 0 0 0 4px var(--color-brand-400);
+}
+
+/* Honest monospace numerics for timestamps and counters — keeps them
+   aligned in tables and the new Active Users live counter. */
+.numeric, .ts, .live-stat .num, .speed-summary-num, td[data-label*="seen"] {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* Reduce motion for users who prefer it — keep state changes instant. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

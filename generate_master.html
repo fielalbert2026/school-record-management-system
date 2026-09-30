@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script>(function(){try{var t=localStorage.getItem('srms_theme')||'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Generate Master — Personalized School Record Management System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@700;900&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/design-tokens.css">
+<link rel="stylesheet" href="shared/components.css">
+<script src="shared/theme.js" defer></script>
+<script src="shared/aria-utils.js" defer></script>
+<style>
+  /* ==========================================================================
+     generate_master.html — page-specific styling
+     Design language: Minimalism & Swiss, security-focused, owner-only tool.
+     All colors / spacing / typography come from shared/design-tokens.css so
+     light and dark mode flip automatically via [data-theme="dark"].
+     ========================================================================== */
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at 8% -10%, color-mix(in srgb, var(--color-brand-500) 12%, transparent) 0%, transparent 50%),
+      radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--color-accent-500) 6%, transparent) 0%, transparent 45%),
+      var(--color-bg);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: var(--leading-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  a { color: inherit; }
+
+  .wrap { max-width: 920px; margin: 0 auto; padding: 28px 24px 80px; }
+
+  /* ---- Header ---- */
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--color-text-tertiary);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    padding-bottom: 1px;
+    transition: color var(--transition-fast), border-color var(--transition-fast);
+  }
+  .back-link:hover { color: var(--color-brand-text); border-bottom-color: var(--color-brand); }
+  .back-link svg { width: 12px; height: 12px; }
+
+  .page-header { margin-bottom: 28px; }
+  .page-header h1 {
+    font-family: var(--font-serif);
+    font-weight: 700;
+    font-size: clamp(28px, 4.5vw, 42px);
+    margin: 12px 0 6px;
+    color: var(--color-text-primary);
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+  }
+  .page-header .subtitle {
+    font-size: 14.5px;
+    color: var(--color-text-secondary);
+    margin: 0;
+    max-width: 56ch;
+    line-height: 1.55;
+  }
+
+  /* ---- Owner-only chip ---- */
+  .owner-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--color-accent-text);
+    background: var(--color-accent-subtle);
+    border: 1px solid color-mix(in srgb, var(--color-accent) 35%, transparent);
+    padding: 4px 10px;
+    border-radius: var(--radius-full);
+    margin: 10px 0 0;
+  }
+  .owner-chip svg { width: 11px; height: 11px; }
+
+  /* ---- Hero / security card ---- */
+  .hero {
+    position: relative;
+    background:
+      linear-gradient(135deg,
+        color-mix(in srgb, var(--color-brand-700) 92%, var(--color-info-panel)) 0%,
+        var(--color-info-panel) 100%);
+    color: var(--color-info-panel-text);
+    border-radius: var(--radius-lg);
+    padding: 22px 24px;
+    margin-top: 24px;
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+  }
+  .hero::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--color-accent) 25%, transparent) 0%, transparent 50%);
+    pointer-events: none;
+  }
+  .hero-inner { position: relative; z-index: 1; display: flex; gap: 16px; align-items: flex-start; }
+  .hero-icon {
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--color-info-panel-text) 15%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-info-panel-text) 22%, transparent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .hero-icon svg { width: 22px; height: 22px; }
+  .hero-text { flex: 1; }
+  .hero-text h2 {
+    font-family: var(--font-serif);
+    font-size: 19px;
+    font-weight: 700;
+    margin: 0 0 4px;
+    color: var(--color-info-panel-text);
+  }
+  .hero-text p {
+    font-size: 13.5px;
+    margin: 0;
+    line-height: 1.55;
+    color: color-mix(in srgb, var(--color-info-panel-text) 88%, transparent);
+  }
+  .hero-text p code {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    background: color-mix(in srgb, #000 18%, transparent);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+
+  /* ---- Stepped card ---- */
+  section.panel {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 0;
+    margin-top: 22px;
+    overflow: hidden;
+  }
+  section.panel .panel-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-bg) 40%, var(--color-bg-elevated));
+  }
+  section.panel .step-badge {
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-md);
+    background: var(--color-brand-subtle);
+    color: var(--color-brand-text);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  section.panel h2 {
+    font-family: var(--font-sans);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin: 0;
+    letter-spacing: -0.005em;
+  }
+  section.panel .step-hint {
+    font-size: 12.5px;
+    color: var(--color-text-tertiary);
+    margin: 2px 0 0;
+  }
+  section.panel .panel-body { padding: 20px 24px 24px; }
+
+  /* ---- Form fields ---- */
+  .row { display: flex; gap: 14px; flex-wrap: wrap; }
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 200px;
+    flex: 1;
+  }
+  label {
+    font-size: 11.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-secondary);
+  }
+  input[type="text"], input[type="password"] {
+    font-family: var(--font-sans);
+    font-size: 14.5px;
+    padding: 11px 12px;
+    border: 1.5px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-elevated);
+    color: var(--color-text-primary);
+    width: 100%;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+  }
+  input[type="text"]:hover, input[type="password"]:hover {
+    border-color: var(--color-border-strong);
+  }
+  input[type="text"]:focus, input[type="password"]:focus {
+    outline: none;
+    border-color: var(--color-border-focus);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-border-focus) 22%, transparent);
+  }
+  input[type="text"]::placeholder, input[type="password"]::placeholder {
+    color: var(--color-text-tertiary);
+    font-weight: 400;
+  }
+  input[readonly] { background: var(--color-bg); cursor: text; }
+
+  .lede {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    line-height: 1.55;
+    margin: 0;
+  }
+  .lede code {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    background: var(--color-bg);
+    padding: 1px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--color-border);
+  }
+  .field-hint {
+    font-size: 12.5px;
+    color: var(--color-text-tertiary);
+    margin-top: 2px;
+    line-height: 1.45;
+  }
+
+  /* ---- Mode toggle (segmented control with icons) ---- */
+  .mode-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    border: 1.5px solid var(--color-border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--color-bg);
+    padding: 4px;
+    position: relative;
+  }
+  .mode-toggle input { position: absolute; opacity: 0; pointer-events: none; }
+  .mode-toggle label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 11px 14px;
+    font-size: 13.5px;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    border-radius: calc(var(--radius-md) - 2px);
+    transition: background var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
+    user-select: none;
+  }
+  .mode-toggle label svg { width: 16px; height: 16px; flex: 0 0 16px; }
+  .mode-toggle label.active {
+    background: var(--color-bg-elevated);
+    color: var(--color-text-primary);
+    box-shadow: var(--shadow-sm);
+  }
+  .mode-toggle input:focus-visible + label {
+    outline: 2px solid var(--color-focus-ring);
+    outline-offset: 2px;
+  }
+  .mode-desc {
+    font-size: 12.5px;
+    color: var(--color-text-tertiary);
+    margin: 10px 2px 0;
+    line-height: 1.5;
+  }
+
+  /* ---- Passphrase field with show/hide ---- */
+  .pass-wrap { position: relative; }
+  .pass-wrap input { padding-right: 88px; font-family: var(--font-mono); font-size: 14px; letter-spacing: 0.02em; }
+  .show-btn {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: none;
+    background: transparent;
+    color: var(--color-brand-text);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: background var(--transition-fast), color var(--transition-fast);
+  }
+  .show-btn:hover { background: var(--color-brand-subtle); }
+  .show-btn svg { width: 13px; height: 13px; }
+
+  /* ---- Strength meter ---- */
+  .strength {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 4px;
+    margin-top: 12px;
+  }
+  .strength .seg {
+    height: 5px;
+    background: var(--color-border);
+    border-radius: 3px;
+    transition: background var(--transition-base);
+  }
+  .strength.s1 .seg:nth-child(-n+1) { background: var(--color-error); }
+  .strength.s2 .seg:nth-child(-n+2) { background: var(--color-warning); }
+  .strength.s3 .seg:nth-child(-n+3) { background: var(--color-warning); }
+  .strength.s4 .seg:nth-child(-n+4) { background: var(--color-success); }
+  .strength.s5 .seg:nth-child(-n+5) { background: var(--color-success); }
+
+  .strength-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    color: var(--color-text-tertiary);
+    margin-top: 8px;
+    min-height: 18px;
+    font-weight: 500;
+  }
+  .strength-label svg { width: 13px; height: 13px; }
+  .strength-label.ok { color: var(--color-success-text); }
+  .strength-label.bad { color: var(--color-error-text); }
+  .strength-label .label-text { color: var(--color-text-primary); font-weight: 600; }
+
+  .classlist {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 12px;
+  }
+  .classlist span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 4px 9px;
+    border-radius: var(--radius-full);
+    background: var(--color-bg);
+    color: var(--color-text-tertiary);
+    border: 1px solid var(--color-border);
+    transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+  }
+  .classlist span svg { width: 11px; height: 11px; }
+  .classlist span.met {
+    background: var(--color-success-subtle);
+    color: var(--color-success-text);
+    border-color: color-mix(in srgb, var(--color-success) 40%, transparent);
+  }
+
+  /* ---- Generate row ---- */
+  .generate-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid var(--color-border);
+  }
+  .reqs {
+    font-size: 12.5px;
+    color: var(--color-text-tertiary);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .reqs svg { width: 13px; height: 13px; }
+  .reqs.ready { color: var(--color-success-text); }
+
+  /* ---- Output / vault card ---- */
+  #outputPanel { border-color: var(--color-success); box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-success) 25%, transparent), var(--shadow-sm); }
+  #outputPanel .panel-head {
+    background: var(--color-success-subtle);
+    border-bottom-color: color-mix(in srgb, var(--color-success) 30%, transparent);
+  }
+  #outputPanel .step-badge {
+    background: var(--color-success);
+    color: var(--color-info-panel-text);
+  }
+
+  .out-field { display: flex; flex-direction: column; gap: 6px; margin-top: 16px; }
+  .out-field:first-of-type { margin-top: 0; }
+  .out-field .label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .out-field .ttl {
+    font-size: 11.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-secondary);
+  }
+  .out-field .desc { font-size: 11.5px; color: var(--color-text-tertiary); }
+
+  textarea.out {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.5;
+    padding: 12px 14px;
+    border: 1.5px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg);
+    color: var(--color-text-primary);
+    width: 100%;
+    resize: vertical;
+    min-height: 56px;
+    word-break: break-all;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  }
+  textarea.out:focus {
+    outline: none;
+    border-color: var(--color-border-focus);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-border-focus) 22%, transparent);
+  }
+
+  .row-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+  .copied-flash {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--color-success-text);
+    min-height: 16px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .copied-flash svg { width: 12px; height: 12px; }
+
+  /* ---- Field key (what each column in the row means) ---- */
+  .field-key {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--color-text-tertiary);
+    margin: 10px 0 0;
+    line-height: 1.6;
+    word-break: break-word;
+    padding: 10px 12px;
+    background: var(--color-bg);
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius-sm);
+  }
+  .field-key b { color: var(--color-text-primary); font-weight: 600; }
+  .field-key .sep { color: var(--color-text-tertiary); margin: 0 2px; }
+
+  /* ---- Notice boxes ---- */
+  .notice {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    font-size: 13px;
+    padding: 12px 14px;
+    border-radius: var(--radius-md);
+    margin-top: 14px;
+    line-height: 1.5;
+    border: 1px solid;
+  }
+  .notice svg { width: 16px; height: 16px; flex: 0 0 16px; margin-top: 1px; }
+  .notice strong { font-weight: 700; }
+  .notice code { font-family: var(--font-mono); font-size: 12px; padding: 1px 5px; border-radius: 4px; background: color-mix(in srgb, currentColor 8%, transparent); }
+  .notice.danger { background: var(--color-error-subtle); color: var(--color-error-text); border-color: color-mix(in srgb, var(--color-error) 35%, transparent); }
+  .notice.warn   { background: var(--color-warning-subtle); color: var(--color-warning-text); border-color: color-mix(in srgb, var(--color-warning) 35%, transparent); }
+  .notice.info   { background: var(--color-info-subtle); color: var(--color-info-text); border-color: color-mix(in srgb, var(--color-info) 35%, transparent); }
+
+  /* ---- Buttons (override shared .btn-primary / .btn-ghost to be more refined) ---- */
+  button.btn-primary, button.btn-ghost, button.btn-danger {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+  }
+  button.btn-primary svg, button.btn-ghost svg, button.btn-danger svg { width: 14px; height: 14px; }
+  button.btn-ghost { background: var(--color-bg-elevated); }
+  button.btn-sm { padding: 6px 12px; font-size: 12.5px; }
+
+  /* ---- Locked panel (same shape as audit_log / active_users) ---- */
+  #accessLockedPanel {
+    background: var(--color-bg-elevated);
+    border: 1.5px dashed var(--color-border-strong);
+    border-radius: var(--radius-lg);
+    padding: 36px 24px;
+    text-align: center;
+    margin: 24px 0;
+  }
+  #accessLockedPanel .lock-icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 16px;
+    border-radius: var(--radius-full);
+    background: var(--color-warning-subtle);
+    color: var(--color-warning-text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #accessLockedPanel .lock-icon svg { width: 26px; height: 26px; }
+  #accessLockedPanel h2 {
+    font-family: var(--font-serif);
+    color: var(--color-text-primary);
+    margin: 0 0 8px;
+    font-size: 22px;
+    font-weight: 700;
+  }
+  #accessLockedPanel p {
+    color: var(--color-text-secondary);
+    font-size: 14px;
+    margin: 0 auto 20px;
+    max-width: 460px;
+    line-height: 1.55;
+  }
+
+  /* ---- Footer ---- */
+  footer {
+    text-align: center;
+    color: var(--color-text-tertiary);
+    font-size: 12px;
+    margin-top: 40px;
+  }
+
+  /* ---- Mobile ---- */
+  @media (max-width: 640px) {
+    .wrap { padding: 20px 16px 60px; }
+    .hero { padding: 18px 18px; }
+    .hero-inner { gap: 12px; }
+    .hero-icon { flex: 0 0 38px; width: 38px; height: 38px; }
+    .hero-icon svg { width: 18px; height: 18px; }
+    section.panel .panel-head { padding: 16px 18px 14px; }
+    section.panel .panel-body { padding: 16px 18px 20px; }
+    .row { gap: 12px; }
+    .field { min-width: 100%; }
+    .page-header h1 { font-size: 26px; }
+  }
+</style>
+</head>
+<body>
+<button id="themeToggleBtn" class="theme-toggle" type="button" aria-label="Toggle color theme" title="Toggle dark mode">🌙</button>
+<div class="wrap">
+  <header class="page-header">
+    <a href="index.html" class="back-link" aria-label="Back to hub">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M10 12L6 8l4-4"/>
+      </svg>
+      Back to hub
+    </a>
+    <h1>Generate Master</h1>
+    <p class="subtitle">Derive a new <code>Valid_Users</code> row for a Master account — salt, PBKDF2 verifier, and AES-GCM-encrypted name, all generated in your browser. Copy the row out and paste it into the sheet yourself.</p>
+    <span class="owner-chip">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M8 2l5 2v4c0 3-2.5 5-5 6-2.5-1-5-3-5-6V4l5-2z"/>
+      </svg>
+      Owner only
+    </span>
+    <div class="session-strip" id="sessionStrip"></div>
+  </header>
+
+  <div id="accessLockedPanel" style="display:none;">
+    <div class="lock-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="5" y="11" width="14" height="9" rx="2"/>
+        <path d="M8 11V7a4 4 0 1 1 8 0v4"/>
+      </svg>
+    </div>
+    <h2 id="lockedTitle">Sign in required</h2>
+    <p id="lockedText">Sign in with your school ID on the hub page to open this tool.</p>
+    <a href="index.html"><button class="btn-primary" type="button">Go to sign in</button></a>
+  </div>
+
+  <div id="content" style="display:none;">
+
+    <div class="hero" role="note">
+      <div class="hero-inner">
+        <div class="hero-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4z"/>
+            <path d="M9 12l2 2 4-4"/>
+          </svg>
+        </div>
+        <div class="hero-text">
+          <h2>How this tool works</h2>
+          <p>Enter a School ID, a display name, and choose how the passphrase is created. The page derives <code>Master_Salt</code>, <code>Master_Verifier</code>, and the AES-GCM-encrypted <code>Name_IV</code>/<code>Name_Enc</code> using the same PBKDF2-HMAC-SHA256 (300,000 iterations) scheme <code>index.html</code> uses to verify sign-ins. Nothing is sent anywhere. The result works in either passphrase mode — generated or typed.</p>
+        </div>
+      </div>
+    </div>
+
+    <section class="panel">
+      <div class="panel-head">
+        <span class="step-badge">1</span>
+        <div>
+          <h2>New Master's details</h2>
+          <p class="step-hint">The name is encrypted with a key derived from the ID and passphrase, so only someone who knows both can read it back.</p>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="row">
+          <div class="field">
+            <label for="idInput">School ID</label>
+            <input type="text" id="idInput" autocomplete="off" placeholder="e.g. 24050010" inputmode="numeric">
+          </div>
+          <div class="field">
+            <label for="nameInput">Display name</label>
+            <input type="text" id="nameInput" autocomplete="off" placeholder="e.g. Juan Dela Cruz">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <span class="step-badge">2</span>
+        <div>
+          <h2>Passphrase</h2>
+          <p class="step-hint">At least 12 characters and 2 character types (lowercase / uppercase / digit / symbol).</p>
+        </div>
+      </div>
+      <div class="panel-body">
+
+        <div class="mode-toggle" role="radiogroup" aria-label="Passphrase mode">
+          <input type="radio" id="modeAuto" name="mode" value="auto" checked>
+          <label for="modeAuto" id="modeAutoLabel" class="active">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="2" y="2" width="12" height="12" rx="2"/>
+              <circle cx="5" cy="5" r="0.8" fill="currentColor"/>
+              <circle cx="11" cy="5" r="0.8" fill="currentColor"/>
+              <circle cx="5" cy="11" r="0.8" fill="currentColor"/>
+              <circle cx="11" cy="11" r="0.8" fill="currentColor"/>
+              <circle cx="8" cy="8" r="0.8" fill="currentColor"/>
+            </svg>
+            Auto-generate
+            <span style="font-size:11px; color:var(--color-text-tertiary); font-weight:500; margin-left:2px;">(recommended)</span>
+          </label>
+          <input type="radio" id="modeCustom" name="mode" value="custom">
+          <label for="modeCustom" id="modeCustomLabel">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M11.5 1.5l3 3-9 9-3.5.5.5-3.5 9-9z"/>
+            </svg>
+            Set it yourself
+          </label>
+        </div>
+        <p class="mode-desc" id="modeDesc">The tool generates a 20-character passphrase for you using lowercase, uppercase, digits, and symbols. Shown once after generation.</p>
+
+        <div id="customBlock" style="display:none; margin-top:18px;">
+          <div class="field">
+            <label for="passInput">Passphrase</label>
+            <div class="pass-wrap">
+              <input type="password" id="passInput" autocomplete="new-password" placeholder="At least 12 characters, 2 character types" aria-describedby="strengthLabel classList">
+              <button type="button" class="show-btn" id="showPassBtn" aria-label="Show passphrase" aria-pressed="false">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z"/>
+                  <circle cx="8" cy="8" r="2"/>
+                </svg>
+                <span id="showPassText">Show</span>
+              </button>
+            </div>
+            <div class="strength s0" id="strengthBar" aria-hidden="true">
+              <div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div>
+            </div>
+            <div class="strength-label" id="strengthLabel" aria-live="polite">
+              <span class="label-text" id="strengthLabelText">Type a passphrase to see its strength.</span>
+            </div>
+            <div class="classlist" id="classList" aria-label="Character types present">
+              <span data-cls="lower">
+                <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="6" cy="6" r="5"/></svg>
+                lowercase
+              </span>
+              <span data-cls="upper">
+                <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="6" cy="6" r="5"/></svg>
+                uppercase
+              </span>
+              <span data-cls="digit">
+                <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="6" cy="6" r="5"/></svg>
+                digit
+              </span>
+              <span data-cls="symbol">
+                <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="6" cy="6" r="5"/></svg>
+                symbol
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="generate-row">
+          <button type="button" class="btn-primary" id="generateBtn">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="2" y="2" width="12" height="12" rx="2"/>
+              <path d="M5 8h6M8 5v6"/>
+            </svg>
+            Generate row
+          </button>
+          <span class="reqs" id="reqsMsg">Enter the new Master's school ID and name to continue.</span>
+        </div>
+        <p id="generateError" class="notice danger" style="display:none;" role="alert"></p>
+      </div>
+    </section>
+
+    <section class="panel" id="outputPanel" style="display:none;" aria-live="polite">
+      <div class="panel-head">
+        <span class="step-badge">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:14px;height:14px;">
+            <path d="M3 8l3 3 7-7"/>
+          </svg>
+        </span>
+        <div>
+          <h2>Output</h2>
+          <p class="step-hint">Copy the passphrase to hand to the new Master. Copy the row to paste into the <code>Valid_Users</code> sheet.</p>
+        </div>
+      </div>
+      <div class="panel-body">
+
+        <div class="out-field" id="passphraseOutBlock">
+          <div class="label-row">
+            <span class="ttl">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:11px;height:11px;vertical-align:-1px;margin-right:4px;">
+                <path d="M11 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM5 7V5a3 3 0 0 1 6 0v2"/>
+                <path d="M2 13c.6-1.5 2.4-2.5 4-2.5h4c1.6 0 3.4 1 4 2.5"/>
+              </svg>
+              Passphrase
+            </span>
+            <span class="desc">shown only in this tab, never stored</span>
+          </div>
+          <div class="pass-wrap">
+            <input type="password" id="passphraseOut" readonly aria-label="Generated passphrase">
+            <button type="button" class="show-btn" id="showOutBtn" aria-label="Show passphrase" aria-pressed="false">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z"/>
+                <circle cx="8" cy="8" r="2"/>
+              </svg>
+              <span id="showOutText">Show</span>
+            </button>
+          </div>
+          <div class="row-actions">
+            <button type="button" class="btn-ghost btn-sm" id="copyPassBtn">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="5" y="5" width="9" height="9" rx="1.5"/>
+                <path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5"/>
+              </svg>
+              Copy passphrase
+            </button>
+            <span class="copied-flash" id="copyPassFlash"></span>
+          </div>
+        </div>
+
+        <div class="notice danger" style="margin-top:14px;">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M8 2l6 10H2L8 2z"/>
+            <path d="M8 7v3M8 12v.01"/>
+          </svg>
+          <div><strong>One-time view.</strong> Copy it now — the page does not remember the passphrase after you leave or refresh. It never touches disk, storage, or any network.</div>
+        </div>
+
+        <div class="out-field" style="margin-top:22px;">
+          <div class="label-row">
+            <span class="ttl">Row for Valid_Users</span>
+            <span class="desc">paste as a new row in the sheet</span>
+          </div>
+          <textarea id="rowOut" class="out" readonly rows="3" aria-label="Generated row for Valid_Users"></textarea>
+          <div class="row-actions">
+            <button type="button" class="btn-ghost btn-sm" id="copyRowBtn">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="5" y="5" width="9" height="9" rx="1.5"/>
+                <path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5"/>
+              </svg>
+              Copy row
+            </button>
+            <span class="copied-flash" id="copyRowFlash"></span>
+          </div>
+          <div class="field-key" id="fieldKey"></div>
+        </div>
+
+        <div class="notice info" style="margin-top:18px;">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="8" cy="8" r="6"/>
+            <path d="M8 5v4M8 11v.01"/>
+          </svg>
+          <div><strong>Next steps.</strong> Paste this row into the <code>Valid_Users</code> sheet of <code>Subject_Scheduler.xlsx</code> (the 6 columns are listed above, in order) and commit. Hand the passphrase to the new Master through a separate channel from their ID — never the same message, never the same chat.</div>
+        </div>
+
+      </div>
+    </section>
+
+  </div>
+
+  <footer>DFCAMCLP · Personalized School Record Management System · Generate Master</footer>
+</div>
+
+<script>
+
+/* Theme toggle is handled by shared/theme.js (loaded with defer). */
+
+/* ---------------- Access gate ----------------
+ * Mirrors audit_log.html and active_users.html: only the account owner
+ * (session.isOwner === true) gets the tool. OWNER_SCHOOL_ID is owned by
+ * index.html and copied into the session object at login time — we just
+ * read the boolean here. */
+const SESSION_KEY = 'srms_session';
+function getSession(){ try{ return JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); }catch(e){ return null; } }
+const session = getSession();
+const isMaster = !!session && session.role === 'Master';
+
+function escapeHtml(str){
+  return (str||'').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function renderSessionStrip(){
+  if(!session) return;
+  const strip = document.getElementById('sessionStrip');
+  strip.style.display = 'inline-flex';
+  strip.style.marginTop = '12px';
+  const roleClass = isMaster ? 'master' : 'guest';
+  strip.innerHTML = `Signed in as <b>${escapeHtml(session.name)}</b> <span class="role-pill ${roleClass}">${escapeHtml(session.role)}</span> <button id="logoutBtn" type="button" style="border:none;background:none;text-decoration:underline;cursor:pointer;font-size:12.5px;margin-left:4px;color:inherit;">Log out</button>`;
+  const lo = document.getElementById('logoutBtn');
+  if(lo) lo.addEventListener('click', () => {
+    sessionStorage.removeItem(SESSION_KEY);
+    window.location.href = 'index.html';
+  });
+}
+
+/* ---------------- Crypto (mirrors index.html exactly) ----------------
+ * These helpers are copied verbatim from index.html so a row produced here
+ * verifies under the real sign-in flow with no drift. If index.html's
+ * derivation ever changes, change it here too. */
+const AUTH_SALT = "SRMS-Santino67-67-v1";
+const PBKDF2_ITER = 300000;
+
+function b64ToBytes(b64){
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+function bytesToB64(bytes){
+  let bin = '';
+  const chunk = 0x8000;
+  for(let i=0;i<bytes.length;i+=chunk) bin += String.fromCharCode.apply(null, bytes.subarray(i, i+chunk));
+  return btoa(bin);
+}
+function bytesToHex(bytes){
+  return Array.from(bytes).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+async function hashId(id){
+  const enc = new TextEncoder().encode(AUTH_SALT + String(id).trim());
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  return bytesToHex(new Uint8Array(buf));
+}
+async function pbkdf2Bits(payload, saltBytes, iterations){
+  const keyMaterial = await crypto.subtle.importKey('raw', new TextEncoder().encode(payload), {name:'PBKDF2'}, false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({name:'PBKDF2', salt:saltBytes, iterations, hash:'SHA-256'}, keyMaterial, 256);
+  return new Uint8Array(bits);
+}
+
+/* Generate the 6-field row for a new Master.
+ *   id          raw school ID (string)
+ *   name        display name (string)
+ *   passphrase  the chosen/generated passphrase (string) */
+async function generateRow(id, name, passphrase){
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const verifierBits = await pbkdf2Bits(`${id}:${passphrase}:verify`, salt, PBKDF2_ITER);
+  const verifierHex  = bytesToHex(verifierBits);
+
+  const encKey = await pbkdf2Bits(`${id}:${passphrase}:enc`, salt, PBKDF2_ITER);
+  const aesKey = await crypto.subtle.importKey('raw', encKey, {name:'AES-GCM'}, false, ['encrypt']);
+  const iv   = crypto.getRandomValues(new Uint8Array(12));
+  const cipher = new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM', iv}, aesKey, new TextEncoder().encode(name)));
+
+  const uniqueId = await hashId(id);
+
+  return {
+    passphrase,
+    row: [
+      uniqueId,                              // Unique_Identifier
+      bytesToB64(iv),                        // Name_IV
+      bytesToB64(cipher),                    // Name_Enc
+      'Master',                              // Designation
+      bytesToB64(salt),                      // Master_Salt
+      verifierHex                            // Master_Verifier
+    ].join(',')
+  };
+}
+
+/* Auto-generate a 20-char passphrase from a 70+ char alphabet covering all
+ * 4 character types (lowercase, uppercase, digits, symbols). The exact mix
+ * is incidental; the README just requires 20 characters and at least 2
+ * character types, and 70+ symbols comfortably satisfies both. */
+function generatePassphrase(len = 20){
+  const alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+[]{};:,.<>/?';
+  const out = new Uint8Array(len);
+  crypto.getRandomValues(out);
+  let s = '';
+  for(let i=0;i<len;i++) s += alphabet[out[i] % alphabet.length];
+  return s;
+}
+
+/* ---------------- UI wiring ---------------- */
+const idInput   = document.getElementById('idInput');
+const nameInput = document.getElementById('nameInput');
+const passInput = document.getElementById('passInput');
+const modeAuto  = document.getElementById('modeAuto');
+const modeCustom= document.getElementById('modeCustom');
+const modeAutoLabel   = document.getElementById('modeAutoLabel');
+const modeCustomLabel = document.getElementById('modeCustomLabel');
+const modeDesc  = document.getElementById('modeDesc');
+const customBlock = document.getElementById('customBlock');
+const generateBtn = document.getElementById('generateBtn');
+const reqsMsg   = document.getElementById('reqsMsg');
+const generateError = document.getElementById('generateError');
+const outputPanel = document.getElementById('outputPanel');
+const rowOut    = document.getElementById('rowOut');
+const fieldKey  = document.getElementById('fieldKey');
+const passphraseOut  = document.getElementById('passphraseOut');
+const passphraseOutBlock = document.getElementById('passphraseOutBlock');
+const showPassBtn = document.getElementById('showPassBtn');
+const showPassText = document.getElementById('showPassText');
+const showOutBtn  = document.getElementById('showOutBtn');
+const showOutText  = document.getElementById('showOutText');
+const copyPassBtn = document.getElementById('copyPassBtn');
+const copyRowBtn  = document.getElementById('copyRowBtn');
+const copyPassFlash = document.getElementById('copyPassFlash');
+const copyRowFlash  = document.getElementById('copyRowFlash');
+const strengthBar   = document.getElementById('strengthBar');
+const strengthLabel = document.getElementById('strengthLabel');
+const strengthLabelText = document.getElementById('strengthLabelText');
+const classList = document.getElementById('classList');
+
+function currentMode(){ return modeCustom.checked ? 'custom' : 'auto'; }
+
+function setMode(mode){
+  const auto = mode === 'auto';
+  modeAuto.checked = auto;
+  modeCustom.checked = !auto;
+  modeAutoLabel.classList.toggle('active', auto);
+  modeCustomLabel.classList.toggle('active', !auto);
+  customBlock.style.display = auto ? 'none' : 'block';
+  modeDesc.textContent = auto
+    ? 'The tool generates a 20-character passphrase for you using lowercase, uppercase, digits, and symbols. Shown once after generation.'
+    : 'Type your own passphrase (min 12 characters, at least 2 character types). Hand it off however you like. The tool won\'t let you generate a row until both rules are met.';
+  // Reset the passphrase field when switching modes — any previously-typed
+  // value belongs to the other mode, and the strength meter is now stale.
+  passInput.value = '';
+  updatePassStrength();
+  hideOutput();
+  refreshGenerateState();
+}
+
+function classHits(p){
+  return {
+    lower: /[a-z]/.test(p),
+    upper: /[A-Z]/.test(p),
+    digit: /[0-9]/.test(p),
+    symbol:/[^a-zA-Z0-9]/.test(p)
+  };
+}
+function classCount(p){ const c = classHits(p); return c.lower + c.upper + c.digit + c.symbol; }
+function strengthScore(p){
+  if(!p) return 0;
+  const len = p.length;
+  const classes = classCount(p);
+  if(len < 8)  return 1;                                       // Too short
+  if(len < 12) return classes >= 3 ? 3 : 2;                    // Weak / Fair
+  if(len < 16) return classes >= 3 ? 4 : 3;                    // Fair / Good
+  return classes >= 4 ? 5 : (classes >= 2 ? 4 : 3);            // Good / Strong
+}
+function strengthLabelFor(score){
+  return ['', 'Too short', 'Weak', 'Fair', 'Good', 'Strong'][score] || '';
+}
+function meetsRequirements(p){
+  return p.length >= 12 && classCount(p) >= 2;
+}
+function updatePassStrength(){
+  const p = passInput.value;
+  const score = strengthScore(p);
+  strengthBar.className = 'strength s' + score;
+  const lbl = strengthLabelFor(score);
+  if(!p){
+    strengthLabelText.textContent = 'Type a passphrase to see its strength.';
+    strengthLabel.className = 'strength-label';
+  } else {
+    strengthLabelText.textContent = lbl + (meetsRequirements(p) ? ' · meets requirements' : ' · need 12+ chars and 2 character types');
+    strengthLabel.className = 'strength-label ' + (meetsRequirements(p) ? 'ok' : 'bad');
+  }
+  // Class checkmarks
+  const hits = classHits(p);
+  classList.querySelectorAll('span').forEach(el => {
+    el.classList.toggle('met', !!hits[el.dataset.cls]);
+  });
+}
+
+function refreshGenerateState(){
+  const id = idInput.value.trim();
+  const name = nameInput.value.trim();
+  let ok = id && name;
+  let msg = 'Enter the new Master\'s school ID and name to continue.';
+  if(!id)  msg = 'School ID is required.';
+  else if(!name) msg = 'Display name is required.';
+  else if(currentMode() === 'custom'){
+    if(!passInput.value){ ok = false; msg = 'Type a passphrase, or switch to Auto-generate.'; }
+    else if(!meetsRequirements(passInput.value)){ ok = false; msg = 'Passphrase needs 12+ chars and 2 character types.'; }
+    else msg = 'Ready to generate.';
+  } else {
+    msg = 'Ready to generate. A 20-character passphrase will be created for you.';
+  }
+  generateBtn.disabled = !ok;
+  reqsMsg.textContent = msg;
+  reqsMsg.classList.toggle('ready', ok);
+}
+
+function hideOutput(){
+  outputPanel.style.display = 'none';
+  rowOut.value = '';
+  passphraseOut.value = '';
+  passphraseOut.type = 'password';
+  showOutText.textContent = 'Show';
+  showOutBtn.setAttribute('aria-pressed', 'false');
+  copyPassFlash.textContent = '';
+  copyRowFlash.textContent = '';
+}
+function flashCopied(el, text){
+  el.innerHTML = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8l3 3 7-7"/></svg> ${text}`;
+  if(window.SRMS && SRMS.announce) SRMS.announce(el, text);
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.innerHTML = ''; }, 1800);
+}
+
+async function copyToClipboard(text){
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  }catch(e){}
+  // Fallback: temporary textarea + execCommand. Best-effort.
+  try{
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    return true;
+  }catch(e){ return false; }
+}
+
+async function handleGenerate(){
+  generateError.style.display = 'none';
+  const id = idInput.value.trim();
+  const name = nameInput.value.trim();
+  if(!id || !name) return;
+
+  let passphrase;
+  if(currentMode() === 'auto'){
+    passphrase = generatePassphrase(20);
+  } else {
+    passphrase = passInput.value;
+    if(!meetsRequirements(passphrase)) return;
+  }
+
+  generateBtn.disabled = true;
+  const oldText = generateBtn.innerHTML;
+  generateBtn.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:14px;height:14px;animation:spin 0.9s linear infinite"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9" /></svg> Generating…';
+  // Inject the spin keyframes once.
+  if(!document.getElementById('spinKeyframes')){
+    const s = document.createElement('style');
+    s.id = 'spinKeyframes';
+    s.textContent = '@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}';
+    document.head.appendChild(s);
+  }
+  try{
+    const { row } = await generateRow(id, name, passphrase);
+
+    rowOut.value = row;
+    passphraseOut.value = passphrase;
+    passphraseOutBlock.style.display = 'block';
+    fieldKey.innerHTML =
+      '<b>Unique_Identifier</b><span class="sep">,</span>' +
+      '<b>Name_IV</b><span class="sep">,</span>' +
+      '<b>Name_Enc</b><span class="sep">,</span>' +
+      '<b>Designation</b><span class="sep">,</span>' +
+      '<b>Master_Salt</b><span class="sep">,</span>' +
+      '<b>Master_Verifier</b>';
+    outputPanel.style.display = 'block';
+
+    outputPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }catch(e){
+    generateError.textContent = 'Could not generate row: ' + (e && e.message ? e.message : e);
+    generateError.style.display = 'flex';
+  }finally{
+    generateBtn.innerHTML = oldText;
+    refreshGenerateState();
+  }
+}
+
+/* ---------------- Wire-up ---------------- */
+modeAuto.addEventListener('change', () => setMode('auto'));
+modeCustom.addEventListener('change', () => setMode('custom'));
+modeAutoLabel.addEventListener('click', () => setMode('auto'));
+modeCustomLabel.addEventListener('click', () => setMode('custom'));
+
+idInput.addEventListener('input', refreshGenerateState);
+nameInput.addEventListener('input', refreshGenerateState);
+passInput.addEventListener('input', () => { updatePassStrength(); refreshGenerateState(); });
+
+function toggleVisibility(input, btn, textEl){
+  const isPw = input.type === 'password';
+  input.type = isPw ? 'text' : 'password';
+  textEl.textContent = isPw ? 'Hide' : 'Show';
+  btn.setAttribute('aria-pressed', isPw ? 'true' : 'false');
+  btn.setAttribute('aria-label', isPw ? 'Hide passphrase' : 'Show passphrase');
+}
+showPassBtn.addEventListener('click', () => toggleVisibility(passInput, showPassBtn, showPassText));
+showOutBtn.addEventListener('click',  () => toggleVisibility(passphraseOut, showOutBtn, showOutText));
+
+copyPassBtn.addEventListener('click', async () => {
+  const v = passphraseOut.value;
+  if(!v) return;
+  const ok = await copyToClipboard(v);
+  flashCopied(copyPassFlash, ok ? 'Copied to clipboard' : 'Copy failed — select and copy manually');
+});
+copyRowBtn.addEventListener('click', async () => {
+  const v = rowOut.value;
+  if(!v) return;
+  const ok = await copyToClipboard(v);
+  flashCopied(copyRowFlash, ok ? 'Copied to clipboard' : 'Copy failed — select and copy manually');
+});
+
+generateBtn.addEventListener('click', handleGenerate);
+
+/* ---------------- Boot ---------------- */
+if(!session){
+  document.getElementById('accessLockedPanel').style.display = 'block';
+} else if(!session.isOwner){
+  document.getElementById('lockedTitle').textContent = 'Restricted';
+  document.getElementById('lockedText').textContent = "The master credential tool is only available to the account owner.";
+  document.getElementById('accessLockedPanel').style.display = 'block';
+  renderSessionStrip();
+} else {
+  renderSessionStrip();
+  document.getElementById('content').style.display = 'block';
+  refreshGenerateState();
+  updatePassStrength();
+}
+</script>
+</body>
+</html>
