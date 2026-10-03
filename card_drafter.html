@@ -28,16 +28,16 @@
     .row .field { width: 100%; }
     .card-item .top { flex-direction: column; align-items: flex-start; }
   }
-  body{ margin:0; background:radial-gradient(circle at 15% -10%, rgba(10,42,82,.06), transparent 55%), var(--paper); color:var(--graphite); font-family:'Public Sans',system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
+  body{ margin:0; background:radial-gradient(circle at 15% -10%, var(--color-tint), transparent 55%), var(--paper); color:var(--graphite); font-family:'Public Sans',system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
   .wrap{max-width:900px; margin:0 auto; padding:32px 26px 90px;}
   a{color:inherit;}
   button{ font-family:'Public Sans',sans-serif; font-weight:600; font-size:13.5px; border-radius:7px; border:1.5px solid var(--ink); padding:9px 16px; cursor:pointer; background:transparent; color:var(--ink); transition:transform .12s ease, background .15s ease, opacity .15s ease; }
   button:hover:not(:disabled){transform:translateY(-1px);}
   button:disabled{opacity:.45; cursor:not-allowed; transform:none;}
-  .btn-primary{background:var(--accent); color:#fff;}
+  .btn-primary{background:var(--accent); color:var(--color-brand-on);}
   .btn-primary:hover:not(:disabled){background:var(--accent-hover);}
   .btn-highlight{background:var(--highlighter); border-color:var(--highlighter); color:var(--highlighter-ink);}
-  .btn-highlight:hover:not(:disabled){background:#f0c453;}
+  .btn-highlight:hover:not(:disabled){background:var(--color-accent-hover);}
   .btn-ghost{border-color:var(--paper-line); color:var(--graphite); background:var(--card);}
   .btn-danger{border-color:var(--pencil-red); color:var(--pencil-red); background:var(--card);}
   .btn-sm{padding:5px 10px; font-size:12px;}
@@ -64,15 +64,13 @@
   label{font-size:11.5px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:var(--muted);}
   /* Base input/textarea/select styles come from shared/components.css. */
   textarea{resize:vertical; font-family:inherit; line-height:1.45; min-height:44px;}
-  .dropzone{border:1.5px dashed var(--paper-line); border-radius:var(--radius); padding:24px; text-align:center; cursor:pointer; background:#fdfcfa;}
+  .dropzone{border:1.5px dashed var(--paper-line); border-radius:var(--radius); padding:24px; text-align:center; cursor:pointer; background:var(--color-bg-elevated);}
   .dropzone.drag{border-color:var(--sage); background:var(--sage-bg);}
   .dropzone .hint{color:var(--muted); font-size:12.5px; margin-top:6px;}
   .filepill{display:inline-flex; align-items:center; gap:8px; font-family:'IBM Plex Mono',monospace; font-size:12px; background:var(--sage-bg); color:var(--sage); padding:5px 10px; border-radius:6px; margin-top:10px;}
-  [data-theme="dark"] .filepill{color:#c9e2cd;}
   details.preview{margin-top:12px;}
   details.preview summary{cursor:pointer; font-size:12.5px; color:var(--muted); font-family:'IBM Plex Mono',monospace;}
-  pre.extract{white-space:pre-wrap; font-size:12px; max-height:220px; overflow:auto; background:#faf8f3; border:1px solid var(--paper-line); border-radius:7px; padding:12px; margin-top:8px; line-height:1.5;}
-  [data-theme="dark"] pre.extract{background:#181a22;}
+  pre.extract{white-space:pre-wrap; font-size:12px; max-height:220px; overflow:auto; background:var(--color-bg); border:1px solid var(--paper-line); border-radius:7px; padding:12px; margin-top:8px; line-height:1.5;}
   .status{font-size:12.5px; margin-top:10px; color:var(--muted);}
   .status.err{color:var(--pencil-red);}
   .status.ok{color:var(--sage);}
@@ -88,6 +86,26 @@
   .export-row{display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;}
   .warn-box{background:var(--sage-bg); border:1px solid var(--sage); color:var(--ink); font-size:12.5px; padding:10px 12px; border-radius:7px; margin-top:14px; line-height:1.5;}
   .step-num{display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:50%; background:var(--ink); color:var(--paper); font-family:'IBM Plex Mono',monospace; font-size:11px; margin-right:8px;}
+  [data-ai-only][hidden]{display:none !important;}
+  section.panel .hint{ font-size:12.5px; color:var(--muted); line-height:1.5; margin:6px 0 0; }
+  section.panel .hint code{ font-size:11.5px; }
+  #recentDecks{ display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+  #recentDecks:empty{ display:none; }
+  .deck-chip{ font-family:'IBM Plex Mono',monospace; font-size:11.5px; font-weight:500; padding:4px 10px; min-height:32px; border-radius:var(--radius-full); border:1px solid var(--paper-line); background:var(--color-bg-hover); color:var(--graphite); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  details.format-guide, details.paste-box{ margin-top:12px; }
+  details.format-guide summary, details.paste-box summary{ cursor:pointer; font-size:12.5px; color:var(--muted); font-family:'IBM Plex Mono',monospace; min-height:32px; display:flex; align-items:center; }
+  .hint-list{ margin:8px 0 10px; padding-left:18px; font-size:12.5px; color:var(--graphite); line-height:1.55; }
+  .hint-list code, .hint code{ font-family:'IBM Plex Mono',monospace; font-size:11.5px; background:var(--color-bg-hover); padding:1px 5px; border-radius:4px; }
+  .paste-box textarea{ margin-top:8px; font-family:'IBM Plex Mono',monospace; font-size:12.5px; }
+  .import-warn{ margin:12px 0 0; padding:10px 12px 10px 28px; font-size:12.5px; line-height:1.5; color:var(--color-warning-text); background:var(--color-warning-subtle); border:1px solid var(--color-warning); border-radius:var(--radius-sm); max-height:180px; overflow:auto; }
+  .dup-pill{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--color-warning-text); background:var(--color-warning-subtle); padding:2px 7px; border-radius:4px; }
+  .card-item.invalid{ border-color:var(--pencil-red); }
+  @media (max-width:560px){
+    .wrap{ padding:20px 12px 70px; }
+    section.panel{ padding:16px 14px; }
+    .row{ gap:10px; }
+    .field{ min-width:100%; }
+  }
   footer{text-align:center; color:var(--muted); font-size:12px; margin-top:36px;}
 </style>
 </head>
@@ -133,7 +151,7 @@
   </div>
 
   <div id="content" style="display:none;">
-    <p class="lede">Upload a file from a class, get a batch of draft cards, edit anything that's off, then decide what happens to them. Nothing touches the shared deck until you click <strong>Save to shared deck</strong> — that goes through the same sign-in and passphrase check as adding a card by hand.</p>
+    <p class="lede">Two ways to make cards: <strong>write them yourself</strong> in a simple text format (a .txt, .docx, .pdf or pasted text) and import them in one go, or let the AI draft cards from class notes. Nothing touches the shared deck until you click <strong>Save to shared deck</strong>.</p>
 
     <section class="panel">
       <h2><span class="step-num">1</span>Source material</h2>
@@ -144,6 +162,26 @@
       </div>
       <div id="filePillWrap"></div>
       <div class="status" id="parseStatus" aria-live="polite" role="status"></div>
+      <ul class="import-warn" id="importWarnings" style="display:none;"></ul>
+      <details class="format-guide">
+        <summary>Import format guide &amp; template</summary>
+        <p class="hint">Put each card in its own block. <strong>The answer is always the back of the card.</strong> Works in .txt, .docx, .pdf, .md or pasted text.</p>
+        <pre class="extract">Question(front): What is the largest planet in the solar system?
+Answer(back): Jupiter
+
+Question: [[Jupiter]] is the largest planet in the solar system.</pre>
+        <ul class="hint-list">
+          <li><strong>Identification:</strong> a <code>Question(front):</code> line followed by an <code>Answer(back):</code> line. <code>Question:</code> / <code>Answer:</code> and <code>Q:</code> / <code>A:</code> (at the start of a line) also work.</li>
+          <li><strong>Fill in the blank:</strong> wrap the answer in double brackets, <code>[[like this]]</code>. If a sentence has several, you get one card per blank.</li>
+          <li>Blank lines between cards are recommended. Text that doesn't fit the format is skipped and reported below.</li>
+        </ul>
+        <button type="button" class="btn-ghost btn-sm" id="downloadTemplateBtn">Download template (.txt)</button>
+      </details>
+      <details class="paste-box">
+        <summary>Or paste text instead of uploading a file</summary>
+        <textarea id="pasteInput" rows="6" placeholder="Question(front): ...&#10;Answer(back): ...&#10;&#10;Question: The [[mitochondria]] is the powerhouse of the cell."></textarea>
+        <div class="row" style="margin-top:8px;"><button type="button" class="btn-ghost btn-sm" id="usePasteBtn">Use pasted text</button></div>
+      </details>
       <details class="preview" id="previewWrap" style="display:none;">
         <summary>Preview extracted text</summary>
         <pre class="extract" id="extractPreview"></pre>
@@ -153,18 +191,20 @@
     <section class="panel">
       <div class="panel-header">
         <h2><span class="step-num">2</span>Draft options</h2>
-        <div class="drafter-status-row">
+        <div class="drafter-status-row" data-ai-only>
           <span class="badge" id="drafterBadge">No setup required</span>
           <button type="button" class="btn-icon" id="openDrafterSettings" aria-label="Drafter settings" title="Drafter settings">⚙</button>
         </div>
       </div>
       <div class="row">
         <div class="field grow">
-          <label for="deckNameInput">Deck</label>
-          <input type="text" id="deckNameInput" list="deckDatalist" placeholder="e.g. IS104 — Week 2-3 SDLC">
+          <label for="deckNameInput">Import into deck</label>
+          <input type="text" id="deckNameInput" list="deckDatalist" placeholder="e.g. 3rd_Year / Midterm / Biology / Lesson 1" autocomplete="off">
           <datalist id="deckDatalist"></datalist>
+          <div id="recentDecks" aria-label="Recently used decks"></div>
+          <div class="hint" style="margin-top:4px;">Separate levels with <code>/</code> (Year / Term / Subject / Lesson). Every import goes into this deck.</div>
         </div>
-        <div class="field">
+        <div class="field" data-ai-only>
           <label for="cardStyle">Card style</label>
           <select id="cardStyle">
             <option value="basic">Identification</option>
@@ -172,19 +212,19 @@
             <option value="mix" selected>Mix of both</option>
           </select>
         </div>
-        <div class="field">
+        <div class="field" data-ai-only>
           <label for="targetCount">Target count</label>
           <input type="number" id="targetCount" value="15" min="3" max="60">
         </div>
       </div>
-      <div class="row" style="margin-top:12px;">
+      <div class="row" style="margin-top:12px;" data-ai-only>
         <div class="field grow">
           <label for="focusNote">Prioritize keyword (optional)</label>
           <input type="text" id="focusNote" placeholder="e.g. SDLC — lines containing this are drafted first">
         </div>
       </div>
 
-      <details class="drafter-fallback" id="drafterFallback" style="display:none;">
+      <details class="drafter-fallback" data-ai-only id="drafterFallback" style="display:none;">
         <summary>Why isn't AI drafting available?</summary>
         <p class="hint">Drafting uses a single Gemini API key held on the server, so the moment it's set up, everyone on the site can use it — no per-user key, no signup. If the badge above says "Not configured" and drafting is grayed out, the server admin hasn't set the <code>GEMINI_API_KEY</code> env var yet. Until then, you can still type cards in by hand using the "Add card" panel below.</p>
       </details>
@@ -194,7 +234,7 @@
         <span class="status" id="genStatus" aria-live="polite" role="status"></span>
       </div>
       <div class="progress-track" id="progressTrack"><div class="progress-fill" id="progressFill"></div></div>
-      <p class="hint" style="margin-top:10px;">An AI pass reads the extracted text and pulls out candidate cards — it's told to extract only (no outside explanation, filler, or examples) and to skip agenda lines, page numbers, and other non-testable fragments rather than force a card out of them. It's better at handling material that doesn't fit a rigid "Term: definition" shape, but it's still a draft: check it against the source before approving.</p>
+      <p class="hint" data-ai-only style="margin-top:10px;">An AI pass reads the extracted text and pulls out candidate cards — it's told to extract only (no outside explanation, filler, or examples) and to skip agenda lines, page numbers, and other non-testable fragments rather than force a card out of them. It's better at handling material that doesn't fit a rigid "Term: definition" shape, but it's still a draft: check it against the source before approving.</p>
     </section>
 
     <section class="panel">
@@ -230,7 +270,7 @@
       </div>
       <div class="status" id="exportStatus" aria-live="polite" role="status"></div>
 
-      <div class="warn-box">Drafting sends only the extracted file text through this app's own server (never your school ID, passphrase, or editing token) to Google's Gemini API using a single universal key held on the server — so the moment it's configured, everyone on the site can use it without signing up for their own. The model is instructed to extract questions as-is and not add anything the file doesn't say. Saving to the shared deck is a separate step that goes through the same sign-in check as every other change in this app.</div>
+      <div class="warn-box" data-ai-only>Drafting sends only the extracted file text through this app's own server (never your school ID, passphrase, or editing token) to Google's Gemini API using a single universal key held on the server — so the moment it's configured, everyone on the site can use it without signing up for their own. The model is instructed to extract questions as-is and not add anything the file doesn't say. Saving to the shared deck is a separate step that goes through the same sign-in check as every other change in this app.</div>
     </section>
   </div>
 
@@ -331,8 +371,8 @@ function arrayBufferToB64(buf){
   for(let i=0;i<bytes.length;i+=chunk) bin += String.fromCharCode.apply(null, bytes.subarray(i,i+chunk));
   return btoa(bin);
 }
-function deckKey(s){ return (s||'').trim().toLowerCase().replace(/\s+/g,' ').replace(/\s*-\s*/g,' - '); }
-function cleanDeckSpelling(s){ return (s||'').trim().replace(/\s+/g,' ').replace(/\s*-\s*/g,' - '); }
+function deckKey(s){ return (s||'').trim().toLowerCase().replace(/\s+/g,' ').replace(/\s*-\s*/g,' - ').replace(/\s*\/\s*/g,' / '); }
+function cleanDeckSpelling(s){ return (s||'').trim().replace(/\s+/g,' ').replace(/\s*-\s*/g,' - ').replace(/\s*\/\s*/g,' / '); }
 function canonicalizeDeck(input){
   const key = deckKey(input);
   const existing = cards.find(c => deckKey(c.deck) === key);
@@ -527,10 +567,6 @@ async function handleFile(file){
   pill.textContent = '📄 ' + file.name + ' — ' + Math.round(file.size/1024) + ' KB';
   filePillWrap.appendChild(pill);
 
-  if (!deckNameInput.value.trim()) {
-    deckNameInput.value = file.name.replace(/\.[^.]+$/, '').replace(/[_\-]+/g,' ').trim();
-  }
-
   parseStatus.className = 'status'; parseStatus.textContent = 'Reading file…';
   generateBtn.disabled = true;
   extractedText = '';
@@ -548,11 +584,9 @@ async function handleFile(file){
       parseStatus.textContent = 'Could not find readable text in this file. Try a .txt/.docx export of it instead.';
       return;
     }
-    parseStatus.className = 'status ok';
-    parseStatus.textContent = 'Extracted ' + extractedText.length.toLocaleString() + ' characters. Ready to draft cards.';
     extractPreview.textContent = extractedText.slice(0, 6000) + (extractedText.length > 6000 ? '\n\n…(truncated preview; full text is used for drafting)' : '');
     previewWrap.style.display = 'block';
-    generateBtn.disabled = false;
+    applySourceText();
   } catch (err) {
     parseStatus.className = 'status err';
     parseStatus.textContent = 'Could not read this file: ' + (err && err.message ? err.message : err);
@@ -606,6 +640,185 @@ async function parseXlsx(file){
   wb.SheetNames.forEach(name => { text += '## ' + name + '\n' + XLSX.utils.sheet_to_csv(wb.Sheets[name]) + '\n\n'; });
   return text;
 }
+
+
+/* =====================================================================
+   Manual structured import (no AI).
+     Question(front): ...        Question: [[Jupiter]] is the largest planet.
+     Answer(back): ...
+   Answer is always the back. [[double brackets]] = fill-in-the-blank.
+   Works on text from .txt/.md/.docx/.pdf/pasted text. PDFs lose line
+   breaks, so the long marker words (Question/Answer/Front/Back) are matched
+   anywhere; the short Q:/A: forms only at the start of a line.
+   ===================================================================== */
+const BLANK_RE = /\[\[([^\[\]]+?)\]\]/g;
+function hasBlank(t){ BLANK_RE.lastIndex = 0; const r = BLANK_RE.test(t); BLANK_RE.lastIndex = 0; return r; }
+function clip(t, n){ t = String(t).replace(/\s+/g,' ').trim(); return t.length > n ? t.slice(0, n) + '…' : t; }
+
+function clozeCardsFromSentence(sentence){
+  const answers = [];
+  sentence.replace(BLANK_RE, (m, a) => { answers.push(a.trim()); return m; });
+  return answers.map((ans, i) => {
+    let k = -1;
+    const front = sentence.replace(BLANK_RE, (m, a) => { k++; return k === i ? CLOZE_MARKER : a.trim(); }).replace(/\s+/g,' ').trim();
+    return { type:'cloze', front, back:ans };
+  }).filter(c => c.back);
+}
+
+function parseStructuredCards(raw){
+  const text = String(raw || '').replace(/\r\n?/g, '\n');
+  const markers = [];
+  const longRe = /(^|[\s(\[])(Question|Answer|Front|Back)\s*(?:\(\s*(?:front|back)\s*\)\s*)?[:：]/gi;
+  let m;
+  while ((m = longRe.exec(text))) {
+    const start = m.index + m[1].length;
+    markers.push({ kind: /^(question|front)$/i.test(m[2]) ? 'q' : 'a', start, end: longRe.lastIndex });
+  }
+  const shortRe = /^[ \t]*(?:\d{1,3}[.)]\s*)?(Q|A)\s*[:：]/gim;
+  while ((m = shortRe.exec(text))) {
+    const start = m.index + m[0].search(/\S/);
+    if (markers.some(k => start < k.end && m.index + m[0].length > k.start)) continue;
+    markers.push({ kind: m[1].toUpperCase() === 'Q' ? 'q' : 'a', start, end: m.index + m[0].length });
+  }
+  markers.sort((a, b) => a.start - b.start);
+
+  const out = { cards: [], warnings: [], ignored: 0 };
+  const paras = seg => String(seg || '').split(/\n\s*\n/).map(p => p.split('\n').map(l => l.trim()).filter(Boolean).join('\n')).filter(p => p && !/^(?:\d{1,3}[.)]|[-•*])$/.test(p));
+  const stripListNo = t => t.replace(/(?:^|\s)(?:\d{1,3}[.)]|[-•*])\s*$/, '').trim();
+  // Extra paragraphs after the first one: [[blank]] sentences become cloze cards, the rest is skipped.
+  const takeExtras = ps => ps.forEach(p => {
+    if (hasBlank(p)) clozeCardsFromSentence(p.replace(/\n/g, ' ')).forEach(c => out.cards.push(c));
+    else out.ignored++;
+  });
+
+  if (!markers.length) {                     // no markers at all: pick up [[blank]] sentences only
+    takeExtras(paras(text));
+    return out;
+  }
+  takeExtras(paras(text.slice(0, markers[0].start)));   // preamble
+
+  let cur = null;                            // card being built: {front, back}
+  const flush = () => {
+    if (!cur) return;
+    if (cur.front && cur.back) {
+      if (hasBlank(cur.front)) {
+        out.warnings.push('Has both [[blanks]] and an answer, imported as Identification with the brackets removed: "' + clip(cur.front, 60) + '"');
+        out.cards.push({ type:'basic', front: cur.front.replace(BLANK_RE, '$1'), back: cur.back });
+      } else out.cards.push({ type:'basic', front: cur.front, back: cur.back });
+    } else if (cur.front && hasBlank(cur.front)) {
+      clozeCardsFromSentence(cur.front.replace(/\n/g, ' ')).forEach(c => out.cards.push(c));
+    } else if (cur.front) {
+      out.warnings.push('Question without an answer, skipped: "' + clip(cur.front, 70) + '"');
+    }
+    cur = null;
+  };
+  markers.forEach((mk, i) => {
+    const seg = text.slice(mk.end, i + 1 < markers.length ? markers[i + 1].start : text.length);
+    const ps = paras(seg);
+    const first = stripListNo(ps[0] || '');
+    if (mk.kind === 'q') {
+      flush();
+      cur = { front: first, back: '' };
+    } else if (cur && cur.front && !cur.back) {
+      cur.back = first;
+      if (!first) out.warnings.push('Empty answer for: "' + clip(cur.front, 70) + '"');
+    } else {
+      out.warnings.push('Answer without a question, skipped: "' + clip(first, 70) + '"');
+    }
+    if (ps.length > 1) {
+      // The first paragraph belongs to the marker. If it was the last marker's answer, flush first so order is kept.
+      if (mk.kind === 'a') flush();
+      takeExtras(ps.slice(1));
+    }
+  });
+  flush();
+  return out;
+}
+
+/* Recent-deck memory shared with the Study Hub (same origin, same keys). */
+const LAST_DECK_KEY = 'srms_last_deck', RECENT_DECKS_KEY = 'srms_recent_decks';
+function loadLastDeck(){ try{ return localStorage.getItem(LAST_DECK_KEY) || ''; }catch(e){ return ''; } }
+function loadRecentDecks(){ try{ const a = JSON.parse(localStorage.getItem(RECENT_DECKS_KEY) || '[]'); return Array.isArray(a) ? a.filter(x => typeof x === 'string').slice(0,6) : []; }catch(e){ return []; } }
+function rememberDeck(deck){
+  try{
+    localStorage.setItem(LAST_DECK_KEY, deck);
+    const rec = [deck, ...loadRecentDecks().filter(d => deckKey(d) !== deckKey(deck))].slice(0,6);
+    localStorage.setItem(RECENT_DECKS_KEY, JSON.stringify(rec));
+  }catch(e){}
+}
+function renderRecentDeckChips(){
+  const box = document.getElementById('recentDecks');
+  box.innerHTML = loadRecentDecks().map(d => `<button type="button" class="deck-chip" data-deck-chip="${escapeHtml(d)}" title="${escapeHtml(d)}">${escapeHtml(d.split(' / ').slice(-2).join(' › ').replace(/_/g,' '))}</button>`).join('');
+}
+document.getElementById('recentDecks').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-deck-chip]');
+  if (!b) return;
+  deckNameInput.value = b.dataset.deckChip;
+  deckTitle.textContent = deckNameInput.value;
+});
+
+let structured = null;   // result of parseStructuredCards when the loaded text uses the manual format
+const importWarnings = document.getElementById('importWarnings');
+function applySourceText(){
+  // Called after any file/paste is read into extractedText.
+  structured = null;
+  importWarnings.style.display = 'none'; importWarnings.innerHTML = '';
+  const res = parseStructuredCards(extractedText);
+  const aiEls = document.querySelectorAll('[data-ai-only]');
+  if (res.cards.length) {
+    structured = res;
+    aiEls.forEach(el => el.hidden = true);
+    const nb = res.cards.filter(c => c.type === 'basic').length, nc = res.cards.length - nb;
+    parseStatus.className = 'status ok';
+    parseStatus.textContent = 'Structured format detected: ' + res.cards.length + ' card' + (res.cards.length === 1 ? '' : 's') + ' (' + nb + ' identification, ' + nc + ' fill-in-the-blank). AI drafting is skipped — pick a deck and import.';
+    generateBtn.textContent = 'Import ' + res.cards.length + ' card' + (res.cards.length === 1 ? '' : 's');
+    const notes = res.warnings.slice();
+    if (res.ignored) notes.push(res.ignored + ' other text block' + (res.ignored === 1 ? ' was' : 's were') + ' skipped (not part of a card).');
+    if (notes.length) { importWarnings.innerHTML = notes.map(n => '<li>' + escapeHtml(n) + '</li>').join(''); importWarnings.style.display = 'block'; }
+  } else {
+    aiEls.forEach(el => el.hidden = false);
+    generateBtn.textContent = 'Draft cards from this file';
+    parseStatus.className = 'status ok';
+    parseStatus.textContent = 'Extracted ' + extractedText.length.toLocaleString() + ' characters. No Question/Answer or [[blank]] format found, so the AI drafter will be used.';
+  }
+  renderRecentDeckChips();
+  generateBtn.disabled = false;
+}
+function importStructured(){
+  const deckRaw = deckNameInput.value.trim();
+  if (!deckRaw) {
+    genStatus.className = 'status err'; genStatus.textContent = 'Choose which deck these cards go into first.';
+    deckNameInput.focus();
+    return;
+  }
+  const seen = new Set();
+  let dupes = 0;
+  structured.cards.forEach(c => {
+    const key = normalizeForDedupe(c.front);
+    const dupe = (key && seen.has(key)) || isNearDuplicate(c.front);
+    if (key) seen.add(key);
+    if (dupe) dupes++;
+    pendingCards.push({ tempId: uid(), type: c.type, front: c.front, back: c.back, checked: !dupe, dupe });
+  });
+  rememberDeck(canonicalizeDeck(deckRaw));
+  renderPending();
+  genStatus.className = 'status ok';
+  genStatus.textContent = structured.cards.length + ' cards imported into the review list below' + (dupes ? ' — ' + dupes + ' possible duplicate' + (dupes === 1 ? '' : 's') + ' left unchecked' : '') + '. Review, then approve.';
+  generateBtn.disabled = true;      // avoid importing the same file twice
+  structured = null;
+  document.getElementById('pendingList').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+document.getElementById('usePasteBtn').addEventListener('click', () => {
+  const t = document.getElementById('pasteInput').value.trim();
+  if (!t) return;
+  extractedText = t;
+  filePillWrap.innerHTML = '';
+  extractPreview.textContent = ''; previewWrap.style.display = 'none';
+  applySourceText();
+});
+document.getElementById('downloadTemplateBtn').addEventListener('click', () => {
+  downloadBlob(['Question(front): What is the largest planet in the solar system?','Answer(back): Jupiter','','Question(front): Who proposed the waterfall model?','Answer(back): Winston Royce','','Question: [[Jupiter]] is the largest planet in the solar system.','','Question: The [[mitochondria]] is the powerhouse of the [[cell]].',''].join('\n'), 'card-import-template.txt', 'text/plain');
+});
 
 /* ---- dedupe against the LIVE shared deck ---- */
 function normalizeForDedupe(s){
@@ -746,6 +959,7 @@ const progressFill = document.getElementById('progressFill');
 
 generateBtn.addEventListener('click', async () => {
   if (!extractedText) return;
+  if (structured) { importStructured(); return; }
   const style = document.getElementById('cardStyle').value;
   const target = Math.max(3, Math.min(60, parseInt(document.getElementById('targetCount').value, 10) || 15));
   const focusNote = document.getElementById('focusNote').value.trim();
@@ -797,7 +1011,7 @@ function renderPending(){
 
   pendingCards.forEach(card => {
     const item = document.createElement('div');
-    item.className = 'card-item' + (card.checked ? '' : ' discarded');
+    item.className = 'card-item' + (card.checked ? '' : ' discarded') + (card.invalid ? ' invalid' : '');
 
     const top = document.createElement('div'); top.className = 'top';
     const left = document.createElement('label');
@@ -805,8 +1019,9 @@ function renderPending(){
     const cb = document.createElement('input');
     cb.type = 'checkbox'; cb.checked = card.checked;
     cb.addEventListener('change', () => { card.checked = cb.checked; renderPending(); });
-    const pill = document.createElement('span'); pill.className = 'type-pill'; pill.textContent = card.type;
+    const pill = document.createElement('span'); pill.className = 'type-pill'; pill.textContent = card.type === 'cloze' ? 'fill-in-the-blank' : 'identification';
     left.appendChild(cb); left.appendChild(pill);
+    if (card.dupe) { const dp = document.createElement('span'); dp.className = 'dup-pill'; dp.textContent = 'possible duplicate'; left.appendChild(dp); }
     const del = document.createElement('button'); del.className = 'btn-ghost btn-sm'; del.textContent = 'Remove';
     del.addEventListener('click', () => { pendingCards = pendingCards.filter(c => c.tempId !== card.tempId); renderPending(); });
     top.appendChild(left); top.appendChild(del);
@@ -834,8 +1049,17 @@ document.getElementById('discardAllBtn').addEventListener('click', () => { pendi
 
 document.getElementById('approveBtn').addEventListener('click', () => {
   const deck = canonicalizeDeck(deckNameInput.value.trim() || 'Untitled deck');
+  pendingCards.forEach(c => { c.invalid = c.checked && c.type === 'cloze' && !c.front.includes(CLZ); });
+  const badCloze = pendingCards.filter(c => c.invalid).length;
+  if (badCloze) {
+    renderPending();
+    genStatus.className = 'status err';
+    genStatus.textContent = badCloze + ' fill-in-the-blank card' + (badCloze === 1 ? ' is' : 's are') + ' missing the blank (' + CLZ + ') — fix or uncheck ' + (badCloze === 1 ? 'it' : 'them') + ' first.';
+    return;
+  }
   const approved = pendingCards.filter(c => c.checked && c.front.trim() && c.back.trim());
   if (!approved.length) return;
+  rememberDeck(deck);
   approved.forEach(c => draftedCards.push({ id: uid(), deck, type: c.type, front: c.front.trim(), back: c.back.trim() }));
   pendingCards = pendingCards.filter(c => !(c.checked && c.front.trim() && c.back.trim()));
   renderPending();
@@ -903,6 +1127,7 @@ saveSharedBtn.addEventListener('click', async () => {
   const ts = new Date().toISOString();
   draftedCards.forEach(c => cards.push({ id:c.id, deck:c.deck, type:c.type, front:c.front, back:c.back, createdBy:session.name, createdAt:ts, updatedAt:ts }));
   const deckLabel = draftedCards[0] ? draftedCards[0].deck : '';
+  rememberDeck(deckLabel);
   const ok = await persistCards('Add Flashcards (drafted)', draftedCards.length + ' cards to ' + deckLabel);
   if (ok) {
     draftedCards = [];
@@ -1002,6 +1227,9 @@ if(!session){
     const saved = localStorage.getItem(TOKEN_KEY);
     if(saved && isMaster){ ghToken = saved; editingEnabled = true; }
   }catch(e){}
+  deckNameInput.value = loadLastDeck();
+  deckTitle.textContent = deckNameInput.value || 'untitled';
+  renderRecentDeckChips();
   loadFromGitHub();
   renderPending();
   renderDrafted();

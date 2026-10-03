@@ -19,7 +19,7 @@
      Legacy var names are aliased at the bottom of design-tokens.css. */
   *{box-sizing:border-box;}
   select{ background:var(--card); color:var(--ink); border:1.5px solid var(--paper-line); border-radius:6px; font-family:'Public Sans',sans-serif; }
-  body{ margin:0; background:radial-gradient(circle at 15% -10%, rgba(10,42,82,.06), transparent 55%), var(--paper); color:var(--graphite); font-family:'Public Sans',system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
+  body{ margin:0; background:radial-gradient(circle at 15% -10%, var(--color-tint), transparent 55%), var(--paper); color:var(--graphite); font-family:'Public Sans',system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
   .wrap{max-width:900px; margin:0 auto; padding:32px 26px 90px;}
   a{color:inherit;}
   /* Button, .btn-*, .role-pill, .session-strip come from shared/components.css. */
@@ -43,7 +43,7 @@
   .review-meta{ display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--muted); }
   .review-face{ min-height:140px; display:flex; align-items:center; justify-content:center; text-align:center; padding:20px; }
   .review-text{ font-family:'Merriweather',serif; font-size:22px; color:var(--ink); line-height:1.5; }
-  .blank{ display:inline-block; min-width:64px; border-bottom:2.5px solid var(--highlighter); background:rgba(199,154,50,0.12); color:transparent; padding:0 4px; border-radius:3px 3px 0 0; }
+  .blank{ display:inline-block; min-width:64px; border-bottom:2.5px solid var(--highlighter); background:var(--highlighter-wash); color:transparent; padding:0 4px; border-radius:3px 3px 0 0; }
   .blank.revealed{ color:var(--pencil-red); border-bottom-color:var(--pencil-red); background:transparent; font-weight:700; }
   .review-back{ font-size:19px; color:var(--sage); margin-top:14px; font-weight:600; }
   .review-controls{ display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-top:20px; }
@@ -71,8 +71,7 @@
   .card-list{display:flex; flex-direction:column; gap:0; padding:2px 14px 8px;}
   .card-row{ display:flex; align-items:center; gap:12px; padding:11px 4px; border-bottom:1px dashed var(--paper-line); }
   .card-row:last-child{border-bottom:none;}
-  .card-row:hover{background:rgba(94,133,103,.05);}
-  [data-theme="dark"] .card-row:hover{background:rgba(132,172,142,.07);}
+  .card-row:hover{background:var(--color-hover-wash);}
   .card-row .deck-pill{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--sage); background:var(--sage-bg); padding:2px 6px; border-radius:4px; flex-shrink:0; }
   .card-row .front-snip{font-size:13.5px; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .card-row label{display:flex; align-items:center; gap:12px; overflow:hidden; cursor:pointer; flex:1; min-width:0; font-size:inherit; font-weight:inherit; text-transform:none; letter-spacing:normal; color:inherit;}
@@ -92,7 +91,7 @@
   input[type="checkbox"].card-select:checked, input[type="checkbox"].deck-select-all:checked{ background:var(--sage); border-color:var(--sage); }
   input[type="checkbox"].card-select:checked::after, input[type="checkbox"].deck-select-all:checked::after{
     content:''; position:absolute; left:5px; top:1px; width:4px; height:9px;
-    border:solid #fff; border-width:0 2px 2px 0; transform:rotate(45deg);
+    border:solid var(--color-brand-on); border-width:0 2px 2px 0; transform:rotate(45deg);
   }
 
   /* Manage cards — collapsible deck groups + bulk select */
@@ -103,31 +102,59 @@
   .bulk-bar button{padding:6px 12px; font-size:12.5px;}
   .btn-delete-selected{border-color:var(--pencil-red); color:var(--pencil-red); background:var(--card);}
   [data-theme="dark"] .btn-delete-selected{background:transparent;}
-  .deck-group{ background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius); margin-bottom:10px; box-shadow:var(--shadow); overflow:hidden; }
-  .deck-group summary{ list-style:none; cursor:pointer; padding:13px 14px; display:flex; align-items:center; gap:12px; }
-  .deck-group summary::-webkit-details-marker{display:none;}
-  .deck-group summary::before{content:'▸'; display:inline-block; color:var(--muted); font-size:11px; transition:transform .15s ease; width:10px; flex-shrink:0;}
-  .deck-group[open] summary::before{transform:rotate(90deg);}
-  .deck-group summary .deck-pill{margin-right:0;}
-  .deck-group summary .note{margin-left:auto;}
-
-  /* Deck browser — Flashcards landing view: decks visible, cards hidden
-     until a deck is expanded; reviewing only starts on explicit click. */
-  .deck-browser-all{ background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px 18px; margin-bottom:14px; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; }
-  .dba-title{font-family:'Merriweather',serif; font-size:16px; color:var(--ink); font-weight:700;}
-  .db-card{ background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius); margin-bottom:10px; box-shadow:var(--shadow); overflow:hidden; }
-  .db-card summary{ list-style:none; cursor:pointer; padding:14px 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-  .db-card summary::-webkit-details-marker{display:none;}
-  .db-card summary::before{content:'▸'; display:inline-block; color:var(--muted); font-size:11px; transition:transform .15s ease; width:10px; flex-shrink:0;}
-  .db-card[open] summary::before{transform:rotate(90deg);}
-  .db-info{display:flex; flex-direction:column; gap:3px; flex:1; min-width:0;}
-  .db-name{font-family:'Merriweather',serif; font-size:16px; color:var(--ink); font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-  .db-meta{font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--muted);}
-  .db-start-btn{flex-shrink:0; padding:8px 16px;}
-  .db-preview{padding:4px 16px 14px;}
-  .db-preview .card-list{padding:2px 0 0;}
-  .db-preview .front-snip{white-space:normal; overflow:visible; text-overflow:clip;}
+  /* ---- Deck tree (browser + manage share these). Flat, compact, nested by
+     a hairline guide instead of boxes-inside-boxes. ---- */
+  .deck-browser-all{ background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius); padding:10px 14px; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .dba-title{font-family:'Merriweather',serif; font-size:15px; color:var(--ink); font-weight:700;}
+  #deckFilterRow{ display:none; margin-bottom:10px; }
+  #deckFilterInput{ flex:1; }
+  .dnode > summary{ list-style:none; cursor:pointer; display:flex; align-items:center; gap:8px; min-height:44px; padding:4px 8px; border-radius:var(--radius-sm); }
+  .dnode > summary::-webkit-details-marker{display:none;}
+  .dnode > summary::before{ content:'▸'; color:var(--muted); font-size:11px; width:10px; flex-shrink:0; transition:transform .12s ease; }
+  .dnode[open] > summary::before{ transform:rotate(90deg); }
+  .dnode > summary:hover{ background:var(--color-hover-wash); }
+  .dn-name{ flex:1; min-width:0; color:var(--ink); font-weight:600; font-size:14px; overflow-wrap:anywhere; }
+  .dn-meta{ font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted); white-space:nowrap; }
+  .dn-start{ flex-shrink:0; min-height:34px; padding:4px 12px; }
+  .dn-body{ margin-left:13px; padding-left:8px; border-left:1px solid var(--paper-line); }
+  .dnode .card-list{ padding:0 0 4px; }
+  .dnode .card-row{ padding:6px 4px; gap:8px; }
+  .dnode .front-snip{ white-space:normal; overflow:visible; text-overflow:clip; font-size:13px; }
+  .dnode.d0{ background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius); margin-bottom:8px; padding:2px 4px 2px; }
+  .dnode.d0 > summary .dn-name{ font-family:'Merriweather',serif; font-size:15px; font-weight:700; }
+  .dnode.d0 > .dn-body{ margin-left:0; border-left:none; padding:0 6px 6px; }
+  .dnode.d0[open] > summary{ border-bottom:1px solid var(--paper-line); border-radius:var(--radius-sm) var(--radius-sm) 0 0; margin-bottom:4px; }
+  .dnode.d1 > summary .dn-name{ font-size:14px; }
+  .dnode.d2 > summary .dn-name, .dnode.d3 > summary .dn-name{ font-size:13.5px; font-weight:500; }
+  .dnode summary .deck-select-all{ margin:0 2px; }
   .db-empty-hint{ text-align:center; color:var(--muted); font-size:13.5px; padding:24px 10px; background:var(--card); border:1.5px dashed var(--paper-line); border-radius:var(--radius); }
+
+  /* Add-card form helpers */
+  #recentDecks{ display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+  #recentDecks:empty{ display:none; }
+  .deck-chip{ font-family:'IBM Plex Mono',monospace; font-size:11.5px; font-weight:500; padding:4px 10px; border-radius:var(--radius-full); border:1px solid var(--paper-line); background:var(--color-bg-hover); color:var(--graphite); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #cardAddedNote{ color:var(--sage); font-size:12.5px; margin-right:auto; align-self:center; }
+  #cardAddedNote:empty{ display:none; }
+
+  @media (max-width:560px){
+    .wrap{ padding:20px 12px 70px; }
+    .dn-body{ margin-left:8px; padding-left:6px; }
+    .dnode > summary{ padding:4px 6px; gap:6px; }
+    .dn-meta{ font-size:10.5px; }
+    /* Browse rows: name + meta stack on the left, Review button stays on the right (no wrapping). */
+    .dnode:not(.deck-group) > summary{ display:grid; grid-template-columns:10px 1fr auto; column-gap:8px; row-gap:0; align-items:center; }
+    .dnode:not(.deck-group) > summary .dn-name{ grid-column:2; grid-row:1; }
+    .dnode:not(.deck-group) > summary .dn-meta{ grid-column:2; grid-row:2; white-space:normal; }
+    .dnode:not(.deck-group) > summary .dn-start{ grid-column:3; grid-row:1 / span 2; }
+    .panel{ padding:16px 14px; }
+    .deck-browser-all{ padding:10px 12px; }
+  }
+  @media (pointer:coarse){
+    .dn-start{ min-height:44px; }
+    .deck-chip{ min-height:36px; }
+    input[type="checkbox"].card-select, input[type="checkbox"].deck-select-all{ width:22px; height:22px; }
+    input[type="checkbox"].card-select:checked::after, input[type="checkbox"].deck-select-all:checked::after{ left:7px; top:2px; }
+  }
 
   footer{text-align:center; color:var(--muted); font-size:12px; margin-top:36px;}
 </style>
@@ -187,6 +214,7 @@
         </div>
         <button class="btn-primary" id="startAllBtn">Review all decks</button>
       </div>
+      <div id="deckFilterRow"><input id="deckFilterInput" type="search" placeholder="Filter decks…" aria-label="Filter decks"></div>
       <div id="deckBrowser"></div>
     </div>
 
@@ -224,7 +252,8 @@
         <button type="button" id="typeBasicBtn" class="active">Front / Back</button>
         <button type="button" id="typeClozeBtn">Fill in the blank</button>
       </div>
-      <div class="field"><label for="f_deck">Deck</label><input id="f_deck" list="deckDatalist" placeholder="e.g. Biology — Cell Structure"><datalist id="deckDatalist"></datalist></div>
+      <div class="field"><label for="f_deck">Deck</label><input id="f_deck" list="deckDatalist" placeholder="e.g. 3rd_Year / Midterm / Biology / Lesson 1" autocomplete="off"><datalist id="deckDatalist"></datalist><div id="recentDecks" aria-label="Recently used decks"></div></div>
+      <div class="hint">Separate levels with <code>/</code>: Year / Term / Subject / Lesson. Pick a recent deck to skip retyping.</div>
 
       <div id="basicFields">
         <div class="field"><label for="f_front">Front</label><textarea id="f_front" placeholder="What powers a cell?"></textarea></div>
@@ -240,7 +269,8 @@
 
       <div id="cardFormError" class="error-banner" aria-live="polite" role="status">Fill in a deck, and either both Front/Back, or a sentence with one [[blank]] marked.</div>
       <div class="form-actions">
-        <button type="button" class="btn-ghost" id="cancelCardBtn">Cancel</button>
+        <span id="cardAddedNote" role="status" aria-live="polite"></span>
+        <button type="button" class="btn-ghost" id="cancelCardBtn">Done</button>
         <button type="button" class="btn-primary" id="submitCardBtn">Add card</button>
       </div>
     </div>
@@ -369,8 +399,8 @@ function arrayBufferToB64(buf){
 // around hyphens, case-insensitive); canonicalizeDeck() then snaps a typed
 // name onto whichever exact spelling already exists for that key, so the
 // stored data itself converges instead of just papering over it on screen.
-function deckKey(s){ return (s||'').trim().toLowerCase().replace(/\s+/g,' ').replace(/\s*-\s*/g,' - '); }
-function cleanDeckSpelling(s){ return (s||'').trim().replace(/\s+/g,' ').replace(/\s*-\s*/g,' - '); }
+function deckKey(s){ return (s||'').trim().toLowerCase().replace(/\s+/g,' ').replace(/\s*-\s*/g,' - ').replace(/\s*\/\s*/g,' / '); }
+function cleanDeckSpelling(s){ return (s||'').trim().replace(/\s+/g,' ').replace(/\s*-\s*/g,' - ').replace(/\s*\/\s*/g,' / '); }
 function canonicalizeDeck(input){
   const key = deckKey(input);
   const existing = cards.find(c => deckKey(c.deck) === key);
@@ -385,44 +415,63 @@ function normalizeDecksInPlace(){
   });
 }
 
-/* Subject/Deck parsing — deck names use "Subject — Deck" format.
-   Returns { subject, deck, full } where full is the original combined name. */
-function parseSubjectDeck(fullName){
+/* Deck hierarchy.
+   New format: segments separated by " / ", any depth, e.g.
+     3rd_Year / Midterm / Biology / Lesson 1&2
+   Legacy format ("Subject — Deck", or a bare name) still works: it becomes
+   [subject, deck] (bare names go under "General"). Hyphens inside a slash-
+   style name are NOT treated as separators. */
+function deckPath(fullName){
   const clean = cleanDeckSpelling(fullName || '');
-  const parts = clean.split(/\s*[—–-]\s*/);
-  if(parts.length >= 2){
-    return { subject: parts[0].trim(), deck: parts.slice(1).join(' — ').trim(), full: clean };
-  }
-  return { subject: 'General', deck: clean, full: clean };
+  if(clean.includes(' / ')) return clean.split(' / ').map(x => x.trim()).filter(Boolean);
+  const parts = clean.split(/\s*[—–-]\s*/).filter(Boolean);
+  if(parts.length >= 2) return [parts[0].trim(), parts.slice(1).join(' — ').trim()];
+  return ['General', clean || 'Untitled'];
+}
+function pathString(segs){ return segs.join(' / '); }
+function prettySeg(seg){ return (seg || '').replace(/_/g, ' '); }
+/* Kept for any older callers. */
+function parseSubjectDeck(fullName){
+  const p = deckPath(fullName);
+  return { subject: p[0], deck: p.slice(1).join(' / '), full: cleanDeckSpelling(fullName || '') };
 }
 
-/* Group cards by subject then deck. Returns Map<subject, Map<deck, Card[]>>. */
-function groupCardsBySubjectDeck(cardList = cards){
-  const map = new Map();
+/* Build a tree: node = { name, path, children: Map, cards: [], total }.
+   `cards` holds cards whose deck ends exactly at this node. */
+function buildDeckTree(cardList = cards){
+  const root = { name:'', path:'', children:new Map(), cards:[], total:0 };
   cardList.forEach(c => {
-    const { subject, deck, full } = parseSubjectDeck(c.deck);
-    if(!map.has(subject)) map.set(subject, new Map());
-    const deckMap = map.get(subject);
-    if(!deckMap.has(full)) deckMap.set(full, []);
-    deckMap.get(full).push(c);
+    const segs = deckPath(c.deck);
+    let node = root; root.total++;
+    segs.forEach((seg, i) => {
+      if(!node.children.has(seg)) node.children.set(seg, { name:seg, path:pathString(segs.slice(0, i+1)), children:new Map(), cards:[], total:0 });
+      node = node.children.get(seg); node.total++;
+    });
+    node.cards.push(c);
   });
-  // Sort subjects and decks alphabetically
-  const sorted = new Map();
-  [...map.entries()].sort((a,b) => a[0].localeCompare(b[0])).forEach(([subject, deckMap]) => {
-    const sortedDecks = new Map([...deckMap.entries()].sort((a,b) => a[0].localeCompare(b[0])));
-    sorted.set(subject, sortedDecks);
-  });
-  return sorted;
+  return root;
 }
-
-/* Get unique subjects from cards. */
-function getSubjects(cardList = cards){
-  return [...new Set(cardList.map(c => parseSubjectDeck(c.deck).subject))].sort((a,b) => a.localeCompare(b));
+function sortedChildren(node){
+  return [...node.children.values()].sort((a,b) => a.name.localeCompare(b.name, undefined, {numeric:true, sensitivity:'base'}));
 }
+/* Is this card inside the current review scope? '__all__' or a path prefix. */
+function cardInReviewScope(c){
+  if(reviewDeck === '__all__') return true;
+  const p = pathString(deckPath(c.deck));
+  return p === reviewDeck || p.startsWith(reviewDeck + ' / ');
+}
+window.cardInReviewScope = cardInReviewScope;
 
-/* Get unique full deck names (Subject — Deck) for a given subject. */
-function getDecksForSubject(subject, cardList = cards){
-  return [...new Set(cardList.filter(c => parseSubjectDeck(c.deck).subject === subject).map(c => parseSubjectDeck(c.deck).full))].sort((a,b) => a.localeCompare(b));
+/* Remember the last deck across visits (a harmless preference, not a credential). */
+const LAST_DECK_KEY = 'srms_last_deck', RECENT_DECKS_KEY = 'srms_recent_decks';
+function loadLastDeck(){ try{ return localStorage.getItem(LAST_DECK_KEY) || ''; }catch(e){ return ''; } }
+function loadRecentDecks(){ try{ const a = JSON.parse(localStorage.getItem(RECENT_DECKS_KEY) || '[]'); return Array.isArray(a) ? a.filter(x => typeof x === 'string').slice(0,6) : []; }catch(e){ return []; } }
+function rememberDeck(deck){
+  try{
+    localStorage.setItem(LAST_DECK_KEY, deck);
+    const rec = [deck, ...loadRecentDecks().filter(d => deckKey(d) !== deckKey(deck))].slice(0,6);
+    localStorage.setItem(RECENT_DECKS_KEY, JSON.stringify(rec));
+  }catch(e){}
 }
 
 function parseCardsFromWorkbook(){
@@ -597,7 +646,9 @@ let revealed = false;
 let stats = {again:0, hard:0, snoozed:0, seen:0};
 let currentView = 'decks'; // 'decks' | 'review' — entering Flashcards always lands on the deck list first
 let openDeckPreviews = new Set(); // deck names currently expanded in the browser (collapsed by default)
-let lastUsedDeck = ''; // remember last deck used when adding cards
+let lastUsedDeck = loadLastDeck(); // remembered across visits (localStorage)
+let deckFilterQuery = '';
+let browserSeeded = false;
 
 // Multi-mode reviewer state. window.SRMS.modes reads from `state` and the
 // existing globals (cards, queue, stats, reviewDeck, escapeHtml, CLOZE_MARKER).
@@ -627,66 +678,66 @@ function deckTypeCounts(list){
   return {basic, cloze};
 }
 
-function renderDeckBrowser(){
-  // Build datalist with subject — deck format for the add card form
-  const deckOptions = [...new Set(cards.map(c => c.deck).filter(Boolean))].sort();
-  document.getElementById('deckDatalist').innerHTML = deckOptions
-    .map(d => `<option value="${escapeHtml(d)}">`).join('');
+function nodeMatchesFilter(node, q){
+  if(!q) return true;
+  if(node.path.toLowerCase().replace(/_/g,' ').includes(q)) return true;
+  return [...node.children.values()].some(ch => nodeMatchesFilter(ch, q));
+}
+function renderBrowseNode(node, depth, q){
+  if(!nodeMatchesFilter(node, q)) return '';
+  const kids = sortedChildren(node);
+  const isLeaf = kids.length === 0;
+  const isOpen = q ? true : openDeckPreviews.has(node.path);
+  const tc = deckTypeCounts(isLeaf ? node.cards : []);
+  const meta = isLeaf
+    ? `${node.cards.length} card${node.cards.length===1?'':'s'}` + (tc.cloze ? ` · ${tc.cloze} cloze` : '')
+    : `${node.total} card${node.total===1?'':'s'}` + (kids.length ? ` · ${kids.length} ${kids.length===1?'folder':'folders'}` : '');
+  const cardRows = node.cards.length ? `<div class="card-list">${node.cards.map(c => `
+      <div class="card-row"><span class="front-snip">${escapeHtml(c.type==='cloze' ? c.front.replace(CLOZE_MARKER,'⬚') : c.front)}</span></div>`).join('')}</div>` : '';
+  return `<details class="dnode d${Math.min(depth,3)}" data-path="${escapeHtml(node.path)}" ${isOpen ? 'open' : ''}>
+    <summary>
+      <span class="dn-name">${escapeHtml(prettySeg(node.name))}</span>
+      <span class="dn-meta">${meta}</span>
+      <button type="button" class="btn-sm btn-primary dn-start" data-start-path="${escapeHtml(node.path)}" aria-label="Review ${escapeHtml(prettySeg(node.name))}">Review</button>
+    </summary>
+    <div class="dn-body">${cardRows}${kids.map(k => renderBrowseNode(k, depth+1, q)).join('')}</div>
+  </details>`;
+}
 
-  document.getElementById('allDecksNote').textContent = `${cards.length} card${cards.length===1?'':'s'} total across ${deckOptions.length} deck${deckOptions.length===1?'':'s'}`;
+function renderDeckBrowser(){
+  // Datalist + recent chips for the add-card form
+  const deckOptions = [...new Set(cards.map(c => c.deck).filter(Boolean))].sort();
+  document.getElementById('deckDatalist').innerHTML = deckOptions.map(d => `<option value="${escapeHtml(d)}">`).join('');
+  renderRecentDeckChips();
+
+  document.getElementById('allDecksNote').textContent = `${cards.length} card${cards.length===1?'':'s'} in ${deckOptions.length} deck${deckOptions.length===1?'':'s'}`;
   document.getElementById('startAllBtn').disabled = cards.length === 0;
   document.getElementById('deckBrowserSummary').textContent = cards.length ? '' : 'No decks yet';
+  document.getElementById('deckFilterRow').style.display = cards.length > 8 ? 'flex' : 'none';
 
   const wrap = document.getElementById('deckBrowser');
   if(!cards.length){
     wrap.innerHTML = '<div class="db-empty-hint">No flashcard decks yet.' + (isMaster ? ' Add a card below to create the first one.' : ' Check back once a Master has added some.') + '</div>';
     return;
   }
+  const root = buildDeckTree();
+  if(!browserSeeded){ sortedChildren(root).forEach(n => openDeckPreviews.add(n.path)); browserSeeded = true; }
+  const q = deckFilterQuery.trim().toLowerCase();
+  const html = sortedChildren(root).map(n => renderBrowseNode(n, 0, q)).join('');
+  wrap.innerHTML = html || '<div class="db-empty-hint">No decks match your filter.</div>';
 
-  // Group by subject then deck
-  const grouped = groupCardsBySubjectDeck();
-  let html = '';
-  grouped.forEach((deckMap, subject) => {
-    html += `<div class="subject-group" style="margin-bottom:16px;">
-      <div class="subject-header" style="font-family:'Merriweather',serif; font-size:15px; color:var(--sage); font-weight:700; margin-bottom:8px; padding-left:4px;">${escapeHtml(subject)}</div>`;
-    deckMap.forEach((deckCards, fullDeckName) => {
-      const { deck } = parseSubjectDeck(fullDeckName);
-      const tc = deckTypeCounts(deckCards);
-      const metaBits = [];
-      if(tc.basic) metaBits.push(`${tc.basic} basic`);
-      if(tc.cloze) metaBits.push(`${tc.cloze} cloze`);
-      const isOpen = openDeckPreviews.has(fullDeckName);
-      html += `<details class="db-card" data-deck="${escapeHtml(fullDeckName)}" ${isOpen ? 'open' : ''}>
-        <summary>
-          <div class="db-info">
-            <span class="db-name">${escapeHtml(deck)}</span>
-            <span class="db-meta">${deckCards.length} card${deckCards.length===1?'':'s'} · ${metaBits.join(' · ')}</span>
-          </div>
-          <button type="button" class="btn-primary db-start-btn" data-start-deck="${escapeHtml(fullDeckName)}">Start review</button>
-        </summary>
-        <div class="db-preview">
-          <div class="card-list">${deckCards.map(c => `
-            <div class="card-row" style="border-bottom:1px dashed var(--paper-line);">
-              <span class="front-snip">${escapeHtml(c.type==='cloze' ? c.front.replace(CLOZE_MARKER,'⬚') : c.front)}</span>
-            </div>`).join('')}</div>
-        </div>
-      </details>`;
-    });
-    html += '</div>';
-  });
-  wrap.innerHTML = html;
-
-  wrap.querySelectorAll('.db-card').forEach(el => {
+  wrap.querySelectorAll('details.dnode').forEach(el => {
     el.addEventListener('toggle', () => {
-      if(el.open) openDeckPreviews.add(el.dataset.deck); else openDeckPreviews.delete(el.dataset.deck);
+      if(deckFilterQuery.trim()) return;           // filter forces everything open; don't record that
+      if(el.open) openDeckPreviews.add(el.dataset.path); else openDeckPreviews.delete(el.dataset.path);
     });
   });
-  // Update mode-chip availability based on the card count.
   if(window.SRMS && window.SRMS.modes) window.SRMS.modes.syncModeAvailability();
 }
+document.getElementById('deckFilterInput').addEventListener('input', (e) => { deckFilterQuery = e.target.value; renderDeckBrowser(); });
 document.getElementById('deckBrowser').addEventListener('click', (e) => {
-  const btn = e.target.closest('[data-start-deck]');
-  if(btn){ e.preventDefault(); enterReview(btn.dataset.startDeck); }
+  const btn = e.target.closest('[data-start-path]');
+  if(btn){ e.preventDefault(); e.stopPropagation(); enterReview(btn.dataset.startPath); }
 });
 document.getElementById('startAllBtn').addEventListener('click', () => enterReview('__all__'));
 document.getElementById('backToDecksBtn').addEventListener('click', showDeckBrowser);
@@ -699,7 +750,7 @@ function enterReview(deckName){
   document.getElementById('deckBrowserWrap').style.display = 'none';
   document.getElementById('reviewToolbar').style.display = 'flex';
   document.getElementById('reviewWrap').style.display = 'block';
-  document.getElementById('reviewingDeckName').textContent = deckName === '__all__' ? 'All decks' : deckName;
+  document.getElementById('reviewingDeckName').textContent = deckName === '__all__' ? 'All decks' : deckName.split(' / ').map(prettySeg).join(' › ');
   if(window.SRMS && window.SRMS.modes) window.SRMS.modes.syncModeAvailability();
   startReview();
 }
@@ -717,7 +768,7 @@ function shuffleArr(arr){
   return arr;
 }
 function startReview(shuffle){
-  const pool = reviewDeck === '__all__' ? cards.slice() : cards.filter(c => c.deck === reviewDeck);
+  const pool = cards.filter(cardInReviewScope);
   queue = pool.map(c => c.id);
   if(shuffle !== false) shuffleArr(queue);
   snoozed = [];
@@ -839,7 +890,10 @@ function openCardForm(){
   if(!editingCardId && lastUsedDeck && !document.getElementById('f_deck').value){
     document.getElementById('f_deck').value = lastUsedDeck;
   }
-  document.getElementById('f_deck').focus();
+  renderRecentDeckChips();
+  // Deck already filled in? Jump straight to the card text.
+  const deckFilled = !!document.getElementById('f_deck').value.trim();
+  (deckFilled ? document.getElementById(currentType === 'cloze' ? 'f_cloze' : 'f_front') : document.getElementById('f_deck')).focus();
 }
 function closeCardForm(){
   formPanel.classList.remove('open');
@@ -853,8 +907,21 @@ function closeCardForm(){
   document.getElementById('cardFormError').style.display = 'none';
   document.getElementById('cardFormTitle').textContent = 'Add a card';
   document.getElementById('submitCardBtn').textContent = 'Add card';
+  document.getElementById('cardAddedNote').textContent = '';
 }
 document.getElementById('cancelCardBtn').addEventListener('click', closeCardForm);
+function renderRecentDeckChips(){
+  const box = document.getElementById('recentDecks');
+  if(!box) return;
+  const rec = loadRecentDecks();
+  box.innerHTML = rec.map(d => `<button type="button" class="deck-chip" data-deck-chip="${escapeHtml(d)}" title="${escapeHtml(d)}">${escapeHtml(d.split(' / ').slice(-2).map(prettySeg).join(' › '))}</button>`).join('');
+}
+document.getElementById('recentDecks').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-deck-chip]');
+  if(!b) return;
+  document.getElementById('f_deck').value = b.dataset.deckChip;
+  document.getElementById(currentType === 'cloze' ? 'f_cloze' : 'f_front').focus();
+});
 
 function setTypeUI(type){
   currentType = type;
@@ -897,9 +964,19 @@ document.getElementById('submitCardBtn').addEventListener('click', async () => {
   } else {
     cards.push({ id:uid(), deck, type:currentType, front, back, createdBy:session.name, createdAt:now, updatedAt:now });
     // Remember this deck for next time (only on add, not edit)
-    lastUsedDeck = deck;
+    lastUsedDeck = deck; rememberDeck(deck);
   }
-  closeCardForm();
+  if(wasEditing){ closeCardForm(); }
+  else {
+    // Keep the form open for rapid entry: same deck + type, fresh text fields.
+    document.getElementById('f_deck').value = deck;
+    ['f_front','f_back','f_cloze'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('cardFormError').style.display = 'none';
+    const st = document.getElementById('cardAddedNote');
+    st.textContent = 'Added to ' + deck.split(' / ').map(prettySeg).join(' › ');
+    renderRecentDeckChips();
+    document.getElementById(currentType === 'cloze' ? 'f_cloze' : 'f_front').focus();
+  }
   refreshAfterCardChange();
   renderMasterList();
   const ok = await persistCards(wasEditing ? 'Edit Flashcard' : 'Add Flashcard', label);
@@ -941,11 +1018,52 @@ window.deleteCard = deleteCard;
 /* ---------------- Manage cards: categorized + multi-select delete ---------------- */
 let selectedCardIds = new Set();
 let manageSearchQuery = '';
-let openDecks = null; // null = default (all open); otherwise a Set of deck names currently expanded
+let openDecks = null; // null = default (top-level folders open); otherwise a Set of folder paths currently expanded
 
 function cardMatchesSearch(c, q){
   if(!q) return true;
   return (c.deck+' '+c.front+' '+c.back).toLowerCase().includes(q);
+}
+
+function selectedState(node){
+  const all = collectCards(node);
+  const n = all.filter(c => selectedCardIds.has(c.id)).length;
+  return { all: all.length > 0 && n === all.length, some: n > 0 && n < all.length };
+}
+function collectCards(node){ return node.cards.concat([...node.children.values()].flatMap(collectCards)); }
+function renderManageNode(node, depth, force){
+  const kids = sortedChildren(node);
+  const isOpen = force ? true : (openDecks ? openDecks.has(node.path) : depth === 0);
+  const st = selectedState(node);
+  const rows = node.cards.slice().sort((a,b) => (a.front||'').localeCompare(b.front||'')).map(c => `
+      <div class="card-row">
+        <label>
+          <input type="checkbox" class="card-select" data-id="${c.id}" ${selectedCardIds.has(c.id) ? 'checked' : ''}>
+          <span class="front-snip">${escapeHtml(c.type==='cloze' ? c.front.replace(CLOZE_MARKER,'⬚') : c.front).slice(0,90)}</span>
+        </label>
+        <div class="row-actions">
+          <button class="btn-ghost" onclick="startCardEdit('${c.id}')">Edit</button>
+          <button class="btn-text" onclick="deleteCard('${c.id}')" style="color:var(--pencil-red);">Delete</button>
+        </div>
+      </div>`).join('');
+  return `<details class="dnode d${Math.min(depth,3)} deck-group" data-path="${escapeHtml(node.path)}" ${isOpen ? 'open' : ''}>
+    <summary>
+      <input type="checkbox" class="deck-select-all" aria-label="Select all in ${escapeHtml(prettySeg(node.name))}" ${st.all ? 'checked' : ''} data-indet="${st.some ? 1 : 0}" onclick="event.stopPropagation()">
+      <span class="dn-name">${escapeHtml(prettySeg(node.name))}</span>
+      <span class="dn-meta">${node.total} card${node.total===1?'':'s'}</span>
+    </summary>
+    <div class="dn-body">${rows ? `<div class="card-list">${rows}</div>` : ''}${kids.map(k => renderManageNode(k, depth+1, force)).join('')}</div>
+  </details>`;
+}
+function syncDeckBoxes(){
+  document.querySelectorAll('#masterListWrap details.deck-group').forEach(g => {
+    const box = g.querySelector(':scope > summary .deck-select-all');
+    if(!box) return;
+    const cbs = [...g.querySelectorAll('.card-select')];
+    const n = cbs.filter(b => b.checked).length;
+    box.checked = cbs.length > 0 && n === cbs.length;
+    box.indeterminate = n > 0 && n < cbs.length;
+  });
 }
 
 function renderMasterList(){
@@ -966,80 +1084,42 @@ function renderMasterList(){
 
   const q = manageSearchQuery.trim().toLowerCase();
   const filtered = cards.filter(c => cardMatchesSearch(c, q));
-
   if(filtered.length === 0){
     wrap.innerHTML = '<div class="empty">No cards match your search.</div>';
     updateBulkBar();
     return;
   }
 
-  // Group filtered cards by subject then deck
-  const grouped = groupCardsBySubjectDeck(filtered);
-  let html = '';
-  grouped.forEach((deckMap, subject) => {
-    html += `<div class="subject-group" style="margin-bottom:16px;">
-      <div class="subject-header" style="font-family:'Merriweather',serif; font-size:15px; color:var(--sage); font-weight:700; margin-bottom:8px; padding-left:4px;">${escapeHtml(subject)}</div>`;
-    deckMap.forEach((deckCards, fullDeckName) => {
-      const { deck } = parseSubjectDeck(fullDeckName);
-      deckCards.sort((a,b) => (a.front||'').localeCompare(b.front||''));
-      const allSelected = deckCards.every(c => selectedCardIds.has(c.id));
-      // Expand a deck by default; once the user has explicitly collapsed/expanded any deck, respect that.
-      const isOpen = openDecks ? openDecks.has(fullDeckName) : true;
-      html += `<details class="deck-group" data-deck="${escapeHtml(fullDeckName)}" ${isOpen ? 'open' : ''}>
-        <summary>
-          <input type="checkbox" class="deck-select-all" data-deck-select="${escapeHtml(fullDeckName)}" ${allSelected ? 'checked' : ''} onclick="event.stopPropagation()">
-          <span class="deck-pill">${escapeHtml(deck)}</span>
-          <span class="note">${deckCards.length} card${deckCards.length===1?'':'s'}</span>
-        </summary>
-        <div class="card-list">${deckCards.map(c => `
-          <div class="card-row">
-            <label>
-              <input type="checkbox" class="card-select" data-id="${c.id}" ${selectedCardIds.has(c.id) ? 'checked' : ''}>
-              <span class="front-snip">${escapeHtml(c.type==='cloze' ? c.front.replace(CLOZE_MARKER,'⬚') : c.front).slice(0,90)}</span>
-            </label>
-            <div class="row-actions">
-              <button class="btn-ghost" onclick="startCardEdit('${c.id}')">Edit</button>
-              <button class="btn-text" onclick="deleteCard('${c.id}')" style="color:var(--pencil-red);">Delete</button>
-            </div>
-          </div>`).join('')}</div>
-      </details>`;
-    });
-    html += '</div>';
-  });
-  wrap.innerHTML = html;
+  const root = buildDeckTree(filtered);
+  wrap.innerHTML = sortedChildren(root).map(n => renderManageNode(n, 0, !!q)).join('');
+  wrap.querySelectorAll('.deck-select-all[data-indet="1"]').forEach(b => { b.indeterminate = true; });
 
-  // Remember which decks are open/closed across re-renders (e.g. after checking a box).
-  wrap.querySelectorAll('.deck-group').forEach(group => {
+  wrap.querySelectorAll('details.deck-group').forEach(group => {
     group.addEventListener('toggle', () => {
-      if(!openDecks) openDecks = new Set([...grouped.values()].flatMap(m => [...m.keys()])); // seed with current default (all open)
-      if(group.open) openDecks.add(group.dataset.deck); else openDecks.delete(group.dataset.deck);
+      if(manageSearchQuery.trim()) return;         // search forces everything open
+      if(!openDecks) openDecks = new Set([...wrap.querySelectorAll('details.deck-group')].filter(g => g.open).map(g => g.dataset.path)); // state already reflects this toggle
+      if(group.open) openDecks.add(group.dataset.path); else openDecks.delete(group.dataset.path);
     });
   });
-
   updateBulkBar();
 }
 
-// Event delegation for checkboxes (deck list is rebuilt often, so we bind once on the wrapper).
+// Event delegation for checkboxes (the list is rebuilt often, so we bind once on the wrapper).
 document.getElementById('masterListWrap').addEventListener('change', (e) => {
   const t = e.target;
   if(t.classList.contains('card-select')){
-    const id = t.dataset.id;
-    if(t.checked) selectedCardIds.add(id); else selectedCardIds.delete(id);
-    const group = t.closest('.deck-group');
-    if(group){
-      const boxes = [...group.querySelectorAll('.card-select')];
-      const allBox = group.querySelector('.deck-select-all');
-      if(allBox) allBox.checked = boxes.length>0 && boxes.every(b => b.checked);
-    }
+    if(t.checked) selectedCardIds.add(t.dataset.id); else selectedCardIds.delete(t.dataset.id);
+    syncDeckBoxes();
     updateBulkBar();
   } else if(t.classList.contains('deck-select-all')){
-    const group = t.closest('.deck-group');
+    const group = t.closest('details.deck-group');
     if(group){
-      group.querySelectorAll('.card-select').forEach(cb => {
+      group.querySelectorAll('.card-select').forEach(cb => {   // every card in this folder and its sub-folders
         cb.checked = t.checked;
         if(t.checked) selectedCardIds.add(cb.dataset.id); else selectedCardIds.delete(cb.dataset.id);
       });
     }
+    syncDeckBoxes();
     updateBulkBar();
   }
 });

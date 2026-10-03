@@ -58,7 +58,7 @@
   function pickDistractors(correct, deckName, n) {
     n = n || 3;
     var pool = deckName && deckName !== '__all__'
-      ? cards.filter(function (c) { return c.deck === deckName; })
+      ? cards.filter(function (c) { return window.cardInReviewScope ? window.cardInReviewScope(c) : c.deck === deckName; })
       : cards.slice();
     pool = pool.filter(function (c) { return c.back !== correct; });
     if (pool.length < n) {
@@ -294,7 +294,7 @@
 
   // Match the pairs: 8 cards in a round, 2 columns, click-to-pair.
   function startMatchRound() {
-    var pool = reviewDeck === '__all__' ? cards.slice() : cards.filter(function (c) { return c.deck === reviewDeck; });
+    var pool = reviewDeck === '__all__' ? cards.slice() : cards.filter(function (c) { return window.cardInReviewScope ? window.cardInReviewScope(c) : c.deck === reviewDeck; });
     var n = Math.min(pool.length >= 12 ? 12 : 8, pool.length);
     if (n < 2) {
       state.matchRound = []; state.matchSelected = null; state.matchMatched = []; state.matchRoundsLeft = 0;
@@ -462,7 +462,7 @@
     state.speedTotal = (state.speedTotal || 0) + 1;
     if (queue.length === 0) {
       // Refill with the same deck so speed can keep going.
-      var pool = reviewDeck === '__all__' ? cards.slice() : cards.filter(function (c) { return c.deck === reviewDeck; });
+      var pool = reviewDeck === '__all__' ? cards.slice() : cards.filter(function (c) { return window.cardInReviewScope ? window.cardInReviewScope(c) : c.deck === reviewDeck; });
       queue = pool.map(function (c) { return c.id; });
       fisherYates(queue);
     }

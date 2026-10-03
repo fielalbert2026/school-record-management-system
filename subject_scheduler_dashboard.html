@@ -22,7 +22,7 @@
   select{ background:var(--card); color:var(--ink); border:1.5px solid var(--paper-line); border-radius:6px; font-family:'Public Sans',sans-serif; }
   body{
     margin:0;
-    background:radial-gradient(circle at 15% -10%, rgba(10,42,82,.06), transparent 55%), var(--paper);
+    background:radial-gradient(circle at 15% -10%, var(--color-tint), transparent 55%), var(--paper);
     color:var(--graphite);
     font-family:'Public Sans',system-ui,sans-serif;
     -webkit-font-smoothing:antialiased;
@@ -38,10 +38,10 @@
   button:hover{transform:translateY(-1px);}
   button:disabled{opacity:.45; cursor:not-allowed; transform:none;}
   button:focus-visible{outline:3px solid var(--highlighter); outline-offset:2px;}
-  .btn-primary{background:var(--accent); color:#fff;}
+  .btn-primary{background:var(--accent); color:var(--color-on-solid);}
   .btn-primary:hover{background:var(--accent-hover);}
   .btn-highlight{background:var(--highlighter); border-color:var(--highlighter); color:var(--highlighter-ink);}
-  .btn-highlight:hover{background:#f0c453;}
+  .btn-highlight:hover{background:var(--highlighter); filter:brightness(.94);}
   .btn-ghost{border-color:var(--paper-line); color:var(--graphite); background:var(--card);}
   .btn-text{border:none; background:none; padding:2px 6px; font-size:12.5px; text-decoration:underline;}
 
@@ -96,52 +96,52 @@
   }
   #todayHero.show{display:block;}
   .hero-top{display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px;}
-  .hero-eyebrow{font-family:'IBM Plex Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:.12em; color:#B9C4E0;}
+  .hero-eyebrow{font-family:'IBM Plex Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:.12em; color:color-mix(in srgb, var(--accent-panel-text) 72%, transparent);}
   .hero-date{font-family:'Merriweather',serif; font-size:20px; font-weight:700;}
   .hero-list{display:flex; flex-direction:column; gap:0;}
   .hero-row{
     display:grid; grid-template-columns:100px 1fr auto; gap:14px; align-items:center;
-    padding:11px 0; border-bottom:1px solid rgba(255,255,255,.12);
+    padding:11px 0; border-bottom:1px solid color-mix(in srgb, var(--accent-panel-text) 14%, transparent);
   }
   .hero-row:last-child{border-bottom:none;}
-  .hero-time{font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:#C9D2E8;}
+  .hero-time{font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:color-mix(in srgb, var(--accent-panel-text) 80%, transparent);}
   .hero-name{font-weight:600; font-size:14.5px;}
-  .hero-meta{font-size:12px; color:#B9C4E0; margin-top:2px;}
+  .hero-meta{font-size:12px; color:color-mix(in srgb, var(--accent-panel-text) 72%, transparent); margin-top:2px;}
   .badge{
     font-family:'IBM Plex Mono',monospace; font-size:10.5px; text-transform:uppercase;
     letter-spacing:.06em; padding:3px 9px; border-radius:20px; white-space:nowrap;
   }
-  .badge.now{background:var(--pencil-red); color:#fff;}
+  .badge.now{background:var(--pencil-red); color:var(--color-on-solid);}
   .badge.next{background:var(--highlighter); color:var(--highlighter-ink);}
-  .badge.later{background:rgba(255,255,255,.12); color:#DDE3F2;}
-  .badge.done{background:rgba(255,255,255,.06); color:#8894B5;}
-  .hero-empty{color:#B9C4E0; font-size:13.5px; padding:8px 0 4px;}
+  .badge.later{background:color-mix(in srgb, var(--accent-panel-text) 14%, transparent); color:color-mix(in srgb, var(--accent-panel-text) 88%, transparent);}
+  .badge.done{background:color-mix(in srgb, var(--accent-panel-text) 8%, transparent); color:color-mix(in srgb, var(--accent-panel-text) 62%, transparent);}
+  .hero-empty{color:color-mix(in srgb, var(--accent-panel-text) 72%, transparent); font-size:13.5px; padding:8px 0 4px;}
   .next-countdown{
     display:none; align-items:center; gap:14px; flex-wrap:wrap;
-    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14);
+    background:color-mix(in srgb, var(--accent-panel-text) 8%, transparent); border:1px solid color-mix(in srgb, var(--accent-panel-text) 16%, transparent);
     border-radius:8px; padding:12px 16px; margin-bottom:14px;
   }
   .next-countdown.show{display:flex;}
   .cd-label{
     font-family:'IBM Plex Mono',monospace; font-size:10.5px; text-transform:uppercase;
-    letter-spacing:.1em; color:#B9C4E0;
+    letter-spacing:.1em; color:color-mix(in srgb, var(--accent-panel-text) 72%, transparent);
   }
   .cd-timer{
     font-family:'IBM Plex Mono',monospace; font-size:22px; font-weight:600;
     color:var(--highlighter); letter-spacing:.02em; min-width:0;
   }
-  .cd-name{font-size:13.5px; color:#DDE3F2; flex:1; min-width:120px;}
-  .cd-name b{color:#fff;}
+  .cd-name{font-size:13.5px; color:color-mix(in srgb, var(--accent-panel-text) 88%, transparent); flex:1; min-width:120px;}
+  .cd-name b{color:var(--accent-panel-text);}
   .next-countdown a.open-link{
     font-size:11.5px; font-weight:600; color:var(--ink); background:var(--highlighter);
     padding:6px 11px; border-radius:6px; text-decoration:none; white-space:nowrap;
   }
-  .next-countdown a.open-link.meet{background:var(--sage); color:#fff;}
+  .next-countdown a.open-link.meet{background:var(--sage); color:var(--color-on-solid);}
   .hero-row a.open-link{
     font-size:11.5px; font-weight:600; color:var(--ink); background:var(--highlighter);
     padding:5px 10px; border-radius:6px; text-decoration:none; white-space:nowrap;
   }
-  .hero-row a.open-link.meet{background:var(--sage); color:#fff;}
+  .hero-row a.open-link.meet{background:var(--sage); color:var(--color-on-solid);}
 
   /* ---------- Add class toggle + form ---------- */
   .section-toolbar{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:10px;}
@@ -197,7 +197,7 @@
     content:""; position:absolute; top:-1px; left:0; right:0; height:3px;
     background:var(--pencil-red); border-radius:8px 8px 0 0;
   }
-  .tab .count{color:#B5AE9C; margin-left:3px;}
+  .tab .count{color:var(--color-text-tertiary); margin-left:3px;}
   .tab.active .count{color:var(--muted);}
   .day-panel{
     background:var(--card); border:1px solid var(--paper-line); border-radius:0 10px 10px 10px;
@@ -918,7 +918,7 @@ function renderTodayHero(){
     return `<div class="hero-row">
       <div class="hero-time">${fmtTime(s.start)}–${fmtTime(s.end)}</div>
       <div>
-        <div class="hero-name">${escapeHtml(s.name)} <span style="color:#8894B5; font-weight:400;">${escapeHtml(s.code)}</span></div>
+        <div class="hero-name">${escapeHtml(s.name)} <span style="color:color-mix(in srgb, var(--accent-panel-text) 62%, transparent); font-weight:400;">${escapeHtml(s.code)}</span></div>
         <div class="hero-meta">${s.professor?escapeHtml(s.professor):''}${s.professor&&s.room?' · ':''}${s.room?escapeHtml(s.room):''}</div>
       </div>
       <div style="display:flex; align-items:center; gap:8px;">

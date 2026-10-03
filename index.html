@@ -19,7 +19,7 @@
   *{box-sizing:border-box;}
   body{
     margin:0;
-    background:radial-gradient(circle at 15% -10%, rgba(10,42,82,.06), transparent 55%), var(--paper);
+    background:radial-gradient(circle at 15% -10%, var(--color-tint), transparent 55%), var(--paper);
     color:var(--graphite);
     font-family:'Public Sans',system-ui,sans-serif;
     -webkit-font-smoothing:antialiased;
@@ -77,16 +77,16 @@
     transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
   }
   .mod-card.live{cursor:pointer;}
-  .mod-card.live:hover{transform:translateY(-2px); border-color:var(--ink); box-shadow:0 1px 2px rgba(10,42,82,.06), 0 8px 18px rgba(10,42,82,.10);}
+  .mod-card.live:hover{transform:translateY(-2px); border-color:var(--ink); box-shadow:var(--shadow-md);}
   .mod-card.soon{opacity:.72; cursor:default;}
   .mod-plaque{
-    background:#0A2A52; padding:22px 24px 18px;
+    background:var(--color-header-band); padding:22px 24px 18px;
     display:flex; align-items:baseline; justify-content:space-between; gap:10px;
   }
   .mod-card.soon .mod-plaque{background:var(--muted);}
   .mod-eyebrow{
     font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:.14em;
-    text-transform:uppercase; color:rgba(242,245,242,.68);
+    text-transform:uppercase; color:var(--color-header-band-text);
   }
   .mod-num{ font-family:'Merriweather',serif; font-weight:900; font-size:42px; color:var(--highlighter); line-height:1; }
   .mod-body{ padding:20px 24px 24px; display:flex; flex-direction:column; flex-grow:1; }
@@ -163,10 +163,10 @@
   #hubContent.show{display:block;}
 
   /* ---------- Shared button variants (mirrors scheduler module) ---------- */
-  .btn-primary{background:var(--accent); color:#fff;}
+  .btn-primary{background:var(--accent); color:var(--color-brand-on);}
   .btn-primary:hover{background:var(--accent-hover);}
   .btn-highlight{background:var(--highlighter); border-color:var(--highlighter); color:var(--highlighter-ink);}
-  .btn-highlight:hover{background:#f0c453;}
+  .btn-highlight:hover{background:var(--color-accent-hover);}
   .btn-ghost{border-color:var(--paper-line); color:var(--graphite); background:var(--card);}
   .btn-text{border:none; background:none; padding:2px 6px; font-size:12.5px; text-decoration:underline; cursor:pointer;}
 
@@ -227,7 +227,7 @@
   }
   .rem-importance.low{background:var(--paper-line); color:var(--muted);}
   .rem-importance.medium{background:var(--highlighter); color:var(--highlighter-ink);}
-  .rem-importance.high{background:var(--pencil-red); color:#fff;}
+  .rem-importance.high{background:var(--pencil-red); color:var(--color-on-solid);}
   .rem-actions{display:flex; gap:4px;}
   .rem-actions button{padding:5px 8px; font-size:12px; border-radius:5px;}
   @media (max-width:560px){
@@ -247,7 +247,7 @@
     padding:3px 9px; border-radius:20px; font-weight:600;
   }
   .ann-badge.pinned{background:var(--highlighter); color:var(--highlighter-ink);}
-  .ann-badge.expired{background:#EDEAE2; color:var(--muted);}
+  .ann-badge.expired{background:var(--color-bg-active); color:var(--muted);}
   .ann-badge.expiring{background:var(--sage-bg); color:var(--sage);}
   .ann-card h3{font-family:'Merriweather',serif; font-size:17px; color:var(--ink); margin:0 0 8px;}
   .ann-card p{font-size:13.5px; color:var(--graphite); line-height:1.6; margin:0 0 14px; white-space:pre-wrap;}
