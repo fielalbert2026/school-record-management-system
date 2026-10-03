@@ -187,6 +187,11 @@
     .dnode.res-node > summary{ display:flex; flex-wrap:wrap; }
     .dnode.res-node > summary .dn-name{ flex:1 1 0; }
   }
+  /* Deck label shown during multi-deck review */
+  .deck-tag{ display:none; align-items:center; gap:8px; width:fit-content; max-width:100%; margin:0 auto 6px; padding:4px 12px 4px 4px; border:1px solid var(--paper-line); border-radius:var(--radius-full); background:var(--card); font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--graphite); }
+  .deck-tag.show{ display:flex; }
+  .deck-tag-k{ flex-shrink:0; padding:2px 8px; border-radius:var(--radius-full); background:var(--sage-bg); color:var(--sage); font-weight:500; letter-spacing:.04em; text-transform:uppercase; font-size:10px; }
+  .deck-tag-v{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 </style>
 </head>
 <body>
@@ -288,6 +293,7 @@
         <span id="reviewPos">0 of 0</span>
         <span id="reviewType"></span>
       </div>
+      <div class="deck-tag" id="reviewDeckTag" aria-live="polite"><span class="deck-tag-k">Deck</span><span class="deck-tag-v" id="reviewDeckTagText"></span></div>
       <div id="reviewArea"></div>
       <div class="review-controls" id="reviewControls"></div>
     </div>
@@ -945,6 +951,28 @@ function renderReview(){
     const handled = window.SRMS && window.SRMS.modes && window.SRMS.modes.renderMode();
     if(handled === false || handled === undefined && !window.SRMS) renderFlashcardMode();
   }
+  updateDeckTag();
+}
+
+/* Shows which deck the current card belongs to, but only when the review scope spans more than
+   one deck (Review all decks, or a folder with several decks). Hidden for single-deck reviews
+   and in Match mode, which shows several cards at once. */
+function updateDeckTag(){
+  const tag = document.getElementById('reviewDeckTag');
+  if(!tag) return;
+  const c = queue.length ? cards.find(x => x.id === queue[0]) : null;
+  let show = false;
+  if(c && state.mode !== 'match'){
+    const decksInScope = new Set();
+    for(const x of cards){ if(cardInReviewScope(x)) decksInScope.add(pathString(deckPath(x.deck))); if(decksInScope.size > 1) break; }
+    show = decksInScope.size > 1;
+  }
+  if(show){
+    const label = pathString(deckPath(c.deck)).split(' / ').map(prettySeg).join(' › ');
+    document.getElementById('reviewDeckTagText').textContent = label;
+    tag.title = label;
+  }
+  tag.classList.toggle('show', show);
 }
 
 // The original Flashcard mode renderer — extracted from the old renderReview().
