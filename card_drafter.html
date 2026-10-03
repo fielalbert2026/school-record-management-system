@@ -314,6 +314,7 @@ let editingEnabled = false;
 let workbook = null;
 let currentSha = null;
 let cards = []; // the LIVE shared deck, loaded from GitHub
+let emptyDecks = []; // decks created on purpose in the Study Hub (may hold no cards yet)
 let knownSheetNames = []; // snapshot of every sheet present at load — see persistCards() guard below
 
 function phTimestamp(){
@@ -379,7 +380,16 @@ function canonicalizeDeck(input){
   return existing ? existing.deck : cleanDeckSpelling(input);
 }
 
+function parseEmptyDecks(){
+  emptyDecks = [];
+  if(!workbook || !workbook.SheetNames.includes('Decks')) return;
+  const aoa = XLSX.utils.sheet_to_json(workbook.Sheets['Decks'], {header:1, defval:''});
+  const hIdx = aoa.findIndex(r => r[0] === 'Path');
+  if(hIdx === -1) return;
+  emptyDecks = aoa.slice(hIdx+1).map(r => cleanDeckSpelling(r[0] || '')).filter(Boolean);
+}
 function parseCardsFromWorkbook(){
+  parseEmptyDecks();
   if(!workbook.SheetNames.includes(CARDS_SHEET)){ cards = []; return; }
   const aoa = XLSX.utils.sheet_to_json(workbook.Sheets[CARDS_SHEET], {header:1, defval:''});
   const hIdx = aoa.findIndex(r => r[0] === 'ID');
@@ -457,7 +467,7 @@ async function fetchFreshWorkbook(){
   return { wb: XLSX.read(buf, {type:'array'}), sha: json.sha };
 }
 
-/* Save newCards into the shared Flashcards sheet.
+/* Save newCards into the shared Flashcards sheet (one read + one write).
    Why read-merge-write: other pages write to this same xlsx in the background
    (presence heartbeats every 2 min, other Masters), so the copy loaded when this page
    opened goes stale and GitHub rejects the write with 409. So every save starts from the
@@ -501,18 +511,10 @@ async function persistCards(actionLabel, actionDetails, newCards){
       const wbout = XLSX.write(workbook, {bookType:'xlsx', type:'array'});
       currentSha = await saveViaProxy(ghToken, arrayBufferToB64(wbout), currentSha, `Flashcards: ${actionLabel||'update'}`);
 
-      // Read back from the repo before claiming success.
-      const check = await fetchFreshWorkbook();
-      const ws2 = check.wb.Sheets[CARDS_SHEET];
-      const got = new Set(ws2 ? XLSX.utils.sheet_to_json(ws2, {header:1, defval:''}).map(r => r[0]) : []);
-      if(ids.every(id => got.has(id))){
-        workbook = check.wb; currentSha = check.sha; knownSheetNames = workbook.SheetNames.slice();
-        parseCardsFromWorkbook();
-        persistCards._pendingAudit = null;
-        return true;
-      }
-      lastErr = 'the server accepted the save but the new cards are not in the repo file afterwards (another page may have overwritten it)';
-      // fall through and retry from the latest file
+      // GitHub only accepts a write whose sha matches the current file, so an accepted
+      // save is exactly what was committed — no need to download the file again.
+      persistCards._pendingAudit = null;
+      return true;
     }catch(e){
       if(e.status === 409){ lastErr = 'conflict with another save'; await new Promise(r => setTimeout(r, 600 * (attempt+1))); continue; }
       if(e.status === 401){
@@ -874,7 +876,7 @@ function isNearDuplicate(front){
   return cards.some(c => { const f = normalizeForDedupe(c.front); return f && (f === n || f.includes(n) || n.includes(f)); });
 }
 function renderDeckDatalist(){
-  const decks = [...new Set(cards.map(c => c.deck).filter(Boolean))].sort();
+  const decks = [...new Set([...cards.map(c => c.deck), ...emptyDecks].filter(Boolean))].sort();
   document.getElementById('deckDatalist').innerHTML = decks.map(d => `<option value="${escapeHtml(d)}">`).join('');
 }
 
@@ -1177,7 +1179,7 @@ saveSharedBtn.addEventListener('click', async () => {
     draftedCards = [];
     renderDrafted();
     renderDeckDatalist();
-    saveStatus.className = 'status ok'; saveStatus.textContent = 'Saved ' + n + ' card' + (n === 1 ? '' : 's') + ' to the shared deck (confirmed in the repo file).';
+    saveStatus.className = 'status ok'; saveStatus.textContent = 'Saved ' + n + ' card' + (n === 1 ? '' : 's') + ' to the shared deck.';
   } else {
     saveStatus.className = 'status err'; saveStatus.textContent = 'Not saved — see the message above. Your approved cards are still here.';
   }

@@ -116,18 +116,29 @@
   .dn-name{ flex:1; min-width:0; color:var(--ink); font-weight:600; font-size:14px; overflow-wrap:anywhere; }
   .dn-meta{ font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted); white-space:nowrap; }
   .dn-start{ flex-shrink:0; min-height:34px; padding:4px 12px; }
-  .dn-body{ margin-left:13px; padding-left:8px; border-left:1px solid var(--paper-line); }
+  .dn-body{ margin-left:14px; padding-left:18px; border-left:2px solid var(--color-border-strong); }
   .dnode .card-list{ padding:0 0 4px; }
   .dnode .card-row{ padding:6px 4px; gap:8px; }
   .dnode .front-snip{ white-space:normal; overflow:visible; text-overflow:clip; font-size:13px; }
   .dnode.d0{ background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius); margin-bottom:8px; padding:2px 4px 2px; }
   .dnode.d0 > summary .dn-name{ font-family:'Merriweather',serif; font-size:15px; font-weight:700; }
-  .dnode.d0 > .dn-body{ margin-left:0; border-left:none; padding:0 6px 6px; }
+  .dnode.d0 > .dn-body{ margin-left:16px; padding:2px 6px 8px 18px; }
   .dnode.d0[open] > summary{ border-bottom:1px solid var(--paper-line); border-radius:var(--radius-sm) var(--radius-sm) 0 0; margin-bottom:4px; }
   .dnode.d1 > summary .dn-name{ font-size:14px; }
   .dnode.d2 > summary .dn-name, .dnode.d3 > summary .dn-name{ font-size:13.5px; font-weight:500; }
   .dnode summary .deck-select-all{ margin:0 2px; }
   .db-empty-hint{ text-align:center; color:var(--muted); font-size:13.5px; padding:24px 10px; background:var(--card); border:1.5px dashed var(--paper-line); border-radius:var(--radius); }
+
+  /* Each level steps in visibly: a 2px guide line + ~32px per level (desktop), ~18px (phone). */
+  .dnode:not(.d0) > summary{ position:relative; }
+  .dnode:not(.d0) > summary::after{ content:''; position:absolute; left:-18px; top:50%; width:14px; border-top:2px solid var(--color-border-strong); }
+  .dn-empty{ font-style:italic; }
+  .dn-del{ flex-shrink:0; min-height:30px; padding:2px 8px; color:var(--pencil-red); }
+  .dn-start:disabled{ opacity:.4; }
+  #deckFormPanel select, #deckFormPanel input{ width:100%; }
+  #deckAddedNote{ color:var(--sage); font-size:12.5px; margin-right:auto; align-self:center; }
+  #deckAddedNote:empty{ display:none; }
+  .toolbar-actions{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
 
   /* Add-card form helpers */
   #recentDecks{ display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
@@ -138,7 +149,9 @@
 
   @media (max-width:560px){
     .wrap{ padding:20px 12px 70px; }
-    .dn-body{ margin-left:8px; padding-left:6px; }
+    .dnode:not(.d0) > summary::after{ left:-11px; width:8px; }
+    .dn-body{ margin-left:7px; padding-left:11px; }
+    .dnode.d0 > .dn-body{ margin-left:9px; padding:2px 2px 6px 11px; }
     .dnode > summary{ padding:4px 6px; gap:6px; }
     .dn-meta{ font-size:10.5px; }
     /* Browse rows: name + meta stack on the left, Review button stays on the right (no wrapping). */
@@ -204,7 +217,20 @@
   <div id="content" style="display:none;">
     <div class="section-toolbar" id="deckBrowserToolbar">
       <h2>Decks</h2>
-      <span class="note" id="deckBrowserSummary"></span>
+      <div class="toolbar-actions"><span class="note" id="deckBrowserSummary"></span><button class="btn-highlight" id="addDeckToggleBtn" type="button" style="display:none;">+ New deck</button></div>
+    </div>
+    <div class="panel" id="deckFormPanel">
+      <h3 style="font-family:'Merriweather',serif; margin:0 0 14px; color:var(--ink); font-size:17px;">New deck</h3>
+      <div class="field"><label for="nd_parent">Inside</label><select id="nd_parent"></select></div>
+      <div class="field"><label for="nd_name">Deck name</label><input id="nd_name" placeholder="e.g. Biology" autocomplete="off" maxlength="160"></div>
+      <div class="hint">Type <code>/</code> to make several levels at once, e.g. <code>3rd_Year / Midterm / Biology</code>. A deck can stay empty — cards can be added to it any time.</div>
+      <div class="hint" id="nd_preview" aria-live="polite" style="margin-top:6px;"></div>
+      <div id="deckFormError" class="error-banner" aria-live="polite" role="status"></div>
+      <div class="form-actions">
+        <span id="deckAddedNote" role="status" aria-live="polite"></span>
+        <button type="button" class="btn-ghost" id="cancelDeckBtn">Done</button>
+        <button type="button" class="btn-primary" id="submitDeckBtn">Create deck</button>
+      </div>
     </div>
     <div id="deckBrowserWrap">
       <div class="deck-browser-all">
@@ -334,6 +360,9 @@ let connected = false;
 let cards = [];
 let editingCardId = null;
 let currentType = 'basic';
+let decks = [];       // explicitly created decks (may be empty): {path, createdBy, createdAt}
+let lastSyncAt = 0;   // when this page last held the repo file's latest version
+const DECKS_SHEET = 'Decks';
 let knownSheetNames = []; // snapshot of every sheet present at load — see persistCards() guard below
 
 /* ---------------- Audit log — same scheme as the other modules ---------------- */
@@ -421,9 +450,17 @@ function normalizeDecksInPlace(){
    Legacy format ("Subject — Deck", or a bare name) still works: it becomes
    [subject, deck] (bare names go under "General"). Hyphens inside a slash-
    style name are NOT treated as separators. */
+/* Keys of explicitly created decks, so a top-level deck named just "Biology" is a real
+   top-level folder (not pushed under "General" like legacy bare names). Cached per decks array. */
+let _dkSrc = null, _dkLen = -1, _dkSet = new Set();
+function explicitKeys(){
+  if(_dkSrc !== decks || _dkLen !== decks.length){ _dkSet = new Set(decks.map(d => deckKey(d.path))); _dkSrc = decks; _dkLen = decks.length; }
+  return _dkSet;
+}
+function strictPath(p){ return cleanDeckSpelling(p || '').split(' / ').map(x => x.trim()).filter(Boolean); }
 function deckPath(fullName){
   const clean = cleanDeckSpelling(fullName || '');
-  if(clean.includes(' / ')) return clean.split(' / ').map(x => x.trim()).filter(Boolean);
+  if(clean.includes(' / ') || explicitKeys().has(deckKey(clean))) return clean.split(' / ').map(x => x.trim()).filter(Boolean);
   const parts = clean.split(/\s*[—–-]\s*/).filter(Boolean);
   if(parts.length >= 2) return [parts[0].trim(), parts.slice(1).join(' — ').trim()];
   return ['General', clean || 'Untitled'];
@@ -438,8 +475,17 @@ function parseSubjectDeck(fullName){
 
 /* Build a tree: node = { name, path, children: Map, cards: [], total }.
    `cards` holds cards whose deck ends exactly at this node. */
-function buildDeckTree(cardList = cards){
+function buildDeckTree(cardList = cards, deckList = decks){
   const root = { name:'', path:'', children:new Map(), cards:[], total:0 };
+  // Explicit (possibly empty) decks first: they create folders without adding cards.
+  deckList.forEach(d => {
+    const segs = strictPath(d.path); let node = root;
+    segs.forEach((seg, i) => {
+      if(!node.children.has(seg)) node.children.set(seg, { name:seg, path:pathString(segs.slice(0, i+1)), children:new Map(), cards:[], total:0, explicit:false });
+      node = node.children.get(seg);
+    });
+    if(node !== root) node.explicit = true;
+  });
   cardList.forEach(c => {
     const segs = deckPath(c.deck);
     let node = root; root.total++;
@@ -485,6 +531,27 @@ function parseCardsFromWorkbook(){
   }));
   normalizeDecksInPlace();
 }
+function parseDecksFromWorkbook(){
+  decks = [];
+  if(!workbook || !workbook.SheetNames.includes(DECKS_SHEET)) return;
+  const aoa = XLSX.utils.sheet_to_json(workbook.Sheets[DECKS_SHEET], {header:1, defval:''});
+  const hIdx = aoa.findIndex(r => r[0] === 'Path');
+  if(hIdx === -1) return;
+  const seen = new Set();
+  aoa.slice(hIdx+1).forEach(r => {
+    const path = cleanDeckSpelling(r[0] || '');
+    if(!path || seen.has(deckKey(path))) return;
+    seen.add(deckKey(path));
+    decks.push({ path, createdBy:r[1]||'', createdAt:r[2]||'' });
+  });
+}
+function buildDecksAOA(){
+  return [
+    ['Decks — Personalized School Record Management System'],
+    ['Decks created on purpose (they can be empty). Cards still carry their own deck path.'],
+    [], ['Path','CreatedBy','CreatedAt'], ...decks.map(d => [d.path, d.createdBy, d.createdAt])
+  ];
+}
 function buildCardsAOA(){
   const headers = ['ID','Deck','Type','Front','Back','CreatedBy','CreatedAt','UpdatedAt'];
   const rows = cards.map(c => [c.id,c.deck,c.type,c.front,c.back,c.createdBy,c.createdAt,c.updatedAt]);
@@ -523,11 +590,14 @@ async function loadFromGitHub(){
     currentSha = json.sha;
     workbook = XLSX.read(b64ToArrayBuffer(json.content), {type:'array'});
     knownSheetNames = workbook.SheetNames.slice();
+    parseDecksFromWorkbook();
     parseCardsFromWorkbook();
+    lastSyncAt = Date.now();
     connected = true;
     panel.style.display = 'none';
     document.getElementById('content').style.display = 'block';
     document.getElementById('addCardToggleBtn').style.display = isMaster ? '' : 'none';
+    document.getElementById('addDeckToggleBtn').style.display = isMaster ? '' : 'none';
     renderDeckBrowser();
     renderMasterList();
   }catch(e){
@@ -538,50 +608,87 @@ async function loadFromGitHub(){
   }
 }
 
-async function persistCards(actionLabel, actionDetails){
+/* Fresh copy of the repo file: cache-bypassed, and via the raw media type when the contents
+   API sends no inline content (files over ~1 MB). */
+async function fetchFreshWorkbook(){
+  const base = `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${encodeURIComponent(GH.path)}?ref=${GH.branch}`;
+  const res = await fetch(base + '&_=' + Date.now(), { cache:'no-store' });
+  if(!res.ok) throw new Error(`could not read the file (HTTP ${res.status})`);
+  const json = await res.json();
+  let buf;
+  if(json.content && json.encoding === 'base64'){ buf = b64ToArrayBuffer(json.content); }
+  else {
+    const raw = await fetch(base + '&_=' + Date.now(), { cache:'no-store', headers:{ 'Accept':'application/vnd.github.raw' } });
+    if(!raw.ok) throw new Error(`could not read the file (HTTP ${raw.status})`);
+    buf = await raw.arrayBuffer();
+  }
+  return { wb: XLSX.read(buf, {type:'array'}), sha: json.sha };
+}
+
+/* Save a change. `applyFn(cards, decks)` must return {cards, decks}; the caller has already
+   applied it locally. Fast path: if this page synced with the repo in the last 20 s, write
+   straight away (1 request). Otherwise (or after a conflict) re-read the latest file, replay
+   applyFn on it, and write that — other pages (presence heartbeats, other Masters) change the
+   file in the background, so a stale copy is rejected with 409. GitHub only accepts a write whose
+   sha matches, so an accepted save is the exact content committed — no read-back needed. */
+async function persistCards(actionLabel, actionDetails, applyFn){
   if(!isMaster) return false;
   if(!editingEnabled || !ghToken){
     alert('This change was NOT saved — editing isn\'t enabled yet. Click "Enable editing" and confirm your passphrase, then redo this change.');
     promptEnableEditing();
     return false;
   }
-  const ws = XLSX.utils.aoa_to_sheet(buildCardsAOA());
-  ws['!cols'] = [16,26,10,40,40,16,20,20].map(w=>({wch:w}));
-  if(!workbook) workbook = XLSX.utils.book_new();
-  workbook.Sheets[CARDS_SHEET] = ws;
-  if(!workbook.SheetNames.includes(CARDS_SHEET)) workbook.SheetNames.push(CARDS_SHEET);
   const pending = drainAuditQueue();
   if(actionLabel) pending.push({ ts:phTimestamp(), actor:session.name, role:session.role, action:actionLabel, details:actionDetails||'' });
-  appendAuditToWorkbook(workbook, pending);
-  // Safety guard: this save is only ever supposed to touch Flashcards + Audit_Log.
-  // If any sheet that was present when this page loaded (Subject_Scheduler,
-  // Valid_Users, Announcements, Reminders, ...) is missing from the outgoing
-  // workbook, something is wrong — refuse to write rather than push a file
-  // that's silently missing another module's data.
-  const missing = knownSheetNames.filter(name => !workbook.SheetNames.includes(name));
-  if(missing.length){
-    alert('Save blocked as a safety precaution: ' + missing.join(', ') + ' would be missing from the saved file. Nothing was written — please reload the page and try again, and let the site owner know if this keeps happening.');
-    return false;
-  }
-  const wbout = XLSX.write(workbook, {bookType:'xlsx', type:'array'});
-  try{
-    currentSha = await saveViaProxy(ghToken, arrayBufferToB64(wbout), currentSha, `Flashcards: ${actionLabel||'update'}`);
-    return true;
-  }catch(e){
-    if(e.status === 409){
-      alert('Someone (or another tab/device) saved a newer version since you loaded this page. Reloading the latest version now — please redo your last change.');
-      await loadFromGitHub();
+  let lastErr = '';
+  for(let attempt = 0; attempt < 4; attempt++){
+    try{
+      const direct = attempt === 0 && workbook && (Date.now() - lastSyncAt) < 20000;
+      if(!direct){
+        const fresh = await fetchFreshWorkbook();
+        workbook = fresh.wb; currentSha = fresh.sha;
+        knownSheetNames = workbook.SheetNames.slice();
+        parseDecksFromWorkbook();
+        parseCardsFromWorkbook();
+        if(applyFn){ const r = applyFn(cards, decks); cards = r.cards; decks = r.decks; }
+      }
+      const ws = XLSX.utils.aoa_to_sheet(buildCardsAOA());
+      ws['!cols'] = [16,26,10,40,40,16,20,20].map(w=>({wch:w}));
+      if(!workbook) workbook = XLSX.utils.book_new();
+      workbook.Sheets[CARDS_SHEET] = ws;
+      if(!workbook.SheetNames.includes(CARDS_SHEET)) workbook.SheetNames.push(CARDS_SHEET);
+      if(decks.length || workbook.SheetNames.includes(DECKS_SHEET)){
+        const dws = XLSX.utils.aoa_to_sheet(buildDecksAOA());
+        dws['!cols'] = [60,16,24].map(w=>({wch:w}));
+        workbook.Sheets[DECKS_SHEET] = dws;
+        if(!workbook.SheetNames.includes(DECKS_SHEET)) workbook.SheetNames.push(DECKS_SHEET);
+      }
+      appendAuditToWorkbook(workbook, pending);
+      // Safety guard: only Flashcards, Decks and Audit_Log may change; refuse if any other sheet would vanish.
+      const missing = knownSheetNames.filter(name => !workbook.SheetNames.includes(name));
+      if(missing.length){
+        alert('Save blocked as a safety precaution: ' + missing.join(', ') + ' would be missing from the saved file. Nothing was written — please reload the page and try again, and let the site owner know if this keeps happening.');
+        return false;
+      }
+      const wbout = XLSX.write(workbook, {bookType:'xlsx', type:'array'});
+      currentSha = await saveViaProxy(ghToken, arrayBufferToB64(wbout), currentSha, `Flashcards: ${actionLabel||'update'}`);
+      lastSyncAt = Date.now();
+      if(!direct){ refreshAfterCardChange(); renderMasterList(); }   // state was rebuilt from the latest file
+      return true;
+    }catch(e){
+      if(e.status === 409){ lastSyncAt = 0; lastErr = 'conflict with another save'; await new Promise(r => setTimeout(r, 500 * (attempt+1))); continue; }
+      if(e.status === 401){
+        alert('Your editing session expired. Click "Enable editing" and confirm your passphrase again, then redo this change.');
+        editingEnabled = false; ghToken = null;
+        try{ localStorage.removeItem(TOKEN_KEY); }catch(err){}
+        return false;
+      }
+      alert('Could not save: ' + e.message);
       return false;
     }
-    if(e.status === 401){
-      alert('Your editing session expired. Click "Enable editing" and confirm your passphrase again, then redo this change.');
-      editingEnabled = false; ghToken = null;
-      try{ localStorage.removeItem(TOKEN_KEY); }catch(err){}
-      return false;
-    }
-    alert('Could not save: ' + e.message);
-    return false;
   }
+  alert('The save was NOT completed after several tries (' + lastErr + '). Wait a few seconds and redo this change.');
+  return false;
 }
 
 /* ---------------- Token panel ---------------- */
@@ -689,16 +796,19 @@ function renderBrowseNode(node, depth, q){
   const isLeaf = kids.length === 0;
   const isOpen = q ? true : openDeckPreviews.has(node.path);
   const tc = deckTypeCounts(isLeaf ? node.cards : []);
-  const meta = isLeaf
+  const meta = (node.total === 0 && isLeaf) ? 'Empty — no cards yet'
+    : isLeaf
     ? `${node.cards.length} card${node.cards.length===1?'':'s'}` + (tc.cloze ? ` · ${tc.cloze} cloze` : '')
     : `${node.total} card${node.total===1?'':'s'}` + (kids.length ? ` · ${kids.length} ${kids.length===1?'folder':'folders'}` : '');
+  const canRemove = isMaster && node.total === 0;
   const cardRows = node.cards.length ? `<div class="card-list">${node.cards.map(c => `
       <div class="card-row"><span class="front-snip">${escapeHtml(c.type==='cloze' ? c.front.replace(CLOZE_MARKER,'⬚') : c.front)}</span></div>`).join('')}</div>` : '';
   return `<details class="dnode d${Math.min(depth,3)}" data-path="${escapeHtml(node.path)}" ${isOpen ? 'open' : ''}>
     <summary>
       <span class="dn-name">${escapeHtml(prettySeg(node.name))}</span>
-      <span class="dn-meta">${meta}</span>
-      <button type="button" class="btn-sm btn-primary dn-start" data-start-path="${escapeHtml(node.path)}" aria-label="Review ${escapeHtml(prettySeg(node.name))}">Review</button>
+      <span class="dn-meta${node.total === 0 ? ' dn-empty' : ''}">${meta}</span>
+      ${canRemove ? `<button type="button" class="btn-sm btn-text dn-del" data-del-path="${escapeHtml(node.path)}" aria-label="Remove empty deck ${escapeHtml(prettySeg(node.name))}">Remove</button>` : ''}
+      <button type="button" class="btn-sm btn-primary dn-start" data-start-path="${escapeHtml(node.path)}" ${node.total === 0 ? 'disabled title="No cards to review yet"' : ''} aria-label="Review ${escapeHtml(prettySeg(node.name))}">Review</button>
     </summary>
     <div class="dn-body">${cardRows}${kids.map(k => renderBrowseNode(k, depth+1, q)).join('')}</div>
   </details>`;
@@ -706,18 +816,19 @@ function renderBrowseNode(node, depth, q){
 
 function renderDeckBrowser(){
   // Datalist + recent chips for the add-card form
-  const deckOptions = [...new Set(cards.map(c => c.deck).filter(Boolean))].sort();
+  const deckOptions = [...new Set([...cards.map(c => c.deck), ...decks.map(d => d.path)].filter(Boolean))].sort();
   document.getElementById('deckDatalist').innerHTML = deckOptions.map(d => `<option value="${escapeHtml(d)}">`).join('');
   renderRecentDeckChips();
 
-  document.getElementById('allDecksNote').textContent = `${cards.length} card${cards.length===1?'':'s'} in ${deckOptions.length} deck${deckOptions.length===1?'':'s'}`;
+  const nDecks = new Set([...cards.map(c => pathString(deckPath(c.deck))), ...decks.map(d => pathString(strictPath(d.path)))].map(x => x.toLowerCase())).size;
+  document.getElementById('allDecksNote').textContent = `${cards.length} card${cards.length===1?'':'s'} in ${nDecks} deck${nDecks===1?'':'s'}`;
   document.getElementById('startAllBtn').disabled = cards.length === 0;
-  document.getElementById('deckBrowserSummary').textContent = cards.length ? '' : 'No decks yet';
-  document.getElementById('deckFilterRow').style.display = cards.length > 8 ? 'flex' : 'none';
+  document.getElementById('deckBrowserSummary').textContent = (cards.length || decks.length) ? '' : 'No decks yet';
+  document.getElementById('deckFilterRow').style.display = (cards.length + decks.length) > 8 ? 'flex' : 'none';
 
   const wrap = document.getElementById('deckBrowser');
-  if(!cards.length){
-    wrap.innerHTML = '<div class="db-empty-hint">No flashcard decks yet.' + (isMaster ? ' Add a card below to create the first one.' : ' Check back once a Master has added some.') + '</div>';
+  if(!cards.length && !decks.length){
+    wrap.innerHTML = '<div class="db-empty-hint">No flashcard decks yet.' + (isMaster ? ' Use “+ New deck” to create one, or add a card below.' : ' Check back once a Master has added some.') + '</div>';
     return;
   }
   const root = buildDeckTree();
@@ -736,8 +847,11 @@ function renderDeckBrowser(){
 }
 document.getElementById('deckFilterInput').addEventListener('input', (e) => { deckFilterQuery = e.target.value; renderDeckBrowser(); });
 document.getElementById('deckBrowser').addEventListener('click', (e) => {
+  const del = e.target.closest('[data-del-path]');
+  if(del){ e.preventDefault(); e.stopPropagation(); removeEmptyDeck(del.dataset.delPath); return; }
   const btn = e.target.closest('[data-start-path]');
-  if(btn){ e.preventDefault(); e.stopPropagation(); enterReview(btn.dataset.startPath); }
+  if(btn && !btn.disabled){ e.preventDefault(); e.stopPropagation(); enterReview(btn.dataset.startPath); }
+  else if(btn){ e.preventDefault(); e.stopPropagation(); }
 });
 document.getElementById('startAllBtn').addEventListener('click', () => enterReview('__all__'));
 document.getElementById('backToDecksBtn').addEventListener('click', showDeckBrowser);
@@ -957,15 +1071,15 @@ document.getElementById('submitCardBtn').addEventListener('click', async () => {
   }
   const now = new Date().toISOString();
   const wasEditing = !!editingCardId;
-  const snapshot = cards.slice();
+  const editId = editingCardId, cardType = currentType;
+  const snapshot = cards.slice(), snapDecks = decks.slice();
   const label = deck + (currentType==='cloze' ? ' — cloze' : '');
-  if(editingCardId){
-    cards = cards.map(c => c.id===editingCardId ? {...c, deck, type:currentType, front, back, updatedAt:now} : c);
-  } else {
-    cards.push({ id:uid(), deck, type:currentType, front, back, createdBy:session.name, createdAt:now, updatedAt:now });
-    // Remember this deck for next time (only on add, not edit)
-    lastUsedDeck = deck; rememberDeck(deck);
-  }
+  const newCard = wasEditing ? null : { id:uid(), deck, type:cardType, front, back, createdBy:session.name, createdAt:now, updatedAt:now };
+  const applyFn = wasEditing
+    ? (cs, ds) => ({ cards: cs.map(c => c.id===editId ? {...c, deck, type:cardType, front, back, updatedAt:now} : c), decks: ds })
+    : (cs, ds) => ({ cards: cs.some(c => c.id===newCard.id) ? cs : [...cs, newCard], decks: ds });
+  ({cards, decks} = applyFn(cards, decks));
+  if(!wasEditing){ lastUsedDeck = deck; rememberDeck(deck); }   // remember this deck for next time (only on add, not edit)
   if(wasEditing){ closeCardForm(); }
   else {
     // Keep the form open for rapid entry: same deck + type, fresh text fields.
@@ -979,8 +1093,8 @@ document.getElementById('submitCardBtn').addEventListener('click', async () => {
   }
   refreshAfterCardChange();
   renderMasterList();
-  const ok = await persistCards(wasEditing ? 'Edit Flashcard' : 'Add Flashcard', label);
-  if(!ok){ cards = snapshot; refreshAfterCardChange(); renderMasterList(); }
+  const ok = await persistCards(wasEditing ? 'Edit Flashcard' : 'Add Flashcard', label, applyFn);
+  if(!ok){ cards = snapshot; decks = snapDecks; refreshAfterCardChange(); renderMasterList(); }
 });
 
 function startCardEdit(id){
@@ -1007,10 +1121,11 @@ async function deleteCard(id){
   if(!confirm('Delete this card?')) return;
   const target = cards.find(c => c.id === id);
   const snapshot = cards.slice();
-  cards = cards.filter(c => c.id !== id);
+  const applyFn = (cs, ds) => ({ cards: cs.filter(c => c.id !== id), decks: ds });
+  ({cards, decks} = applyFn(cards, decks));
   refreshAfterCardChange();
   renderMasterList();
-  const ok = await persistCards('Delete Flashcard', target ? (target.deck+' — '+target.front.slice(0,40)) : id);
+  const ok = await persistCards('Delete Flashcard', target ? (target.deck+' — '+target.front.slice(0,40)) : id, applyFn);
   if(!ok){ cards = snapshot; refreshAfterCardChange(); renderMasterList(); }
 }
 window.deleteCard = deleteCard;
@@ -1050,7 +1165,7 @@ function renderManageNode(node, depth, force){
     <summary>
       <input type="checkbox" class="deck-select-all" aria-label="Select all in ${escapeHtml(prettySeg(node.name))}" ${st.all ? 'checked' : ''} data-indet="${st.some ? 1 : 0}" onclick="event.stopPropagation()">
       <span class="dn-name">${escapeHtml(prettySeg(node.name))}</span>
-      <span class="dn-meta">${node.total} card${node.total===1?'':'s'}</span>
+      <span class="dn-meta${node.total === 0 ? ' dn-empty' : ''}">${node.total === 0 ? 'Empty' : node.total + ' card' + (node.total===1?'':'s')}</span>
     </summary>
     <div class="dn-body">${rows ? `<div class="card-list">${rows}</div>` : ''}${kids.map(k => renderManageNode(k, depth+1, force)).join('')}</div>
   </details>`;
@@ -1070,7 +1185,7 @@ function renderMasterList(){
   const wrap = document.getElementById('masterListWrap');
   const toolbar = document.getElementById('manageToolbar');
   if(!isMaster){ wrap.innerHTML = ''; toolbar.style.display = 'none'; return; }
-  if(cards.length === 0){
+  if(cards.length === 0 && decks.length === 0){
     wrap.innerHTML = '<div class="empty">No cards yet — add your first one above.</div>';
     toolbar.style.display = 'none';
     updateBulkBar();
@@ -1084,13 +1199,13 @@ function renderMasterList(){
 
   const q = manageSearchQuery.trim().toLowerCase();
   const filtered = cards.filter(c => cardMatchesSearch(c, q));
-  if(filtered.length === 0){
+  if(filtered.length === 0 && (q || !decks.length)){
     wrap.innerHTML = '<div class="empty">No cards match your search.</div>';
     updateBulkBar();
     return;
   }
 
-  const root = buildDeckTree(filtered);
+  const root = buildDeckTree(filtered, q ? [] : decks);
   wrap.innerHTML = sortedChildren(root).map(n => renderManageNode(n, 0, !!q)).join('');
   wrap.querySelectorAll('.deck-select-all[data-indet="1"]').forEach(b => { b.indeterminate = true; });
 
@@ -1147,14 +1262,116 @@ document.getElementById('deleteSelectedBtn').addEventListener('click', async () 
   const idSet = new Set(ids);
   const snapshot = cards.slice();
   const removed = cards.filter(c => idSet.has(c.id));
-  cards = cards.filter(c => !idSet.has(c.id));
+  const applyFn = (cs, ds) => ({ cards: cs.filter(c => !idSet.has(c.id)), decks: ds });
+  ({cards, decks} = applyFn(cards, decks));
   selectedCardIds.clear();
   refreshAfterCardChange();
   renderMasterList();
   const deckSummary = [...new Set(removed.map(c => c.deck))].join(', ');
-  const ok = await persistCards('Delete Flashcards (bulk)', `${removed.length} cards — ${deckSummary}`);
+  const ok = await persistCards('Delete Flashcards (bulk)', `${removed.length} cards — ${deckSummary}`, applyFn);
   if(!ok){ cards = snapshot; refreshAfterCardChange(); renderMasterList(); }
 });
+
+/* ---------------- New deck (no cards needed) ---------------- */
+const deckPanel = document.getElementById('deckFormPanel');
+function allFolderPaths(){
+  const out = [];
+  (function walk(node, depth){ sortedChildren(node).forEach(n => { out.push({ path:n.path, name:n.name, depth }); walk(n, depth+1); }); })(buildDeckTree(), 0);
+  return out;
+}
+function fillParentSelect(keep){
+  const sel = document.getElementById('nd_parent');
+  const opts = allFolderPaths();
+  sel.innerHTML = '<option value="">(top level)</option>' + opts.map(o =>
+    `<option value="${escapeHtml(o.path)}">${'\u00A0\u00A0\u00A0'.repeat(o.depth)}${o.depth ? '└ ' : ''}${escapeHtml(prettySeg(o.name))}</option>`).join('');
+  if(keep && opts.some(o => o.path === keep)) sel.value = keep;
+}
+function composeNewDeckPath(){
+  const parent = document.getElementById('nd_parent').value;
+  const segs = document.getElementById('nd_name').value.split('/').map(x => x.trim().replace(/\s+/g,' ')).filter(Boolean);
+  return { segs, full: segs.length ? cleanDeckSpelling((parent ? parent + ' / ' : '') + segs.join(' / ')) : '' };
+}
+function updateDeckPreview(){
+  const { full } = composeNewDeckPath();
+  document.getElementById('nd_preview').textContent = full ? 'Will be created as: ' + full.split(' / ').map(prettySeg).join(' › ') : '';
+}
+function deckExists(full){
+  const key = deckKey(full);
+  const have = new Set();
+  [...cards.map(c => pathString(deckPath(c.deck))), ...decks.map(d => pathString(strictPath(d.path)))].forEach(p => {
+    const segs = p.split(' / '); for(let i = 1; i <= segs.length; i++) have.add(deckKey(segs.slice(0, i).join(' / ')));
+  });
+  return have.has(key);
+}
+function openDeckForm(){
+  fillParentSelect(document.getElementById('nd_parent').value);
+  deckPanel.classList.add('open');
+  updateDeckPreview();
+  document.getElementById('nd_name').focus();
+}
+function closeDeckForm(){
+  deckPanel.classList.remove('open');
+  document.getElementById('nd_name').value = '';
+  document.getElementById('deckFormError').style.display = 'none';
+  document.getElementById('deckAddedNote').textContent = '';
+}
+document.getElementById('addDeckToggleBtn').addEventListener('click', () => {
+  if(!editingEnabled || !ghToken){ promptEnableEditing(); return; }
+  openDeckForm();
+});
+document.getElementById('cancelDeckBtn').addEventListener('click', closeDeckForm);
+document.getElementById('nd_name').addEventListener('input', updateDeckPreview);
+document.getElementById('nd_parent').addEventListener('change', updateDeckPreview);
+document.getElementById('nd_name').addEventListener('keydown', (e) => { if(e.key === 'Enter'){ e.preventDefault(); document.getElementById('submitDeckBtn').click(); } });
+document.getElementById('submitDeckBtn').addEventListener('click', async () => {
+  if(!isMaster) return;
+  if(!editingEnabled || !ghToken){ promptEnableEditing(); return; }
+  const err = document.getElementById('deckFormError');
+  const fail = (m) => { err.textContent = m; err.style.display = 'block'; };
+  const { segs, full } = composeNewDeckPath();
+  if(!segs.length) return fail('Type a name for the deck.');
+  if(segs.some(x => x.length > 60)) return fail('Each level\'s name must be 60 characters or fewer.');
+  if(segs.some(x => /[\u0000-\u001f\[\]]/.test(x))) return fail('Deck names can\'t contain square brackets or control characters.');
+  if(full.split(' / ').length > 8) return fail('Decks can be at most 8 levels deep.');
+  if(deckExists(full)) return fail('That deck already exists.');
+  err.style.display = 'none';
+  const now = new Date().toISOString();
+  const entry = { path: full, createdBy: session.name, createdAt: now };
+  const snapshot = cards.slice(), snapDecks = decks.slice();
+  const applyFn = (cs, ds) => ({ cards: cs, decks: ds.some(d => deckKey(d.path) === deckKey(full)) ? ds : [...ds, entry] });
+  ({cards, decks} = applyFn(cards, decks));
+  // Make the new deck visible: expand every level above it.
+  const parts = full.split(' / ');
+  for(let i = 1; i < parts.length; i++){ const anc = parts.slice(0, i).join(' / '); openDeckPreviews.add(anc); if(openDecks) openDecks.add(anc); }
+  const keepParent = document.getElementById('nd_parent').value;
+  renderDeckBrowser(); renderMasterList(); fillParentSelect(keepParent);
+  const btn = document.getElementById('submitDeckBtn'); btn.disabled = true;
+  const ok = await persistCards('Create Deck', full, applyFn);
+  btn.disabled = false;
+  if(ok){
+    document.getElementById('nd_name').value = '';
+    document.getElementById('deckAddedNote').textContent = 'Created ' + parts.map(prettySeg).join(' › ');
+    fillParentSelect(keepParent); updateDeckPreview();
+    document.getElementById('nd_name').focus();
+  } else {
+    cards = snapshot; decks = snapDecks; renderDeckBrowser(); renderMasterList(); fillParentSelect(keepParent);
+  }
+});
+async function removeEmptyDeck(path){
+  if(!isMaster) return;
+  if(!editingEnabled || !ghToken){ promptEnableEditing(); return; }
+  if(!confirm('Remove the empty deck "' + path.split(' / ').map(prettySeg).join(' › ') + '"? It has no cards.')) return;
+  const snapshot = cards.slice(), snapDecks = decks.slice();
+  const inside = (d) => { const p = pathString(strictPath(d.path)); return p === path || p.startsWith(path + ' / '); };
+  const hasCards = (cs) => cs.some(c => { const p = pathString(deckPath(c.deck)); return p === path || p.startsWith(path + ' / '); });
+  if(hasCards(cards)){ alert('That deck now has cards in it, so it can\'t be removed here.'); return; }
+  // Only ever removes deck entries — never cards. Skips the removal if cards appeared meanwhile.
+  const applyFn = (cs, ds) => hasCards(cs) ? { cards: cs, decks: ds } : { cards: cs, decks: ds.filter(d => !inside(d)) };
+  ({cards, decks} = applyFn(cards, decks));
+  renderDeckBrowser(); renderMasterList();
+  const ok = await persistCards('Remove Empty Deck', path, applyFn);
+  if(!ok){ cards = snapshot; decks = snapDecks; renderDeckBrowser(); renderMasterList(); }
+}
 
 /* ---------------- Boot ---------------- */
 if(!session){
