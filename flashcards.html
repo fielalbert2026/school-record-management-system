@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script>(function(){try{var t=localStorage.getItem('srms_theme')||'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<script src="maintenance-guard.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Study Hub — Personalized School Record Management System</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -170,6 +171,22 @@
   }
 
   footer{text-align:center; color:var(--muted); font-size:12px; margin-top:36px;}
+
+  /* ---- Resources (collapsed folders; reuses the .dnode tree styles above) ---- */
+  #resourcesWrap{ margin-bottom:30px; }
+  #resFilterRow{ display:none; margin-bottom:10px; }
+  #resFilterInput{ flex:1; }
+  .res-files{ padding:0 0 4px; }
+  .res-loose{ margin-top:6px; }
+  .res-file{ display:flex; align-items:center; gap:10px; min-height:40px; padding:6px 8px; border-bottom:1px dashed var(--paper-line); border-radius:var(--radius-sm); text-decoration:none; color:var(--ink); transition:background .12s ease; }
+  .res-file:last-child{ border-bottom:none; }
+  .res-file:hover, .res-file:focus-visible{ background:var(--color-hover-wash); }
+  .res-ext{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; font-weight:500; letter-spacing:.04em; color:var(--sage); background:var(--sage-bg); padding:2px 6px; border-radius:4px; flex-shrink:0; min-width:38px; text-align:center; }
+  .res-name{ flex:1; min-width:0; font-size:13.5px; overflow-wrap:anywhere; }
+  @media (max-width:560px){
+    .dnode.res-node > summary{ display:flex; flex-wrap:wrap; }
+    .dnode.res-node > summary .dn-name{ flex:1 1 0; }
+  }
 </style>
 </head>
 <body>
@@ -215,6 +232,14 @@
   </div>
 
   <div id="content" style="display:none;">
+    <div id="resourcesWrap">
+      <div class="section-toolbar">
+        <h2>Resources</h2>
+        <div class="toolbar-actions"><span class="note" id="resSummary"></span><button class="btn-text" id="resRefreshBtn" type="button">Refresh</button></div>
+      </div>
+      <div id="resFilterRow"><input id="resFilterInput" type="search" placeholder="Filter resources…" aria-label="Filter resources"></div>
+      <div id="resBrowser"></div>
+    </div>
     <div class="section-toolbar" id="deckBrowserToolbar">
       <h2>Decks</h2>
       <div class="toolbar-actions"><span class="note" id="deckBrowserSummary"></span><button class="btn-highlight" id="addDeckToggleBtn" type="button" style="display:none;">+ New deck</button></div>
@@ -322,6 +347,7 @@ const SESSION_KEY = 'srms_session';
 function getSession(){ try{ return JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); }catch(e){ return null; } }
 </script>
 <script src="flashcard-modes.js"></script>
+<script src="resources.js"></script>
 <script>
 const session = getSession();
 const isMaster = !!session && session.role === 'Master';
@@ -860,6 +886,7 @@ document.getElementById('shuffleBtn').addEventListener('click', () => { startRev
 function enterReview(deckName){
   reviewDeck = deckName;
   currentView = 'review';
+  if(window.SRMS && SRMS.resources) SRMS.resources.setVisible(false);
   document.getElementById('deckBrowserToolbar').style.display = 'none';
   document.getElementById('deckBrowserWrap').style.display = 'none';
   document.getElementById('reviewToolbar').style.display = 'flex';
@@ -870,6 +897,7 @@ function enterReview(deckName){
 }
 function showDeckBrowser(){
   currentView = 'decks';
+  if(window.SRMS && SRMS.resources) SRMS.resources.setVisible(true);
   document.getElementById('deckBrowserToolbar').style.display = 'flex';
   document.getElementById('deckBrowserWrap').style.display = 'block';
   document.getElementById('reviewToolbar').style.display = 'none';
@@ -1389,6 +1417,7 @@ if(!session){
     if(saved && isMaster){ ghToken = saved; editingEnabled = true; }
   }catch(e){}
   loadFromGitHub();
+  if(window.SRMS && SRMS.resources) SRMS.resources.init({ owner:GH.owner, repo:GH.repo, branch:GH.branch, root:'resources' });
   // Start broadcasting presence to the Active_Sessions sheet.
   if(window.SRMS && window.SRMS.presence) window.SRMS.presence.start();
 }

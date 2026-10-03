@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script>(function(){try{var t=localStorage.getItem('srms_theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Down for maintenance — School Record Management System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@700&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  /* Fully self-contained on purpose: this page must still render if shared/ is unavailable. */
+  :root{
+    --paper:#f6f5f1; --card:#ffffff; --ink:#1c2321; --muted:#6a716e; --line:rgba(28,35,33,.12);
+    --sage:#4f7a62; --amber:#b7791f; --shadow:0 1px 2px rgba(28,35,33,.04), 0 8px 24px -12px rgba(28,35,33,.12);
+    --ease:cubic-bezier(.2,.9,.3,1);
+  }
+  :root[data-theme="dark"]{
+    --paper:#111413; --card:#181c1a; --ink:#ecefeb; --muted:#8d9591; --line:rgba(236,239,235,.10);
+    --sage:#7fb394; --amber:#e0a84a; --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5);
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0; display:grid; place-items:center; padding:24px;
+    background:var(--paper); color:var(--ink);
+    font-family:'Public Sans',system-ui,sans-serif; -webkit-font-smoothing:antialiased;
+  }
+  main{ width:100%; max-width:520px; animation:rise .28s var(--ease) both; }
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.16em;
+    text-transform:uppercase; color:var(--sage); margin:0 0 16px; text-align:center;
+  }
+  h1{
+    font-family:'Merriweather',serif; font-weight:700; font-size:clamp(28px,6vw,40px);
+    line-height:1.1; letter-spacing:-.02em; margin:0 0 14px; text-align:center;
+  }
+  .message{ color:var(--muted); font-size:15.5px; line-height:1.65; margin:0 auto 32px; max-width:440px; text-align:center; white-space:pre-line; }
+
+  .status{
+    background:var(--card); border:1px solid var(--line); border-radius:14px;
+    box-shadow:var(--shadow); padding:6px 22px;
+  }
+  .row{ display:flex; align-items:center; justify-content:space-between; gap:16px; padding:15px 0; }
+  .row + .row{ border-top:1px solid var(--line); }
+  .label{ font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+  .value{ font-size:14px; font-weight:500; text-align:right; display:inline-flex; align-items:center; gap:8px; }
+  .dot{ width:7px; height:7px; border-radius:50%; background:var(--amber); flex-shrink:0; animation:pulse 2s ease-in-out infinite; }
+  .up .dot{ background:var(--sage); animation:none; }
+
+  .actions{ display:flex; justify-content:center; margin-top:24px; }
+  button{
+    font:inherit; font-size:13.5px; font-weight:600; color:var(--ink); background:var(--card);
+    border:1px solid var(--line); border-radius:10px; padding:10px 18px; cursor:pointer;
+    transition:transform .14s var(--ease), border-color .14s var(--ease);
+  }
+  button:hover{ border-color:var(--ink); }
+  button:active{ transform:scale(.97); }
+  button:focus-visible{ outline:2px solid var(--sage); outline-offset:2px; }
+  .foot{ text-align:center; color:var(--muted); font-size:12px; margin-top:28px; }
+
+
+  /* ---- Illustration ---- */
+  .scene{ margin:0 auto 20px; width:min(300px,78vw); }
+  .scene svg, .scene img{ display:block; width:100%; height:auto; border-radius:14px; }
+  .scene .ink{ stroke:var(--ink); stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }
+  .scene .fill-card{ fill:var(--card); }
+  .scene .fill-amber{ fill:var(--amber); }
+  .scene .fill-ink{ fill:var(--ink); }
+  .scene .no-fill{ fill:none; }
+  .scene .gear{ fill:none; stroke:var(--sage); stroke-linecap:butt; transform-box:fill-box; transform-origin:center; }
+  .scene .gear-a{ animation:spin 6s linear infinite; }
+  .scene .gear-b{ animation:spin 4s linear infinite reverse; }
+  .scene .hero{ animation:bob 2.4s ease-in-out infinite; }
+  .scene .eye{ transform-box:fill-box; transform-origin:center; animation:blink 4s infinite; }
+  .scene .arm{ transform-origin:210px 132px; animation:swing 1.1s ease-in-out infinite alternate; }
+  .scene .spark{ stroke:var(--amber); stroke-width:3; stroke-linecap:round; animation:flicker 1.1s steps(2) infinite; }
+  .scene .spark.s2{ animation-delay:.3s; }
+  .scene .shadow{ fill:var(--ink); opacity:.08; }
+  .caption{ text-align:center; font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:var(--muted); min-height:20px; margin:-14px 0 26px; transition:opacity .25s var(--ease); }
+  .caption.out{ opacity:0; }
+
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  @keyframes bob{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-4px); } }
+  @keyframes blink{ 0%,92%,100%{ transform:scaleY(1); } 95%{ transform:scaleY(.1); } }
+  @keyframes swing{ from{ transform:rotate(-22deg); } to{ transform:rotate(18deg); } }
+  @keyframes flicker{ 0%{ opacity:0; } 50%{ opacity:1; } 100%{ opacity:0; } }
+
+  @keyframes rise{ from{ opacity:0; transform:translateY(8px); } to{ opacity:1; transform:none; } }
+  @keyframes pulse{ 0%,100%{ opacity:1; } 50%{ opacity:.35; } }
+  @media (prefers-reduced-motion:reduce){ main,.dot,.scene *{ animation:none !important; } button,.caption{ transition:none; } }
+</style>
+</head>
+<body>
+<main id="root" aria-live="polite">
+  <figure class="scene" id="scene" role="img" aria-label="A cartoon flashcard in a hard hat swinging a wrench next to spinning gears and a traffic cone">
+    <svg viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <ellipse class="shadow" cx="160" cy="203" rx="82" ry="7"/>
+      <!-- gears -->
+      <circle class="gear gear-a" cx="62" cy="150" r="20" stroke-width="9" stroke-dasharray="7.85 7.85"/>
+      <circle class="no-fill ink" cx="62" cy="150" r="9"/>
+      <circle class="gear gear-b" cx="96" cy="116" r="12" stroke-width="7" stroke-dasharray="4.71 4.71"/>
+      <circle class="no-fill ink" cx="96" cy="116" r="4"/>
+      <!-- cone -->
+      <path class="ink fill-amber" d="M274 198 L302 198 L294 156 L282 156 Z"/>
+      <path class="ink no-fill" d="M278 178 L298 178"/>
+      <rect class="ink fill-card" x="270" y="196" width="36" height="7" rx="3"/>
+      <!-- hero card -->
+      <g class="hero">
+        <rect class="ink fill-card" x="124" y="176" width="14" height="22" rx="5"/>
+        <rect class="ink fill-card" x="182" y="176" width="14" height="22" rx="5"/>
+        <rect class="ink fill-card" x="110" y="66" width="100" height="116" rx="16"/>
+        <path class="ink no-fill" d="M110 90 H210" opacity=".25"/>
+        <g class="arm">
+          <path class="ink no-fill" d="M210 132 L240 152"/>
+          <circle class="ink no-fill" cx="246" cy="156" r="8"/>
+          <path class="ink no-fill" d="M252 162 L266 176"/>
+          <path class="spark" d="M255 140 L262 134"/>
+          <path class="spark s2" d="M262 150 L271 148"/>
+        </g>
+        <path class="ink no-fill" d="M110 138 Q100 142 98 156"/>
+        <ellipse class="eye fill-ink" cx="142" cy="116" rx="6" ry="7"/>
+        <ellipse class="eye fill-ink" cx="178" cy="116" rx="6" ry="7"/>
+        <path class="ink no-fill" d="M146 142 Q160 154 174 142"/>
+        <circle cx="130" cy="134" r="5" fill="var(--amber)" opacity=".35"/>
+        <circle cx="190" cy="134" r="5" fill="var(--amber)" opacity=".35"/>
+        <!-- hard hat -->
+        <path class="ink fill-amber" d="M120 70 Q122 34 160 32 Q198 34 200 70 Z"/>
+        <rect class="ink fill-amber" x="112" y="66" width="96" height="9" rx="4.5"/>
+        <path class="ink no-fill" d="M160 33 V66"/>
+      </g>
+    </svg>
+  </figure>
+  <p class="eyebrow">School Record Management System</p>
+  <h1 id="title">We'll be right back</h1>
+  <p class="message" id="message">The system is down for maintenance. Please check back shortly.</p>
+  <p class="caption" id="caption" aria-hidden="true"></p>
+
+  <section class="status" aria-label="Status">
+    <div class="row"><span class="label">Status</span><span class="value" id="statusVal"><span class="dot"></span><span id="statusText">Under maintenance</span></span></div>
+    <div class="row" id="etaRow" style="display:none;"><span class="label">Expected back</span><span class="value" id="etaVal"></span></div>
+    <div class="row"><span class="label">Last checked</span><span class="value" id="checkedVal">—</span></div>
+  </section>
+
+  <div class="actions"><button type="button" id="recheckBtn">Check again</button></div>
+  <p class="foot">This page checks automatically every 30 seconds.</p>
+</main>
+
+<script>
+(function(){
+  const $ = (id) => document.getElementById(id);
+  const fmtTime = (d) => d.toLocaleTimeString([], { hour:'numeric', minute:'2-digit' });
+  let redirecting = false;
+
+  /* Rotating one-liners (override with "captions": [...] in maintenance.json). */
+  let captions = [
+    "Our servers are taking a very serious nap.",
+    "Teaching the flashcards some new tricks.",
+    "The gremlins have been dismissed. Mostly.",
+    "Tightening a few bolts. Okay, a lot of bolts.",
+    "Your notes are safe. The coffee, less so.",
+    "Definitely not a pop quiz. We promise."
+  ];
+  let ci = 0;
+  const cap = $('caption');
+  function nextCaption(first){
+    if(!captions.length){ cap.textContent = ''; return; }
+    if(first){ cap.textContent = captions[0]; return; }
+    cap.classList.add('out');
+    setTimeout(() => { ci = (ci + 1) % captions.length; cap.textContent = captions[ci]; cap.classList.remove('out'); }, 260);
+  }
+  nextCaption(true);
+  setInterval(() => nextCaption(false), 4500);
+
+  /* Optional custom image/GIF: set "image": "images/brb.gif" in maintenance.json. Falls back to the drawing. */
+  let customImage = '';
+  function applyImage(src, alt){
+    if(src === customImage) return;
+    customImage = src;
+    const scene = $('scene');
+    if(!scene.dataset.svg) scene.dataset.svg = scene.innerHTML;
+    if(!src){ scene.innerHTML = scene.dataset.svg; return; }
+    const img = new Image();
+    img.alt = alt || 'Under maintenance';
+    img.onload = () => { scene.innerHTML = ''; scene.appendChild(img); };
+    img.onerror = () => { customImage = ''; };
+    img.src = src;
+  }
+
+  async function check(){
+    let cfg = null;
+    try{
+      const res = await fetch('maintenance.json?_=' + Date.now(), { cache:'no-store' });
+      if(res.ok) cfg = await res.json();
+    }catch(e){}
+    $('checkedVal').textContent = fmtTime(new Date());
+    if(!cfg) return;                                   // keep showing the last known state
+
+    if(cfg.title)   $('title').textContent = cfg.title;
+    if(cfg.message) $('message').textContent = cfg.message;
+    if(Array.isArray(cfg.captions) && cfg.captions.length) captions = cfg.captions;
+    applyImage(cfg.image || '', cfg.imageAlt);
+
+    const eta = cfg.eta ? new Date(cfg.eta) : null;
+    if(eta && !isNaN(eta)){
+      $('etaVal').textContent = eta.toLocaleString([], { weekday:'short', hour:'numeric', minute:'2-digit' });
+      $('etaRow').style.display = '';
+    }else{
+      $('etaRow').style.display = 'none';
+    }
+
+    if(cfg.enabled !== true && !redirecting){          // back online → send them home
+      redirecting = true;
+      $('root').classList.add('up');
+      $('statusText').textContent = 'Back online';
+      $('title').textContent = "We're back";
+      $('message').textContent = 'Taking you to the system…';
+      setTimeout(() => location.replace('index.html'), 1200);
+    }
+  }
+
+  $('recheckBtn').addEventListener('click', check);
+  check();
+  setInterval(check, 30000);
+})();
+</script>
+</body>
+</html>

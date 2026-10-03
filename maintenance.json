@@ -1,0 +1,9 @@
+{
+  "enabled": true,
+  "title": "We'll be right back",
+  "message": "The system is down for scheduled maintenance. Your records and decks are safe.",
+  "eta": "",
+  "bypassKey": "change-me-before-use",
+  "image": "",
+  "imageAlt": ""
+}
