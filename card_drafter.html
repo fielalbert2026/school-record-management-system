@@ -439,7 +439,37 @@ async function loadFromGitHub(){
   }
 }
 
-async function persistCards(actionLabel, actionDetails){
+/* Read the file back from GitHub (cache-busted) and confirm the given card IDs are
+   really in the Flashcards sheet. Used after every save so "Saved" is never claimed
+   on the strength of the proxy's reply alone. Returns {ok, reason, wb, sha}. */
+async function verifySavedCards(ids){
+  try{
+    const base = `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${encodeURIComponent(GH.path)}?ref=${GH.branch}`;
+    const res = await fetch(base + '&_=' + Date.now(), { cache:'no-store' });
+    if(!res.ok) return { ok:false, reason:`could not re-read the file (HTTP ${res.status})` };
+    const json = await res.json();
+    let buf;
+    if(json.content && json.encoding === 'base64'){
+      buf = b64ToArrayBuffer(json.content);
+    } else {
+      // Files over ~1 MB come back with empty content from the contents API; use the raw media type.
+      const raw = await fetch(base + '&_=' + Date.now(), { cache:'no-store', headers:{ 'Accept':'application/vnd.github.raw' } });
+      if(!raw.ok) return { ok:false, reason:`could not re-read the file (HTTP ${raw.status})` };
+      buf = await raw.arrayBuffer();
+    }
+    const wb = XLSX.read(buf, {type:'array'});
+    if(!wb.SheetNames.includes(CARDS_SHEET)) return { ok:false, reason:'the Flashcards sheet is missing in the saved file' };
+    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[CARDS_SHEET], {header:1, defval:''});
+    const have = new Set(aoa.map(r => r[0]));
+    const missing = ids.filter(id => !have.has(id));
+    if(missing.length) return { ok:false, reason:`${missing.length} of ${ids.length} new cards are not in the saved file`, wb, sha: json.sha };
+    return { ok:true, wb, sha: json.sha };
+  }catch(e){
+    return { ok:false, reason:'read-back failed: ' + e.message };
+  }
+}
+
+async function persistCards(actionLabel, actionDetails, expectIds){
   if(!isMaster) return false;
   if(!editingEnabled || !ghToken){
     alert('This change was NOT saved — editing isn\'t enabled yet. Click "Enable editing" and confirm your passphrase, then click "Save to shared deck" again.');
@@ -467,6 +497,17 @@ async function persistCards(actionLabel, actionDetails){
   const wbout = XLSX.write(workbook, {bookType:'xlsx', type:'array'});
   try{
     currentSha = await saveViaProxy(ghToken, arrayBufferToB64(wbout), currentSha, `Flashcards: ${actionLabel||'update'}`);
+    if(expectIds && expectIds.length){
+      const v = await verifySavedCards(expectIds);
+      if(!v.ok){
+        // The server said OK but the cards are not in the repo file. Do not claim success.
+        // Resync from the real file so the next attempt starts from the truth.
+        if(v.wb){ workbook = v.wb; knownSheetNames = workbook.SheetNames.slice(); currentSha = v.sha; parseCardsFromWorkbook(); }
+        alert('The save was NOT confirmed: ' + v.reason + '. Your approved cards are still on this page — nothing was lost. Wait a few seconds and click "Save to shared deck" again; if it keeps happening, tell the site owner (the /api/save service may be writing to a different file or branch than this page reads).');
+        return false;
+      }
+      workbook = v.wb; knownSheetNames = workbook.SheetNames.slice(); currentSha = v.sha;
+    }
     return true;
   }catch(e){
     if(e.status === 409){
@@ -1128,14 +1169,16 @@ saveSharedBtn.addEventListener('click', async () => {
   draftedCards.forEach(c => cards.push({ id:c.id, deck:c.deck, type:c.type, front:c.front, back:c.back, createdBy:session.name, createdAt:ts, updatedAt:ts }));
   const deckLabel = draftedCards[0] ? draftedCards[0].deck : '';
   rememberDeck(deckLabel);
-  const ok = await persistCards('Add Flashcards (drafted)', draftedCards.length + ' cards to ' + deckLabel);
+  const expectIds = draftedCards.map(c => c.id);
+  const ok = await persistCards('Add Flashcards (drafted)', draftedCards.length + ' cards to ' + deckLabel, expectIds);
   if (ok) {
     draftedCards = [];
     renderDrafted();
     renderDeckDatalist();
     saveStatus.className = 'status ok'; saveStatus.textContent = 'Saved to the shared deck.';
   } else {
-    cards = snapshot;
+    // If the page already resynced from the real file (failed read-back), keep that; otherwise undo the optimistic add.
+    if(cards.some(c => expectIds.includes(c.id))) cards = snapshot;
     saveStatus.className = 'status err'; saveStatus.textContent = 'Not saved — see the message above.';
   }
   saveSharedBtn.disabled = !isMaster || !draftedCards.length;
