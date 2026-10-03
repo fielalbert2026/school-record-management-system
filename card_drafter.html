@@ -439,91 +439,94 @@ async function loadFromGitHub(){
   }
 }
 
-/* Read the file back from GitHub (cache-busted) and confirm the given card IDs are
-   really in the Flashcards sheet. Used after every save so "Saved" is never claimed
-   on the strength of the proxy's reply alone. Returns {ok, reason, wb, sha}. */
-async function verifySavedCards(ids){
-  try{
-    const base = `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${encodeURIComponent(GH.path)}?ref=${GH.branch}`;
-    const res = await fetch(base + '&_=' + Date.now(), { cache:'no-store' });
-    if(!res.ok) return { ok:false, reason:`could not re-read the file (HTTP ${res.status})` };
-    const json = await res.json();
-    let buf;
-    if(json.content && json.encoding === 'base64'){
-      buf = b64ToArrayBuffer(json.content);
-    } else {
-      // Files over ~1 MB come back with empty content from the contents API; use the raw media type.
-      const raw = await fetch(base + '&_=' + Date.now(), { cache:'no-store', headers:{ 'Accept':'application/vnd.github.raw' } });
-      if(!raw.ok) return { ok:false, reason:`could not re-read the file (HTTP ${raw.status})` };
-      buf = await raw.arrayBuffer();
-    }
-    const wb = XLSX.read(buf, {type:'array'});
-    if(!wb.SheetNames.includes(CARDS_SHEET)) return { ok:false, reason:'the Flashcards sheet is missing in the saved file' };
-    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[CARDS_SHEET], {header:1, defval:''});
-    const have = new Set(aoa.map(r => r[0]));
-    const missing = ids.filter(id => !have.has(id));
-    if(missing.length) return { ok:false, reason:`${missing.length} of ${ids.length} new cards are not in the saved file`, wb, sha: json.sha };
-    return { ok:true, wb, sha: json.sha };
-  }catch(e){
-    return { ok:false, reason:'read-back failed: ' + e.message };
+/* Always read the repo file fresh: cache-busted, and via the raw media type when the
+   contents API returns no inline content (files over ~1 MB). */
+async function fetchFreshWorkbook(){
+  const base = `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${encodeURIComponent(GH.path)}?ref=${GH.branch}`;
+  const res = await fetch(base + '&_=' + Date.now(), { cache:'no-store' });
+  if(!res.ok) throw new Error(`could not read the file (HTTP ${res.status})`);
+  const json = await res.json();
+  let buf;
+  if(json.content && json.encoding === 'base64'){
+    buf = b64ToArrayBuffer(json.content);
+  } else {
+    const raw = await fetch(base + '&_=' + Date.now(), { cache:'no-store', headers:{ 'Accept':'application/vnd.github.raw' } });
+    if(!raw.ok) throw new Error(`could not read the file (HTTP ${raw.status})`);
+    buf = await raw.arrayBuffer();
   }
+  return { wb: XLSX.read(buf, {type:'array'}), sha: json.sha };
 }
 
-async function persistCards(actionLabel, actionDetails, expectIds){
+/* Save newCards into the shared Flashcards sheet.
+   Why read-merge-write: other pages write to this same xlsx in the background
+   (presence heartbeats every 2 min, other Masters), so the copy loaded when this page
+   opened goes stale and GitHub rejects the write with 409. So every save starts from the
+   latest file, appends the new cards to it, and retries on a conflict. Success is only
+   reported after the cards are read back from the repo. */
+async function persistCards(actionLabel, actionDetails, newCards){
   if(!isMaster) return false;
   if(!editingEnabled || !ghToken){
     alert('This change was NOT saved — editing isn\'t enabled yet. Click "Enable editing" and confirm your passphrase, then click "Save to shared deck" again.');
     promptEnableEditing();
     return false;
   }
-  const ws = XLSX.utils.aoa_to_sheet(buildCardsAOA());
-  ws['!cols'] = [16,26,10,40,40,16,20,20].map(w=>({wch:w}));
-  if(!workbook) workbook = XLSX.utils.book_new();
-  workbook.Sheets[CARDS_SHEET] = ws;
-  if(!workbook.SheetNames.includes(CARDS_SHEET)) workbook.SheetNames.push(CARDS_SHEET);
-  const pending = drainAuditQueue();
-  if(actionLabel) pending.push({ ts:phTimestamp(), actor:session.name, role:session.role, action:actionLabel, details:actionDetails||'' });
-  appendAuditToWorkbook(workbook, pending);
-  // Safety guard: this save is only ever supposed to touch Flashcards + Audit_Log.
-  // If any sheet that was present when this page loaded (Subject_Scheduler,
-  // Valid_Users, Announcements, Reminders, ...) is missing from the outgoing
-  // workbook, something is wrong — refuse to write rather than push a file
-  // that's silently missing another module's data.
-  const missing = knownSheetNames.filter(name => !workbook.SheetNames.includes(name));
-  if(missing.length){
-    alert('Save blocked as a safety precaution: ' + missing.join(', ') + ' would be missing from the saved file. Nothing was written — please reload the page and try again, and let the site owner know if this keeps happening.');
-    return false;
-  }
-  const wbout = XLSX.write(workbook, {bookType:'xlsx', type:'array'});
-  try{
-    currentSha = await saveViaProxy(ghToken, arrayBufferToB64(wbout), currentSha, `Flashcards: ${actionLabel||'update'}`);
-    if(expectIds && expectIds.length){
-      const v = await verifySavedCards(expectIds);
-      if(!v.ok){
-        // The server said OK but the cards are not in the repo file. Do not claim success.
-        // Resync from the real file so the next attempt starts from the truth.
-        if(v.wb){ workbook = v.wb; knownSheetNames = workbook.SheetNames.slice(); currentSha = v.sha; parseCardsFromWorkbook(); }
-        alert('The save was NOT confirmed: ' + v.reason + '. Your approved cards are still on this page — nothing was lost. Wait a few seconds and click "Save to shared deck" again; if it keeps happening, tell the site owner (the /api/save service may be writing to a different file or branch than this page reads).');
+  const ids = newCards.map(c => c.id);
+  let lastErr = '';
+  for(let attempt = 0; attempt < 4; attempt++){
+    try{
+      const fresh = await fetchFreshWorkbook();
+      workbook = fresh.wb; currentSha = fresh.sha;
+      knownSheetNames = workbook.SheetNames.slice();
+      parseCardsFromWorkbook();                       // cards = latest shared deck
+      const have = new Set(cards.map(c => c.id));
+      newCards.forEach(c => { if(!have.has(c.id)) cards.push(c); });
+
+      const ws = XLSX.utils.aoa_to_sheet(buildCardsAOA());
+      ws['!cols'] = [16,26,10,40,40,16,20,20].map(w=>({wch:w}));
+      workbook.Sheets[CARDS_SHEET] = ws;
+      if(!workbook.SheetNames.includes(CARDS_SHEET)) workbook.SheetNames.push(CARDS_SHEET);
+      // Audit entries are only queued on the first attempt, so a retry doesn't log twice.
+      if(attempt === 0){
+        const pending = drainAuditQueue();
+        if(actionLabel) pending.push({ ts:phTimestamp(), actor:session.name, role:session.role, action:actionLabel, details:actionDetails||'' });
+        persistCards._pendingAudit = pending;
+      }
+      appendAuditToWorkbook(workbook, persistCards._pendingAudit || []);
+      // Safety guard: only Flashcards + Audit_Log may change; refuse if another sheet would vanish.
+      const missing = knownSheetNames.filter(name => !workbook.SheetNames.includes(name));
+      if(missing.length){
+        alert('Save blocked as a safety precaution: ' + missing.join(', ') + ' would be missing from the saved file. Nothing was written — please reload the page and try again.');
         return false;
       }
-      workbook = v.wb; knownSheetNames = workbook.SheetNames.slice(); currentSha = v.sha;
-    }
-    return true;
-  }catch(e){
-    if(e.status === 409){
-      alert('Someone (or another tab/device) saved a newer version since you loaded this page. Reloading the latest version now — please click "Save to shared deck" again.');
-      await loadFromGitHub();
+      const wbout = XLSX.write(workbook, {bookType:'xlsx', type:'array'});
+      currentSha = await saveViaProxy(ghToken, arrayBufferToB64(wbout), currentSha, `Flashcards: ${actionLabel||'update'}`);
+
+      // Read back from the repo before claiming success.
+      const check = await fetchFreshWorkbook();
+      const ws2 = check.wb.Sheets[CARDS_SHEET];
+      const got = new Set(ws2 ? XLSX.utils.sheet_to_json(ws2, {header:1, defval:''}).map(r => r[0]) : []);
+      if(ids.every(id => got.has(id))){
+        workbook = check.wb; currentSha = check.sha; knownSheetNames = workbook.SheetNames.slice();
+        parseCardsFromWorkbook();
+        persistCards._pendingAudit = null;
+        return true;
+      }
+      lastErr = 'the server accepted the save but the new cards are not in the repo file afterwards (another page may have overwritten it)';
+      // fall through and retry from the latest file
+    }catch(e){
+      if(e.status === 409){ lastErr = 'conflict with another save'; await new Promise(r => setTimeout(r, 600 * (attempt+1))); continue; }
+      if(e.status === 401){
+        alert('Your editing session expired. Click "Enable editing" and confirm your passphrase again, then click "Save to shared deck" again.');
+        editingEnabled = false; ghToken = null;
+        try{ localStorage.removeItem(TOKEN_KEY); }catch(err){}
+        return false;
+      }
+      alert('Could not save: ' + e.message + '\nYour approved cards are still on this page — nothing was lost.');
       return false;
     }
-    if(e.status === 401){
-      alert('Your editing session expired. Click "Enable editing" and confirm your passphrase again, then click "Save to shared deck" again.');
-      editingEnabled = false; ghToken = null;
-      try{ localStorage.removeItem(TOKEN_KEY); }catch(err){}
-      return false;
-    }
-    alert('Could not save: ' + e.message);
-    return false;
   }
+  alert('The save was NOT completed after several tries: ' + lastErr + '. Your approved cards are still on this page — nothing was lost. Wait a few seconds and click "Save to shared deck" again.');
+  return false;
 }
 
 function promptEnableEditing(){
@@ -1164,22 +1167,19 @@ saveSharedBtn.addEventListener('click', async () => {
   if (!isMaster || !draftedCards.length) return;
   saveStatus.className = 'status'; saveStatus.textContent = 'Saving…';
   saveSharedBtn.disabled = true;
-  const snapshot = cards.slice();
   const ts = new Date().toISOString();
-  draftedCards.forEach(c => cards.push({ id:c.id, deck:c.deck, type:c.type, front:c.front, back:c.back, createdBy:session.name, createdAt:ts, updatedAt:ts }));
+  const newCards = draftedCards.map(c => ({ id:c.id, deck:c.deck, type:c.type, front:c.front, back:c.back, createdBy:session.name, createdAt:ts, updatedAt:ts }));
   const deckLabel = draftedCards[0] ? draftedCards[0].deck : '';
   rememberDeck(deckLabel);
-  const expectIds = draftedCards.map(c => c.id);
-  const ok = await persistCards('Add Flashcards (drafted)', draftedCards.length + ' cards to ' + deckLabel, expectIds);
+  const ok = await persistCards('Add Flashcards (drafted)', draftedCards.length + ' cards to ' + deckLabel, newCards);
   if (ok) {
+    const n = draftedCards.length;
     draftedCards = [];
     renderDrafted();
     renderDeckDatalist();
-    saveStatus.className = 'status ok'; saveStatus.textContent = 'Saved to the shared deck.';
+    saveStatus.className = 'status ok'; saveStatus.textContent = 'Saved ' + n + ' card' + (n === 1 ? '' : 's') + ' to the shared deck (confirmed in the repo file).';
   } else {
-    // If the page already resynced from the real file (failed read-back), keep that; otherwise undo the optimistic add.
-    if(cards.some(c => expectIds.includes(c.id))) cards = snapshot;
-    saveStatus.className = 'status err'; saveStatus.textContent = 'Not saved — see the message above.';
+    saveStatus.className = 'status err'; saveStatus.textContent = 'Not saved — see the message above. Your approved cards are still here.';
   }
   saveSharedBtn.disabled = !isMaster || !draftedCards.length;
 });

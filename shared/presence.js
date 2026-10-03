@@ -154,9 +154,11 @@
         // 1. Fetch the current file.
         var url = 'https://api.github.com/repos/' + GH.owner + '/' + GH.repo +
                   '/contents/' + encodeURIComponent(GH.path) + '?ref=' + GH.branch;
-        var res = await fetch(url);
+        var res = await fetch(url + '&_=' + Date.now(), { cache: 'no-store' });
         if (!res.ok) throw new Error('Fetch failed (' + res.status + ')');
         var json = await res.json();
+        // Files over ~1 MB come back with empty content; never write from an empty read.
+        if (!json.content) throw new Error('Skipped heartbeat — file content not inline');
         var wb = XLSX.read(b64ToArrayBuffer(json.content), { type: 'array' });
         // Snapshot existing sheets so we don't accidentally drop one (same
         // safety guard as the per-page save routines).
