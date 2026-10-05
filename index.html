@@ -420,7 +420,7 @@
       </div>
     </a>
 
-    <a href="card_drafter.html" class="mod-card live">
+    <a href="card_drafter.html" class="mod-card live" id="cardDrafterCard" style="display:none;">
       <div class="mod-plaque"><span class="mod-eyebrow">Module</span><span class="mod-num">03</span></div>
       <div class="mod-body">
         <h2 class="mod-title">Card Drafter</h2>
@@ -704,6 +704,7 @@ function renderSignedIn(s){
   isMaster = session.role === 'Master';
   document.getElementById('signinPanel').style.display = 'none';
   document.getElementById('hubContent').classList.add('show');
+  document.getElementById('cardDrafterCard').style.display = isMaster ? '' : 'none';   // Card Drafter: Masters only
   document.getElementById('auditLogCard').style.display = session.isOwner ? '' : 'none';
   document.getElementById('activeUsersCard').style.display = session.isOwner ? '' : 'none';
   const strip = document.getElementById('sessionStrip');

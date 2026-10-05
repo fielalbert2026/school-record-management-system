@@ -139,9 +139,9 @@ window.addEventListener('DOMContentLoaded', function(){
   </header>
 
   <div id="accessLockedPanel" style="display:none;">
-    <h2>Sign in required</h2>
-    <p>Sign in with your school ID on the hub page to open the Card Drafter module.</p>
-    <a href="index.html"><button class="btn-primary" type="button">Go to sign in</button></a>
+    <h2 id="accessLockedTitle">Sign in required</h2>
+    <p id="accessLockedText">Sign in with your school ID on the hub page to open the Card Drafter module.</p>
+    <a href="index.html"><button class="btn-primary" type="button" id="accessLockedBtn">Go to sign in</button></a>
   </div>
 
   <div id="connectPanel">
@@ -1341,12 +1341,19 @@ document.getElementById('openDrafterSettings').addEventListener('click', functio
 });
 // On load, probe the server once to set the status badge.
 (function initDrafterSettings(){
-  if(!window.SRMS) return;
+  if(!window.SRMS || !isMaster) return;
   refreshDrafterBadge();
 })();
 
 /* ================= Boot ================= */
-if(!session){
+if(!session || !isMaster){
+  // Card Drafter is for Master accounts only. Guests get a clear message instead of the tool.
+  if(session){
+    document.getElementById('accessLockedTitle').textContent = 'Masters only';
+    document.getElementById('accessLockedText').textContent = 'The Card Drafter is only available to Master accounts. You can still study every deck in the Study Hub.';
+    document.getElementById('accessLockedBtn').textContent = 'Back to the hub';
+    renderSessionStrip();
+  }
   document.getElementById('accessLockedPanel').style.display = 'block';
   document.getElementById('connectPanel').style.display = 'none';
 } else {
