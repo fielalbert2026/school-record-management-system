@@ -1,0 +1,88 @@
+/* ==========================================================================
+   shared/rich-text.css — editor styles for shared/rich-text.js
+   Uses design tokens only. (The colour swatches themselves are data and are
+   painted inline by rich-text.js.)
+   ========================================================================== */
+.rt-wrap {
+  position: relative;
+  border: 1.5px solid var(--color-border-input);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+}
+.rt-wrap:focus-within { border-color: var(--color-border-focus); outline: 2px solid var(--color-focus-ring); outline-offset: 1px; }
+
+.rt-toolbar {
+  display: flex; flex-wrap: wrap; gap: 2px;
+  padding: 4px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-hover);
+  border-radius: calc(var(--radius-md) - 2px) calc(var(--radius-md) - 2px) 0 0;
+}
+.rt-wrap .rt-btn {
+  min-width: 34px; min-height: 34px;
+  padding: 2px 8px;
+  font-size: 14px; font-weight: 600; line-height: 1;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent; color: var(--color-text-primary);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.rt-wrap .rt-btn.rt-wide { padding: 2px 10px; font-size: 12.5px; }
+.rt-wrap .rt-btn:hover:not(:disabled) { background: var(--color-bg-active); transform: none; }
+.rt-wrap .rt-btn[aria-pressed="true"] { background: var(--color-brand-subtle); color: var(--color-brand-text); border-color: var(--color-brand); }
+.rt-wrap .rt-btn[aria-expanded="true"] { background: var(--color-bg-active); }
+.rt-wrap .rt-blank { font-family: var(--font-mono); color: var(--color-accent-text); }
+.rt-ico-a { border-bottom: 3px solid var(--color-error); line-height: 1.1; padding: 0 2px; }
+.rt-ico-hl { background: var(--color-accent); color: var(--color-accent-on); padding: 1px 4px; border-radius: 3px; font-size: 12px; }
+
+.rt-area {
+  min-height: 72px;
+  padding: 10px 12px;
+  outline: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--color-text-primary);
+  font: 400 14px/1.5 var(--font-sans);
+}
+.rt-area:empty::before { content: attr(data-placeholder); color: var(--color-text-tertiary); pointer-events: none; }
+.rt-area div { min-height: 1.5em; }
+
+.rt-pop {
+  position: absolute; z-index: var(--z-popover);
+  min-width: 150px;
+  padding: 8px;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.rt-pop[hidden] { display: none; }
+.rt-swatches { display: grid; grid-template-columns: repeat(4, 30px); gap: 6px; }
+.rt-wrap .rt-swatch {
+  width: 30px; height: 30px; padding: 0;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+}
+.rt-wrap .rt-swatch:hover:not(:disabled) { transform: none; box-shadow: 0 0 0 2px var(--color-border-focus); }
+.rt-wrap .rt-pop-item {
+  text-align: left; width: 100%;
+  padding: 7px 10px; font-size: 13px; font-weight: 500;
+  border: none; border-radius: var(--radius-sm);
+  background: transparent; color: var(--color-text-primary);
+}
+.rt-wrap .rt-pop-item:hover:not(:disabled) { background: var(--color-bg-hover); transform: none; }
+
+@media (pointer: coarse) {
+  .rt-wrap .rt-btn { min-width: 44px; min-height: 44px; }
+  .rt-wrap .rt-swatch { width: 44px; height: 44px; }
+  .rt-swatches { grid-template-columns: repeat(4, 44px); }
+  .rt-wrap .rt-pop-item { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rt-wrap .rt-btn, .rt-wrap .rt-swatch { transition: none; }
+}
+
+/* Read-only preview of a formatted card (used in the drafter's review lists). */
+.rt-preview { overflow-wrap: anywhere; line-height: 1.5; }
+.rt-preview div { min-height: 1.2em; }

@@ -22,6 +22,10 @@
 (function () {
   'use strict';
 
+  // Formatted text + multi-blank cloze helpers (shared/rich-text.js, loaded before this file).
+  var RT = window.SRMS && window.SRMS.rt;
+  function frontHtml(c) { return c.type === 'cloze' ? RT.clozeDisplay(c, false) : RT.html(c.front); }
+
   // ---------------- Helpers ----------------
 
   // Fisher-Yates in place.
@@ -131,7 +135,11 @@
 
   // Disable chips that don't have enough cards to work.
   function syncModeAvailability() {
-    var n = cards.filter(function (c) { return state.mode === 'match' || reviewDeck === '__all__' || c.deck === reviewDeck; }).length;
+    var inScope = function (c) {
+      if (reviewDeck === '__all__') return true;
+      return window.cardInReviewScope ? window.cardInReviewScope(c) : c.deck === reviewDeck;   // folder-level scopes are path prefixes
+    };
+    var n = cards.filter(function (c) { return state.mode === 'match' || inScope(c); }).length;
     document.querySelectorAll('.mode-chip').forEach(function (chip) {
       var m = chip.dataset.mode;
       var req = (m === 'multiple-choice' || m === 'type' || m === 'speed') ? 4
@@ -176,10 +184,10 @@
         else if (i === state.mcPicked) cls += ' mc-wrong';
       }
       return '<button type="button" class="' + cls + '" data-idx="' + i + '">' +
-        escapeHtml(opt).replace(/\n/g, '<br>') + '</button>';
+        RT.htmlLabel(opt) + '</button>';
     }).join('');
     area.innerHTML = '<div class="review-face"><div class="mc-stack">' +
-      '<div class="review-text">' + escapeHtml(c.front).replace(/\n/g, '<br>') + '</div>' +
+      '<div class="review-text">' + frontHtml(c) + '</div>' +
       '<div class="mc-options">' + optsHtml + '</div>' +
       '<div class="mc-feedback">' + (state.mcRevealed ? escapeHtml(state.mcFeedback || '') : '') + '</div>' +
     '</div></div>';
@@ -233,18 +241,21 @@
       controls.innerHTML = '';
       return;
     }
-    var shownFront = c.type === 'cloze'
-      ? c.front.replace(CLOZE_MARKER, '<span class="blank">' + CLOZE_MARKER + '</span>')
-      : c.front;
+    var answers = c.type === 'cloze' ? RT.answersPlain(c) : [RT.toPlain(c.back)];
+    var multi = answers.length > 1;
+    var shownFront = frontHtml(c);
     var feedbackHtml = '';
     if (state.typeRevealed) {
       feedbackHtml = '<div class="type-feedback type-' + state.typeResult + '">' +
         escapeHtml(state.typeFeedback || '') + '</div>';
     }
     area.innerHTML = '<div class="review-face"><div class="type-stack">' +
-      '<div class="review-text">' + shownFront.replace(/\n/g, '<br>') + '</div>' +
-      '<input type="text" id="typeInput" class="type-input" autocomplete="off" placeholder="Type the answer" ' +
-        (state.typeRevealed ? 'disabled' : '') + ' />' +
+      '<div class="review-text">' + shownFront + '</div>' +
+      answers.map(function (a, i) {
+        return '<input type="text" id="typeInput' + (i || '') + '" class="type-input" data-i="' + i + '" autocomplete="off" ' +
+          'placeholder="' + (multi ? 'Blank ' + (i + 1) : 'Type the answer') + '" aria-label="' + (multi ? 'Answer for blank ' + (i + 1) : 'Your answer') + '" ' +
+          (state.typeRevealed ? 'disabled' : '') + ' />';
+      }).join('') +
       feedbackHtml +
     '</div></div>';
     if (state.typeRevealed) {
@@ -257,13 +268,25 @@
       });
     } else {
       controls.innerHTML = '<button class="btn-primary" id="typeCheckBtn">Check</button>';
-      var input = document.getElementById('typeInput');
+      var inputs = area.querySelectorAll('.type-input');
+      var input = inputs[0];
       if (input) {
         input.focus();
         var submit = function () {
           if (state.typeRevealed) return;
-          var v = input.value;
-          var r = checkTyped(v, c.back);
+          var r;
+          if (!multi) {
+            r = checkTyped(input.value, answers[0]);
+          } else {
+            var parts = answers.map(function (a, i) { return checkTyped(inputs[i].value, a); });
+            var allGot = parts.every(function (x) { return x.ok === 'got'; });
+            var noneMissed = parts.every(function (x) { return x.ok !== 'missed'; });
+            var right = parts.filter(function (x) { return x.ok === 'got'; }).length;
+            var summary = answers.join(' · ');
+            r = allGot ? { ok: 'got', message: 'Got it.' }
+              : noneMissed ? { ok: 'almost', message: 'Almost — the answers were "' + summary + '".' }
+              : { ok: 'missed', message: 'Missed ' + (answers.length - right) + ' of ' + answers.length + ' — the answers were "' + summary + '".' };
+          }
           state.typeRevealed = true;
           state.typeResult = r.ok;
           state.typeFeedback = r.message;
@@ -284,8 +307,12 @@
           }
           renderReview();
         };
-        input.addEventListener('keydown', function (e) {
-          if (e.key === 'Enter') { e.preventDefault(); submit(); }
+        inputs.forEach(function (inp, i) {
+          inp.addEventListener('keydown', function (e) {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            if (multi && i < inputs.length - 1) inputs[i + 1].focus(); else submit();
+          });
         });
         document.getElementById('typeCheckBtn').addEventListener('click', submit);
       }
@@ -349,7 +376,7 @@
       var selected = state.matchSelected && state.matchSelected.termIdx === i;
       var cls = 'match-cell match-left' + (matched ? ' matched' : '') + (selected ? ' selected' : '');
       return '<button type="button" class="' + cls + '" data-idx="' + i + '"' + (matched ? ' disabled' : '') + '>' +
-        escapeHtml(c.front).replace(/\n/g, '<br>') + '</button>';
+        frontHtml(c) + '</button>';
     }).join('');
     var rightsHtml = rights.map(function (id, i) {
       var c = lefts.find(function (x) { return x.id === id; });
@@ -357,7 +384,7 @@
       var selected = state.matchSelected && state.matchSelected.defIdx === i;
       var cls = 'match-cell match-right' + (matched ? ' matched' : '') + (selected ? ' selected' : '');
       return '<button type="button" class="' + cls + '" data-idx="' + i + '"' + (matched ? ' disabled' : '') + '>' +
-        escapeHtml(c ? c.back : '').replace(/\n/g, '<br>') + '</button>';
+        (c ? RT.htmlLabel(c.back) : '') + '</button>';
     }).join('');
     area.innerHTML = '<div class="match-grid">' +
       '<div class="match-col">' + leftsHtml + '</div>' +

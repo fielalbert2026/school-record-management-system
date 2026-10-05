@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <script>(function(){try{var t=localStorage.getItem('srms_theme')||'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
-<script src="maintenance-guard.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Study Hub — Personalized School Record Management System</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,6 +10,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link rel="stylesheet" href="shared/design-tokens.css">
 <link rel="stylesheet" href="shared/components.css">
+<link rel="stylesheet" href="shared/rich-text.css">
 <script src="shared/theme.js" defer></script>
 <script src="shared/aria-utils.js" defer></script>
 <script src="shared/presence.js" defer></script>
@@ -171,27 +171,6 @@
   }
 
   footer{text-align:center; color:var(--muted); font-size:12px; margin-top:36px;}
-
-  /* ---- Resources (collapsed folders; reuses the .dnode tree styles above) ---- */
-  #resourcesWrap{ margin-bottom:30px; }
-  #resFilterRow{ display:none; margin-bottom:10px; }
-  #resFilterInput{ flex:1; }
-  .res-files{ padding:0 0 4px; }
-  .res-loose{ margin-top:6px; }
-  .res-file{ display:flex; align-items:center; gap:10px; min-height:40px; padding:6px 8px; border-bottom:1px dashed var(--paper-line); border-radius:var(--radius-sm); text-decoration:none; color:var(--ink); transition:background .12s ease; }
-  .res-file:last-child{ border-bottom:none; }
-  .res-file:hover, .res-file:focus-visible{ background:var(--color-hover-wash); }
-  .res-ext{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; font-weight:500; letter-spacing:.04em; color:var(--sage); background:var(--sage-bg); padding:2px 6px; border-radius:4px; flex-shrink:0; min-width:38px; text-align:center; }
-  .res-name{ flex:1; min-width:0; font-size:13.5px; overflow-wrap:anywhere; }
-  @media (max-width:560px){
-    .dnode.res-node > summary{ display:flex; flex-wrap:wrap; }
-    .dnode.res-node > summary .dn-name{ flex:1 1 0; }
-  }
-  /* Deck label shown during multi-deck review */
-  .deck-tag{ display:none; align-items:center; gap:8px; width:fit-content; max-width:100%; margin:0 auto 6px; padding:4px 12px 4px 4px; border:1px solid var(--paper-line); border-radius:var(--radius-full); background:var(--card); font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--graphite); }
-  .deck-tag.show{ display:flex; }
-  .deck-tag-k{ flex-shrink:0; padding:2px 8px; border-radius:var(--radius-full); background:var(--sage-bg); color:var(--sage); font-weight:500; letter-spacing:.04em; text-transform:uppercase; font-size:10px; }
-  .deck-tag-v{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 </style>
 </head>
 <body>
@@ -237,14 +216,6 @@
   </div>
 
   <div id="content" style="display:none;">
-    <div id="resourcesWrap">
-      <div class="section-toolbar">
-        <h2>Resources</h2>
-        <div class="toolbar-actions"><span class="note" id="resSummary"></span><button class="btn-text" id="resRefreshBtn" type="button">Refresh</button></div>
-      </div>
-      <div id="resFilterRow"><input id="resFilterInput" type="search" placeholder="Filter resources…" aria-label="Filter resources"></div>
-      <div id="resBrowser"></div>
-    </div>
     <div class="section-toolbar" id="deckBrowserToolbar">
       <h2>Decks</h2>
       <div class="toolbar-actions"><span class="note" id="deckBrowserSummary"></span><button class="btn-highlight" id="addDeckToggleBtn" type="button" style="display:none;">+ New deck</button></div>
@@ -293,7 +264,6 @@
         <span id="reviewPos">0 of 0</span>
         <span id="reviewType"></span>
       </div>
-      <div class="deck-tag" id="reviewDeckTag" aria-live="polite"><span class="deck-tag-k">Deck</span><span class="deck-tag-v" id="reviewDeckTagText"></span></div>
       <div id="reviewArea"></div>
       <div class="review-controls" id="reviewControls"></div>
     </div>
@@ -313,18 +283,18 @@
       <div class="hint">Separate levels with <code>/</code>: Year / Term / Subject / Lesson. Pick a recent deck to skip retyping.</div>
 
       <div id="basicFields">
-        <div class="field"><label for="f_front">Front</label><textarea id="f_front" placeholder="What powers a cell?"></textarea></div>
-        <div class="field"><label for="f_back">Back</label><textarea id="f_back" placeholder="Mitochondria"></textarea></div>
+        <div class="field"><label id="lbl_front">Front</label><div id="f_front_host"></div></div>
+        <div class="field"><label id="lbl_back">Back</label><div id="f_back_host"></div></div>
       </div>
       <div id="clozeFields" style="display:none;">
         <div class="field">
-          <label for="f_cloze">Sentence</label>
-          <textarea id="f_cloze" placeholder="The mitochondria is the [[powerhouse]] of the cell."></textarea>
+          <label id="lbl_cloze">Sentence</label>
+          <div id="f_cloze_host"></div>
         </div>
-        <div class="hint">Wrap the word or phrase to hide in double brackets, like <code>[[powerhouse]]</code>.</div>
+        <div class="hint">Wrap each hidden word or phrase in double brackets, like <code>[[powerhouse]]</code>. You can hide several in one sentence: <code>The [[mitochondria]] is the [[powerhouse]] of the cell.</code> — select text and press <b>[[ ]] Blank</b> to add the brackets for you.</div>
       </div>
 
-      <div id="cardFormError" class="error-banner" aria-live="polite" role="status">Fill in a deck, and either both Front/Back, or a sentence with one [[blank]] marked.</div>
+      <div id="cardFormError" class="error-banner" aria-live="polite" role="status">Fill in a deck, and either both Front/Back, or a sentence with at least one [[blank]] marked.</div>
       <div class="form-actions">
         <span id="cardAddedNote" role="status" aria-live="polite"></span>
         <button type="button" class="btn-ghost" id="cancelCardBtn">Done</button>
@@ -352,8 +322,18 @@
 const SESSION_KEY = 'srms_session';
 function getSession(){ try{ return JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); }catch(e){ return null; } }
 </script>
+<script src="shared/rich-text.js"></script>
+<script>
+/* If shared/rich-text.js didn't load (file missing from the shared/ folder), say so instead of hanging. */
+window.addEventListener('DOMContentLoaded', function(){
+  if (window.SRMS && window.SRMS.rt) return;
+  var msg = 'A required file did not load: shared/rich-text.js (and shared/rich-text.css). Put both in the same shared/ folder as design-tokens.css, then reload.';
+  var t = document.getElementById('connectPanelTitle'), p = document.getElementById('connectPanelText');
+  if (t) t.textContent = 'Missing file'; if (p) p.textContent = msg;
+  if (!t) { var d = document.createElement('div'); d.setAttribute('role','alert'); d.style.cssText = 'padding:14px;margin:12px;border:1.5px solid var(--color-error);color:var(--color-error-text);background:var(--color-error-subtle);border-radius:8px;'; d.textContent = msg; document.body.insertBefore(d, document.body.firstChild); }
+});
+</script>
 <script src="flashcard-modes.js"></script>
-<script src="resources.js"></script>
 <script>
 const session = getSession();
 const isMaster = !!session && session.role === 'Master';
@@ -384,6 +364,7 @@ const GH = { owner:'fielalbert2026', repo:'school_record_management_system', bra
 const CARDS_SHEET = 'Flashcards';
 const TOKEN_KEY = 'gh_pat_school_scheduler';
 const CLOZE_MARKER = '_____';
+function plainFront(c){ const t = window.SRMS.rt.toPlain(c.front).replace(/\s*\n\s*/g,' '); return c.type==='cloze' ? t.split(CLOZE_MARKER).join('⬚') : t; }
 let ghToken = null;
 let editingEnabled = false;
 let workbook = null;
@@ -595,11 +576,18 @@ function buildCardsAOA(){
 }
 
 async function saveViaProxy(editTok, contentB64, sha, message){
-  const res = await fetch('/api/save', {
+  let res;
+  try{
+  res = await fetch('/api/save', {
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({ editToken:editTok, contentB64, sha, message })
   });
+  }catch(netErr){
+    throw new Error(location.protocol === 'file:' || /^(localhost|127\.0\.0\.1)$/.test(location.hostname)
+      ? 'Can\'t reach the save service (/api/save). It only exists on your deployed site or under \"vercel dev\" — a plain file or static-server preview can read cards but not save. Run \"vercel dev\" (with GITHUB_TOKEN and SESSION_SECRET set) or test on the deployed site.'
+      : 'Can\'t reach the save service (/api/save). Check your connection and try again.');
+  }
   const json = await res.json();
   if(!res.ok) throw Object.assign(new Error(json.error || `Save failed (${res.status})`), {status:res.status});
   return json.sha;
@@ -834,7 +822,7 @@ function renderBrowseNode(node, depth, q){
     : `${node.total} card${node.total===1?'':'s'}` + (kids.length ? ` · ${kids.length} ${kids.length===1?'folder':'folders'}` : '');
   const canRemove = isMaster && node.total === 0;
   const cardRows = node.cards.length ? `<div class="card-list">${node.cards.map(c => `
-      <div class="card-row"><span class="front-snip">${escapeHtml(c.type==='cloze' ? c.front.replace(CLOZE_MARKER,'⬚') : c.front)}</span></div>`).join('')}</div>` : '';
+      <div class="card-row"><span class="front-snip">${escapeHtml(plainFront(c))}</span></div>`).join('')}</div>` : '';
   return `<details class="dnode d${Math.min(depth,3)}" data-path="${escapeHtml(node.path)}" ${isOpen ? 'open' : ''}>
     <summary>
       <span class="dn-name">${escapeHtml(prettySeg(node.name))}</span>
@@ -892,7 +880,6 @@ document.getElementById('shuffleBtn').addEventListener('click', () => { startRev
 function enterReview(deckName){
   reviewDeck = deckName;
   currentView = 'review';
-  if(window.SRMS && SRMS.resources) SRMS.resources.setVisible(false);
   document.getElementById('deckBrowserToolbar').style.display = 'none';
   document.getElementById('deckBrowserWrap').style.display = 'none';
   document.getElementById('reviewToolbar').style.display = 'flex';
@@ -903,7 +890,6 @@ function enterReview(deckName){
 }
 function showDeckBrowser(){
   currentView = 'decks';
-  if(window.SRMS && SRMS.resources) SRMS.resources.setVisible(true);
   document.getElementById('deckBrowserToolbar').style.display = 'flex';
   document.getElementById('deckBrowserWrap').style.display = 'block';
   document.getElementById('reviewToolbar').style.display = 'none';
@@ -951,28 +937,6 @@ function renderReview(){
     const handled = window.SRMS && window.SRMS.modes && window.SRMS.modes.renderMode();
     if(handled === false || handled === undefined && !window.SRMS) renderFlashcardMode();
   }
-  updateDeckTag();
-}
-
-/* Shows which deck the current card belongs to, but only when the review scope spans more than
-   one deck (Review all decks, or a folder with several decks). Hidden for single-deck reviews
-   and in Match mode, which shows several cards at once. */
-function updateDeckTag(){
-  const tag = document.getElementById('reviewDeckTag');
-  if(!tag) return;
-  const c = queue.length ? cards.find(x => x.id === queue[0]) : null;
-  let show = false;
-  if(c && state.mode !== 'match'){
-    const decksInScope = new Set();
-    for(const x of cards){ if(cardInReviewScope(x)) decksInScope.add(pathString(deckPath(x.deck))); if(decksInScope.size > 1) break; }
-    show = decksInScope.size > 1;
-  }
-  if(show){
-    const label = pathString(deckPath(c.deck)).split(' / ').map(prettySeg).join(' › ');
-    document.getElementById('reviewDeckTagText').textContent = label;
-    tag.title = label;
-  }
-  tag.classList.toggle('show', show);
 }
 
 // The original Flashcard mode renderer — extracted from the old renderReview().
@@ -997,15 +961,13 @@ function renderFlashcardMode(){
   const c = cards.find(x => x.id === queue[0]);
   pos.textContent = `${queue.length} remaining · Again ${stats.again} · Hard ${stats.hard} · Snoozed ${stats.snoozed}`;
   typeLbl.textContent = c.type === 'cloze' ? 'Fill in the blank' : 'Front / Back';
+  const rt = window.SRMS.rt;
   if(c.type === 'cloze'){
-    const shown = revealed
-      ? c.front.replace(CLOZE_MARKER, `<span class="blank revealed">${escapeHtml(c.back)}</span>`)
-      : c.front.replace(CLOZE_MARKER, `<span class="blank">${CLOZE_MARKER}</span>`);
-    area.innerHTML = `<div class="review-face"><div class="review-text">${shown.replace(/\n/g,'<br>')}</div></div>`;
+    area.innerHTML = `<div class="review-face"><div class="review-text">${rt.clozeDisplay(c, revealed)}</div></div>`;
   } else {
     area.innerHTML = `<div class="review-face"><div>
-      <div class="review-text">${escapeHtml(c.front).replace(/\n/g,'<br>')}</div>
-      ${revealed ? `<div class="review-back">${escapeHtml(c.back).replace(/\n/g,'<br>')}</div>` : ''}
+      <div class="review-text">${rt.html(c.front)}</div>
+      ${revealed ? `<div class="review-back">${rt.html(c.back)}</div>` : ''}
     </div></div>`;
   }
   if(!revealed){
@@ -1048,6 +1010,10 @@ function gradeCurrent(grade){
 }
 
 /* ---------------- Master: add/edit/delete cards ---------------- */
+const RT = window.SRMS.rt;
+const edFront = RT.editor(document.getElementById('f_front_host'), { labelledBy:'lbl_front', placeholder:'What powers a cell?' });
+const edBack  = RT.editor(document.getElementById('f_back_host'),  { labelledBy:'lbl_back',  placeholder:'Mitochondria' });
+const edCloze = RT.editor(document.getElementById('f_cloze_host'), { labelledBy:'lbl_cloze', placeholder:'The [[mitochondria]] is the [[powerhouse]] of the cell.', cloze:true });
 const formPanel = document.getElementById('cardFormPanel');
 document.getElementById('addCardToggleBtn').addEventListener('click', () => {
   if(!editingEnabled || !ghToken){ promptEnableEditing(); return; }
@@ -1063,7 +1029,7 @@ function openCardForm(){
   renderRecentDeckChips();
   // Deck already filled in? Jump straight to the card text.
   const deckFilled = !!document.getElementById('f_deck').value.trim();
-  (deckFilled ? document.getElementById(currentType === 'cloze' ? 'f_cloze' : 'f_front') : document.getElementById('f_deck')).focus();
+  (deckFilled ? (currentType === 'cloze' ? edCloze : edFront).el : document.getElementById('f_deck')).focus();
 }
 function closeCardForm(){
   formPanel.classList.remove('open');
@@ -1071,9 +1037,7 @@ function closeCardForm(){
   currentType = 'basic';
   setTypeUI('basic');
   // Don't clear deck — retain lastUsedDeck for next time
-  document.getElementById('f_front').value = '';
-  document.getElementById('f_back').value = '';
-  document.getElementById('f_cloze').value = '';
+  edFront.clear(); edBack.clear(); edCloze.clear();
   document.getElementById('cardFormError').style.display = 'none';
   document.getElementById('cardFormTitle').textContent = 'Add a card';
   document.getElementById('submitCardBtn').textContent = 'Add card';
@@ -1090,7 +1054,7 @@ document.getElementById('recentDecks').addEventListener('click', (e) => {
   const b = e.target.closest('[data-deck-chip]');
   if(!b) return;
   document.getElementById('f_deck').value = b.dataset.deckChip;
-  document.getElementById(currentType === 'cloze' ? 'f_cloze' : 'f_front').focus();
+  (currentType === 'cloze' ? edCloze : edFront).focus();
 });
 
 function setTypeUI(type){
@@ -1107,23 +1071,21 @@ document.getElementById('submitCardBtn').addEventListener('click', async () => {
   const deck = canonicalizeDeck(document.getElementById('f_deck').value);
   let front = '', back = '';
   if(currentType === 'basic'){
-    front = document.getElementById('f_front').value.trim();
-    back = document.getElementById('f_back').value.trim();
+    front = edFront.getStored();
+    back = edBack.getStored();
     if(!deck || !front || !back){
       document.getElementById('cardFormError').textContent = 'Fill in Deck, Front, and Back.';
       document.getElementById('cardFormError').style.display = 'block';
       return;
     }
   } else {
-    const raw = document.getElementById('f_cloze').value.trim();
-    const m = raw.match(/\[\[(.+?)\]\]/);
-    if(!deck || !raw || !m){
-      document.getElementById('cardFormError').textContent = 'Fill in Deck and a sentence with exactly one [[blank]] marked.';
+    const res = deck && !edCloze.isEmpty() ? RT.clozeFromSentence(edCloze.getHtml()) : null;
+    if(!deck || edCloze.isEmpty() || !res || res.error){
+      document.getElementById('cardFormError').textContent = !deck ? 'Fill in a deck first.' : (res && res.error) || 'Type a sentence and mark each hidden answer with [[double brackets]].';
       document.getElementById('cardFormError').style.display = 'block';
       return;
     }
-    back = m[1].trim();
-    front = raw.replace(m[0], CLOZE_MARKER);
+    front = res.front; back = res.back;
   }
   const now = new Date().toISOString();
   const wasEditing = !!editingCardId;
@@ -1140,12 +1102,12 @@ document.getElementById('submitCardBtn').addEventListener('click', async () => {
   else {
     // Keep the form open for rapid entry: same deck + type, fresh text fields.
     document.getElementById('f_deck').value = deck;
-    ['f_front','f_back','f_cloze'].forEach(id => document.getElementById(id).value = '');
+    edFront.clear(); edBack.clear(); edCloze.clear();
     document.getElementById('cardFormError').style.display = 'none';
     const st = document.getElementById('cardAddedNote');
     st.textContent = 'Added to ' + deck.split(' / ').map(prettySeg).join(' › ');
     renderRecentDeckChips();
-    document.getElementById(currentType === 'cloze' ? 'f_cloze' : 'f_front').focus();
+    (currentType === 'cloze' ? edCloze : edFront).focus();
   }
   refreshAfterCardChange();
   renderMasterList();
@@ -1161,10 +1123,10 @@ function startCardEdit(id){
   document.getElementById('f_deck').value = c.deck;
   setTypeUI(c.type);
   if(c.type === 'cloze'){
-    document.getElementById('f_cloze').value = c.front.replace(CLOZE_MARKER, `[[${c.back}]]`);
+    edCloze.setHtml(RT.sentenceFromCloze(c));
   } else {
-    document.getElementById('f_front').value = c.front;
-    document.getElementById('f_back').value = c.back;
+    edFront.setStored(c.front);
+    edBack.setStored(c.back);
   }
   document.getElementById('cardFormTitle').textContent = 'Edit card';
   document.getElementById('submitCardBtn').textContent = 'Save changes';
@@ -1181,7 +1143,7 @@ async function deleteCard(id){
   ({cards, decks} = applyFn(cards, decks));
   refreshAfterCardChange();
   renderMasterList();
-  const ok = await persistCards('Delete Flashcard', target ? (target.deck+' — '+target.front.slice(0,40)) : id, applyFn);
+  const ok = await persistCards('Delete Flashcard', target ? (target.deck+' — '+window.SRMS.rt.toPlain(target.front).slice(0,40)) : id, applyFn);
   if(!ok){ cards = snapshot; refreshAfterCardChange(); renderMasterList(); }
 }
 window.deleteCard = deleteCard;
@@ -1193,7 +1155,7 @@ let openDecks = null; // null = default (top-level folders open); otherwise a Se
 
 function cardMatchesSearch(c, q){
   if(!q) return true;
-  return (c.deck+' '+c.front+' '+c.back).toLowerCase().includes(q);
+  return (c.deck+' '+window.SRMS.rt.toPlain(c.front)+' '+window.SRMS.rt.toPlain(c.back).split(window.SRMS.rt.SEP).join(' ')).toLowerCase().includes(q);
 }
 
 function selectedState(node){
@@ -1206,11 +1168,11 @@ function renderManageNode(node, depth, force){
   const kids = sortedChildren(node);
   const isOpen = force ? true : (openDecks ? openDecks.has(node.path) : depth === 0);
   const st = selectedState(node);
-  const rows = node.cards.slice().sort((a,b) => (a.front||'').localeCompare(b.front||'')).map(c => `
+  const rows = node.cards.slice().sort((a,b) => plainFront(a).localeCompare(plainFront(b))).map(c => `
       <div class="card-row">
         <label>
           <input type="checkbox" class="card-select" data-id="${c.id}" ${selectedCardIds.has(c.id) ? 'checked' : ''}>
-          <span class="front-snip">${escapeHtml(c.type==='cloze' ? c.front.replace(CLOZE_MARKER,'⬚') : c.front).slice(0,90)}</span>
+          <span class="front-snip">${escapeHtml(plainFront(c).slice(0,90))}</span>
         </label>
         <div class="row-actions">
           <button class="btn-ghost" onclick="startCardEdit('${c.id}')">Edit</button>
@@ -1445,7 +1407,6 @@ if(!session){
     if(saved && isMaster){ ghToken = saved; editingEnabled = true; }
   }catch(e){}
   loadFromGitHub();
-  if(window.SRMS && SRMS.resources) SRMS.resources.init({ owner:GH.owner, repo:GH.repo, branch:GH.branch, root:'resources' });
   // Start broadcasting presence to the Active_Sessions sheet.
   if(window.SRMS && window.SRMS.presence) window.SRMS.presence.start();
 }

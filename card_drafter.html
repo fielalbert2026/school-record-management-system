@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <script>(function(){try{var t=localStorage.getItem('srms_theme')||'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
-<script src="maintenance-guard.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Card Drafter — Personalized School Record Management System</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -13,10 +12,22 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <link rel="stylesheet" href="shared/design-tokens.css">
 <link rel="stylesheet" href="shared/components.css">
+<link rel="stylesheet" href="shared/rich-text.css">
 <script src="shared/theme.js" defer></script>
 <script src="shared/aria-utils.js" defer></script>
 <script src="shared/api-fallback.js" defer></script>
 <script src="shared/presence.js" defer></script>
+<script src="shared/rich-text.js"></script>
+<script>
+/* If shared/rich-text.js didn't load (file missing from the shared/ folder), say so instead of hanging. */
+window.addEventListener('DOMContentLoaded', function(){
+  if (window.SRMS && window.SRMS.rt) return;
+  var msg = 'A required file did not load: shared/rich-text.js (and shared/rich-text.css). Put both in the same shared/ folder as design-tokens.css, then reload.';
+  var t = document.getElementById('connectPanelTitle'), p = document.getElementById('connectPanelText');
+  if (t) t.textContent = 'Missing file'; if (p) p.textContent = msg;
+  if (!t) { var d = document.createElement('div'); d.setAttribute('role','alert'); d.style.cssText = 'padding:14px;margin:12px;border:1.5px solid var(--color-error);color:var(--color-error-text);background:var(--color-error-subtle);border-radius:8px;'; d.textContent = msg; document.body.insertBefore(d, document.body.firstChild); }
+});
+</script>
 <style>
   /* Page-specific layout only — colors / spacing / typography / shared
      components come from shared/design-tokens.css and shared/components.css.
@@ -99,6 +110,10 @@
   .hint-list code, .hint code{ font-family:'IBM Plex Mono',monospace; font-size:11.5px; background:var(--color-bg-hover); padding:1px 5px; border-radius:4px; }
   .paste-box textarea{ margin-top:8px; font-family:'IBM Plex Mono',monospace; font-size:12.5px; }
   .import-warn{ margin:12px 0 0; padding:10px 12px 10px 28px; font-size:12.5px; line-height:1.5; color:var(--color-warning-text); background:var(--color-warning-subtle); border:1px solid var(--color-warning); border-radius:var(--radius-sm); max-height:180px; overflow:auto; }
+  .import-options{ display:none; flex-direction:column; gap:6px; margin:10px 0 4px; font-size:13px; color:var(--graphite); }
+  .import-options label{ display:flex; gap:8px; align-items:center; font-weight:400; text-transform:none; letter-spacing:0; font-size:13px; }
+  .import-options input{ width:auto; }
+  .card-item .rt-edit-hint{ font-size:12px; color:var(--pencil-red); margin-top:6px; }
   .dup-pill{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--color-warning-text); background:var(--color-warning-subtle); padding:2px 7px; border-radius:4px; }
   .card-item.invalid{ border-color:var(--pencil-red); }
   @media (max-width:560px){
@@ -164,16 +179,21 @@
       <div id="filePillWrap"></div>
       <div class="status" id="parseStatus" aria-live="polite" role="status"></div>
       <ul class="import-warn" id="importWarnings" style="display:none;"></ul>
+      <div class="import-options" id="importOptions">
+        <label data-opt="split"><input type="checkbox" id="optSplitBlanks"> Make one card per blank when a sentence has several blanks</label>
+        <label data-opt="anki"><input type="checkbox" id="optMarkdown" checked> Turn *word* into italic (and **word** into bold)</label>
+        <label data-opt="anki"><input type="checkbox" id="optNormOpts" checked> Put multiple-choice options (A, B, C, D) on separate lines</label>
+      </div>
       <details class="format-guide">
         <summary>Import format guide &amp; template</summary>
-        <p class="hint">Put each card in its own block. <strong>The answer is always the back of the card.</strong> Works in .txt, .docx, .pdf, .md or pasted text.</p>
+        <p class="hint">Put each card in its own block. <strong>The answer is always the back of the card.</strong> Works in .txt, .docx, .pdf, .md or pasted text. <strong>Anki / AnkiDroid exports</strong> (File → Export → “Notes in Plain Text”, with “Support HTML” on) are recognised automatically, keeping their bold, italic and line breaks.</p>
         <pre class="extract">Question(front): What is the largest planet in the solar system?
 Answer(back): Jupiter
 
 Question: [[Jupiter]] is the largest planet in the solar system.</pre>
         <ul class="hint-list">
           <li><strong>Identification:</strong> a <code>Question(front):</code> line followed by an <code>Answer(back):</code> line. <code>Question:</code> / <code>Answer:</code> and <code>Q:</code> / <code>A:</code> (at the start of a line) also work.</li>
-          <li><strong>Fill in the blank:</strong> wrap the answer in double brackets, <code>[[like this]]</code>. If a sentence has several, you get one card per blank.</li>
+          <li><strong>Fill in the blank:</strong> wrap each hidden answer in double brackets, <code>[[like this]]</code>. Several in one sentence, like <code>The [[mitochondria]] is the [[powerhouse]] of the cell.</code>, make one card that hides them all (tick the option below the file box if you'd rather get one card per blank).</li>
           <li>Blank lines between cards are recommended. Text that doesn't fit the format is skipped and reported below.</li>
         </ul>
         <button type="button" class="btn-ghost btn-sm" id="downloadTemplateBtn">Download template (.txt)</button>
@@ -411,11 +431,18 @@ function buildCardsAOA(){
 }
 
 async function saveViaProxy(editTok, contentB64, sha, message){
-  const res = await fetch('/api/save', {
+  let res;
+  try{
+  res = await fetch('/api/save', {
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({ editToken:editTok, contentB64, sha, message })
   });
+  }catch(netErr){
+    throw new Error(location.protocol === 'file:' || /^(localhost|127\.0\.0\.1)$/.test(location.hostname)
+      ? 'Can\'t reach the save service (/api/save). It only exists on your deployed site or under \"vercel dev\" — a plain file or static-server preview can read cards but not save. Run \"vercel dev\" (with GITHUB_TOKEN and SESSION_SECRET set) or test on the deployed site.'
+      : 'Can\'t reach the save service (/api/save). Check your connection and try again.');
+  }
   const json = await res.json();
   if(!res.ok) throw Object.assign(new Error(json.error || `Save failed (${res.status})`), {status:res.status});
   return json.sha;
@@ -582,6 +609,9 @@ document.getElementById('tokenForm').addEventListener('submit', async (e) => {
 /* ================= Card Drafter — file parsing, drafting, review ================= */
 const CLZ = CLOZE_MARKER;
 let extractedText = '';
+let rawSourceText = '';   // untouched text when the source is an Anki export (cleanExtractedText would corrupt it)
+let sourceImported = false;
+const RT = window.SRMS.rt;
 let pendingCards = [];  // drafted, awaiting review: {tempId, type, front, back, checked}
 let draftedCards = [];  // approved locally, not yet saved anywhere: {id, deck, type, front, back}
 
@@ -625,7 +655,10 @@ async function handleFile(file){
     else if (ext === 'xlsx' || ext === 'xls') extractedText = await parseXlsx(file);
     else extractedText = await parseAsText(file);
 
-    extractedText = cleanExtractedText((extractedText || '').trim());
+    const rawText = extractedText || '';
+    rawSourceText = (ext !== 'pdf' && ext !== 'docx' && RT.looksLikeAnki(rawText)) ? rawText : '';
+    sourceImported = false;
+    extractedText = rawSourceText ? rawText.trim() : cleanExtractedText(rawText.trim());
     if (!extractedText) {
       parseStatus.className = 'status err';
       parseStatus.textContent = 'Could not find readable text in this file. Try a .txt/.docx export of it instead.';
@@ -702,9 +735,16 @@ const BLANK_RE = /\[\[([^\[\]]+?)\]\]/g;
 function hasBlank(t){ BLANK_RE.lastIndex = 0; const r = BLANK_RE.test(t); BLANK_RE.lastIndex = 0; return r; }
 function clip(t, n){ t = String(t).replace(/\s+/g,' ').trim(); return t.length > n ? t.slice(0, n) + '…' : t; }
 
+let splitBlanks = false;   // old behaviour: one card per blank
 function clozeCardsFromSentence(sentence){
   const answers = [];
   sentence.replace(BLANK_RE, (m, a) => { answers.push(a.trim()); return m; });
+  if (!splitBlanks) {
+    const kept = answers.filter(Boolean);
+    if (!kept.length) return [];
+    const front = sentence.replace(BLANK_RE, (m, a) => a.trim() ? CLOZE_MARKER : a).replace(/\s+/g,' ').trim();
+    return [{ type:'cloze', front, back: kept.join(' ' + RT.SEP + ' ') }];
+  }
   return answers.map((ans, i) => {
     let k = -1;
     const front = sentence.replace(BLANK_RE, (m, a) => { k++; return k === i ? CLOZE_MARKER : a.trim(); }).replace(/\s+/g,' ').trim();
@@ -806,20 +846,27 @@ document.getElementById('recentDecks').addEventListener('click', (e) => {
 
 let structured = null;   // result of parseStructuredCards when the loaded text uses the manual format
 const importWarnings = document.getElementById('importWarnings');
+const importOptions = document.getElementById('importOptions');
+const optSplit = document.getElementById('optSplitBlanks'), optMd = document.getElementById('optMarkdown'), optNorm = document.getElementById('optNormOpts');
 function applySourceText(){
   // Called after any file/paste is read into extractedText.
   structured = null;
   importWarnings.style.display = 'none'; importWarnings.innerHTML = '';
-  const res = parseStructuredCards(extractedText);
+  const isAnki = !!rawSourceText;
+  splitBlanks = optSplit.checked;
+  const res = isAnki ? RT.parseAnki(rawSourceText, { markdown: optMd.checked, normalizeOptions: optNorm.checked }) : parseStructuredCards(extractedText);
   const aiEls = document.querySelectorAll('[data-ai-only]');
-  if (res.cards.length) {
+  importOptions.style.display = 'none';
+  if (res.cards.length || isAnki) {
     structured = res;
     aiEls.forEach(el => el.hidden = true);
+    importOptions.style.display = 'flex';
+    importOptions.querySelectorAll('[data-opt]').forEach(l => { l.style.display = (l.dataset.opt === 'anki') === isAnki ? '' : 'none'; });
     const nb = res.cards.filter(c => c.type === 'basic').length, nc = res.cards.length - nb;
     parseStatus.className = 'status ok';
-    parseStatus.textContent = 'Structured format detected: ' + res.cards.length + ' card' + (res.cards.length === 1 ? '' : 's') + ' (' + nb + ' identification, ' + nc + ' fill-in-the-blank). AI drafting is skipped — pick a deck and import.';
+    parseStatus.textContent = (isAnki ? 'Anki / AnkiDroid export detected: ' : 'Structured format detected: ') + res.cards.length + ' card' + (res.cards.length === 1 ? '' : 's') + ' (' + nb + ' identification, ' + nc + ' fill-in-the-blank). AI drafting is skipped — pick a deck and import.';
     generateBtn.textContent = 'Import ' + res.cards.length + ' card' + (res.cards.length === 1 ? '' : 's');
-    const notes = res.warnings.slice();
+    const notes = (res.notes || []).concat(res.warnings || []);
     if (res.ignored) notes.push(res.ignored + ' other text block' + (res.ignored === 1 ? ' was' : 's were') + ' skipped (not part of a card).');
     if (notes.length) { importWarnings.innerHTML = notes.map(n => '<li>' + escapeHtml(n) + '</li>').join(''); importWarnings.style.display = 'block'; }
   } else {
@@ -829,8 +876,9 @@ function applySourceText(){
     parseStatus.textContent = 'Extracted ' + extractedText.length.toLocaleString() + ' characters. No Question/Answer or [[blank]] format found, so the AI drafter will be used.';
   }
   renderRecentDeckChips();
-  generateBtn.disabled = false;
+  generateBtn.disabled = !res.cards.length && isAnki;
 }
+[optSplit, optMd, optNorm].forEach(el => el.addEventListener('change', () => { if (!sourceImported && (rawSourceText || extractedText)) applySourceText(); }));
 function importStructured(){
   const deckRaw = deckNameInput.value.trim();
   if (!deckRaw) {
@@ -852,6 +900,7 @@ function importStructured(){
   genStatus.className = 'status ok';
   genStatus.textContent = structured.cards.length + ' cards imported into the review list below' + (dupes ? ' — ' + dupes + ' possible duplicate' + (dupes === 1 ? '' : 's') + ' left unchecked' : '') + '. Review, then approve.';
   generateBtn.disabled = true;      // avoid importing the same file twice
+  sourceImported = true;
   structured = null;
   document.getElementById('pendingList').scrollIntoView({ behavior:'smooth', block:'start' });
 }
@@ -859,6 +908,8 @@ document.getElementById('usePasteBtn').addEventListener('click', () => {
   const t = document.getElementById('pasteInput').value.trim();
   if (!t) return;
   extractedText = t;
+  rawSourceText = RT.looksLikeAnki(t) ? t : '';
+  sourceImported = false;
   filePillWrap.innerHTML = '';
   extractPreview.textContent = ''; previewWrap.style.display = 'none';
   applySourceText();
@@ -869,7 +920,7 @@ document.getElementById('downloadTemplateBtn').addEventListener('click', () => {
 
 /* ---- dedupe against the LIVE shared deck ---- */
 function normalizeForDedupe(s){
-  return String(s||'').replace(/<br\s*\/?>/gi,' ').replace(/[^a-z0-9]+/gi,' ').trim().toLowerCase().slice(0,120);
+  return String(RT.toPlain(s||'')).replace(/<br\s*\/?>/gi,' ').replace(/[^a-z0-9]+/gi,' ').trim().toLowerCase().slice(0,120);
 }
 function isNearDuplicate(front){
   const n = normalizeForDedupe(front);
@@ -1069,24 +1120,49 @@ function renderPending(){
     const pill = document.createElement('span'); pill.className = 'type-pill'; pill.textContent = card.type === 'cloze' ? 'fill-in-the-blank' : 'identification';
     left.appendChild(cb); left.appendChild(pill);
     if (card.dupe) { const dp = document.createElement('span'); dp.className = 'dup-pill'; dp.textContent = 'possible duplicate'; left.appendChild(dp); }
+    const actions = document.createElement('div'); actions.style.display = 'flex'; actions.style.gap = '6px';
+    const edit = document.createElement('button'); edit.className = 'btn-ghost btn-sm'; edit.type = 'button';
+    edit.textContent = card._editing ? 'Done editing' : 'Edit / format';
+    edit.setAttribute('aria-expanded', card._editing ? 'true' : 'false');
+    edit.addEventListener('click', () => { card._editing = !card._editing; renderPending(); });
     const del = document.createElement('button'); del.className = 'btn-ghost btn-sm'; del.textContent = 'Remove';
     del.addEventListener('click', () => { pendingCards = pendingCards.filter(c => c.tempId !== card.tempId); renderPending(); });
-    top.appendChild(left); top.appendChild(del);
+    actions.appendChild(edit); actions.appendChild(del);
+    top.appendChild(left); top.appendChild(actions);
     item.appendChild(top);
 
-    const frontLabel = document.createElement('div'); frontLabel.className = 'fieldlabel';
-    frontLabel.textContent = card.type === 'cloze' ? 'Sentence (blank shown as _____)' : 'Front';
-    item.appendChild(frontLabel);
-    const frontArea = document.createElement('textarea'); frontArea.rows = 2; frontArea.value = card.front;
-    frontArea.addEventListener('input', () => { card.front = frontArea.value; });
-    item.appendChild(frontArea);
-
-    const backLabel = document.createElement('div'); backLabel.className = 'fieldlabel';
-    backLabel.textContent = card.type === 'cloze' ? 'Answer' : 'Back';
-    item.appendChild(backLabel);
-    const backArea = document.createElement('textarea'); backArea.rows = card.type === 'cloze' ? 1 : 2; backArea.value = card.back;
-    backArea.addEventListener('input', () => { card.back = backArea.value; });
-    item.appendChild(backArea);
+    if (!card._editing) {
+      // Read-only preview that shows the formatting exactly as it will appear in review.
+      const prev = document.createElement('div'); prev.className = 'rt-preview';
+      if (card.type === 'cloze') {
+        prev.innerHTML = card.front.indexOf(CLZ) >= 0 ? RT.clozeDisplay(card, true) : RT.html(card.front);
+      } else {
+        prev.innerHTML = '<div>' + RT.html(card.front) + '</div><div style="color:var(--sage); margin-top:4px;">→ ' + RT.html(card.back) + '</div>';
+      }
+      item.appendChild(prev);
+    } else if (card.type === 'cloze') {
+      const lbl = document.createElement('div'); lbl.className = 'fieldlabel'; lbl.id = 'lbl_' + card.tempId;
+      lbl.textContent = 'Sentence — put each hidden answer in [[double brackets]]';
+      item.appendChild(lbl);
+      const host = document.createElement('div'); item.appendChild(host);
+      const ed = RT.editor(host, { labelledBy: lbl.id, cloze: true, minHeight: '56px' });
+      ed.setHtml(RT.sentenceFromCloze(card));
+      const hint = document.createElement('div'); hint.className = 'rt-edit-hint'; item.appendChild(hint);
+      ed.onChange(() => {
+        const res = RT.clozeFromSentence(ed.getHtml());
+        if (res && !res.error) { card.front = res.front; card.back = res.back; card.invalid = false; item.classList.remove('invalid'); hint.textContent = ''; }
+        else { card.front = ed.getStored(); card.back = ''; hint.textContent = (res && res.error) || ''; }
+      });
+    } else {
+      [['Front', 'front', 'What is …?'], ['Back', 'back', 'Answer']].forEach(([name, key, ph]) => {
+        const lbl = document.createElement('div'); lbl.className = 'fieldlabel'; lbl.id = 'lbl_' + key + '_' + card.tempId; lbl.textContent = name;
+        item.appendChild(lbl);
+        const host = document.createElement('div'); item.appendChild(host);
+        const ed = RT.editor(host, { labelledBy: lbl.id, placeholder: ph, minHeight: '56px' });
+        ed.setStored(card[key]);
+        ed.onChange(() => { card[key] = ed.getStored(); });
+      });
+    }
 
     pendingList.appendChild(item);
   });
@@ -1158,9 +1234,13 @@ function renderDrafted(){
     del.addEventListener('click', () => { draftedCards = draftedCards.filter(c => c.id !== card.id); renderDrafted(); });
     top.appendChild(pill); top.appendChild(del);
     item.appendChild(top);
-    const f = document.createElement('div'); f.textContent = card.front;
-    const b = document.createElement('div'); b.style.color = 'var(--sage)'; b.style.marginTop = '4px'; b.textContent = '→ ' + card.back;
-    item.appendChild(f); item.appendChild(b);
+    const f = document.createElement('div'); f.className = 'rt-preview';
+    f.innerHTML = card.type === 'cloze' && card.front.indexOf(CLZ) >= 0 ? RT.clozeDisplay(card, true) : RT.html(card.front);
+    item.appendChild(f);
+    if (card.type !== 'cloze') {
+      const b = document.createElement('div'); b.className = 'rt-preview'; b.style.color = 'var(--sage)'; b.style.marginTop = '4px'; b.innerHTML = '→ ' + RT.html(card.back);
+      item.appendChild(b);
+    }
     draftedList.appendChild(item);
   });
 }
@@ -1200,7 +1280,8 @@ function csvField(v){ return '"' + String(v == null ? '' : v).replace(/"/g, '""'
 exportAnkiBtn.addEventListener('click', () => {
   const lines = ['#separator:tab', '#html:true', '#tags column:3'];
   draftedCards.forEach(c => {
-    lines.push(csvField(c.front.replace(/\n/g, '<br>')) + '\t' + csvField(c.back.replace(/\n/g, '<br>')) + '\t');
+    const backHtml = c.type === 'cloze' ? RT.answersHtml(c).join(', ') : RT.html(c.back);
+    lines.push(csvField(RT.html(c.front)) + '\t' + csvField(backHtml) + '\t');
   });
   downloadBlob(lines.join('\n'), (deckNameInput.value.trim() || 'deck') + '.txt', 'text/plain');
   const s = document.getElementById('exportStatus'); s.className = 'status ok';
