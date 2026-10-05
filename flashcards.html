@@ -134,6 +134,14 @@
   .dnode:not(.d0) > summary{ position:relative; }
   .dnode:not(.d0) > summary::after{ content:''; position:absolute; left:-18px; top:50%; width:14px; border-top:2px solid var(--color-border-strong); }
   .dn-empty{ font-style:italic; }
+  .cp-tools{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
+  .cp-tools input[type=search]{ flex:1; min-width:160px; }
+  .cp-tree{ max-height:min(60vh, 460px); overflow:auto; border:1px solid var(--paper-line); border-radius:var(--radius-sm); padding:6px 4px; margin-bottom:12px; }
+  .cp-tree .dnode summary label{ display:flex; align-items:center; gap:8px; flex:1; cursor:pointer; min-height:36px; text-transform:none; letter-spacing:0; font-size:inherit; font-weight:inherit; }
+  .cp-tree input[type=checkbox]{ width:18px; height:18px; flex-shrink:0; margin:0; }
+  .cp-tree .dn-leaf{ display:flex; align-items:center; gap:8px; min-height:44px; padding:4px 8px; border-radius:var(--radius-sm); }
+  .cp-tree .dn-leaf:hover{ background:var(--color-hover-wash); }
+  .cp-tree .dn-leaf label{ display:flex; align-items:center; gap:8px; flex:1; cursor:pointer; text-transform:none; letter-spacing:0; font-size:inherit; font-weight:inherit; }
   .dn-del{ flex-shrink:0; min-height:30px; padding:2px 8px; color:var(--pencil-red); }
   .dn-start:disabled{ opacity:.4; }
   #deckFormPanel select, #deckFormPanel input{ width:100%; }
@@ -239,7 +247,26 @@
           <div class="dba-title">All decks</div>
           <div class="note" id="allDecksNote">0 cards total</div>
         </div>
-        <button class="btn-primary" id="startAllBtn">Review all decks</button>
+        <div class="toolbar-actions">
+          <button class="btn-highlight" id="customReviewBtn" type="button" aria-expanded="false" aria-controls="customPanel">Custom review…</button>
+          <button class="btn-primary" id="startAllBtn">Review all decks</button>
+        </div>
+      </div>
+      <div class="panel" id="customPanel" aria-label="Custom review">
+        <h3 style="font-family:'Merriweather',serif; margin:0 0 6px; color:var(--ink); font-size:17px;">Custom review</h3>
+        <p class="note" style="margin:0 0 12px;">Tick the decks you want to study together — for example just Lesson 1 and Lesson 3. Ticking a folder ticks everything inside it.</p>
+        <div class="cp-tools">
+          <input id="cpFilter" type="search" placeholder="Filter decks…" aria-label="Filter decks in the picker">
+          <button type="button" class="btn-ghost btn-sm" id="cpAll">Select all</button>
+          <button type="button" class="btn-ghost btn-sm" id="cpNone">Clear</button>
+        </div>
+        <div id="cpTree" class="cp-tree"></div>
+        <div id="cpEmpty" class="note" style="display:none;">Nothing matches that filter.</div>
+        <div class="form-actions">
+          <span id="cpCount" class="note" role="status" aria-live="polite" style="margin-right:auto;align-self:center;"></span>
+          <button type="button" class="btn-ghost" id="cpCancel">Cancel</button>
+          <button type="button" class="btn-primary" id="cpStart" disabled>Start review</button>
+        </div>
       </div>
       <div id="deckFilterRow"><input id="deckFilterInput" type="search" placeholder="Filter decks…" aria-label="Filter decks"></div>
       <div id="deckBrowser"></div>
@@ -516,6 +543,7 @@ function sortedChildren(node){
 /* Is this card inside the current review scope? '__all__' or a path prefix. */
 function cardInReviewScope(c){
   if(reviewDeck === '__all__') return true;
+  if(reviewDeck === '__custom__') return !!reviewPaths && reviewPaths.has(deckKey(pathString(deckPath(c.deck))));   // exact decks, not prefixes
   const p = pathString(deckPath(c.deck));
   return p === reviewDeck || p.startsWith(reviewDeck + ' / ');
 }
@@ -766,7 +794,8 @@ document.getElementById('tokenForm').addEventListener('submit', async (e) => {
  * in the current pass. "Don't Show (10 min)" pulls it out of rotation for
  * 10 real minutes, then it rejoins automatically.
  */
-let reviewDeck = '__all__';
+let reviewDeck = '__all__';   // '__all__', a deck/folder path, or '__custom__' (see reviewPaths)
+let reviewPaths = null;       // Set of deckKey()s picked in Custom review
 let queue = [];
 let snoozed = []; // [{id, dueAt}]
 let revealed = false;
@@ -864,6 +893,8 @@ function renderDeckBrowser(){
     });
   });
   if(window.SRMS && window.SRMS.modes) window.SRMS.modes.syncModeAvailability();
+  document.getElementById('customReviewBtn').disabled = cards.length === 0;
+  { const cp = document.getElementById('customPanel'); if(cp && cp.classList.contains('open') && typeof cpRender === 'function') cpRender(); }
 }
 document.getElementById('deckFilterInput').addEventListener('input', (e) => { deckFilterQuery = e.target.value; renderDeckBrowser(); });
 document.getElementById('deckBrowser').addEventListener('click', (e) => {
@@ -884,7 +915,7 @@ function enterReview(deckName){
   document.getElementById('deckBrowserWrap').style.display = 'none';
   document.getElementById('reviewToolbar').style.display = 'flex';
   document.getElementById('reviewWrap').style.display = 'block';
-  document.getElementById('reviewingDeckName').textContent = deckName === '__all__' ? 'All decks' : deckName.split(' / ').map(prettySeg).join(' › ');
+  document.getElementById('reviewingDeckName').textContent = deckName === '__all__' ? 'All decks' : deckName === '__custom__' ? customReviewLabel() : deckName.split(' / ').map(prettySeg).join(' › ');
   if(window.SRMS && window.SRMS.modes) window.SRMS.modes.syncModeAvailability();
   startReview();
 }
@@ -1390,6 +1421,105 @@ async function removeEmptyDeck(path){
   const ok = await persistCards('Remove Empty Deck', path, applyFn);
   if(!ok){ cards = snapshot; decks = snapDecks; renderDeckBrowser(); renderMasterList(); }
 }
+
+/* ---------------- Custom review (pick any decks) ---------------- */
+const CUSTOM_KEY = 'srms_custom_review';
+const cpPanel = document.getElementById('customPanel');
+let cpSelected = new Set();        // deckKey()s of the picked decks (a "deck" = a path that holds cards itself)
+let cpUnits = new Map();           // node.path -> [deck paths at or beneath it that hold cards]
+let cpCards = new Map();           // deck path -> card count
+function cpLoad(){ try{ return JSON.parse(localStorage.getItem(CUSTOM_KEY) || '[]'); }catch(e){ return []; } }
+function cpSave(){ try{ localStorage.setItem(CUSTOM_KEY, JSON.stringify([...cpSelected])); }catch(e){} }
+function cpCollect(node){
+  const own = node.cards.length ? [node.path] : [];
+  const units = own.concat(...sortedChildren(node).map(cpCollect));
+  if(node.cards.length) cpCards.set(node.path, node.cards.length);
+  cpUnits.set(node.path, units);
+  return units;
+}
+function cpMatch(node, q){
+  if(!q) return true;
+  if(node.path.toLowerCase().includes(q) || prettySeg(node.name).toLowerCase().includes(q)) return true;
+  return sortedChildren(node).some(k => cpMatch(k, q));
+}
+function cpNode(node, depth, q){
+  if(!cpMatch(node, q)) return '';
+  const kids = sortedChildren(node).map(k => cpNode(k, depth+1, q)).join('');
+  const units = cpUnits.get(node.path) || [];
+  const name = escapeHtml(prettySeg(node.name));
+  const meta = node.total === 0 ? 'Empty' : node.total + ' card' + (node.total===1?'':'s');
+  const disabled = units.length === 0 ? 'disabled' : '';
+  const box = `<input type="checkbox" class="cp-box" data-path="${escapeHtml(node.path)}" aria-label="${name}" ${disabled}>`;
+  if(!node.children.size){
+    return `<div class="dn-leaf" style="margin-left:${depth ? 14 : 0}px"><label>${box}<span class="dn-name" style="font-weight:${depth?400:700}">${name}</span></label><span class="dn-meta${node.total===0?' dn-empty':''}">${meta}</span></div>`;
+  }
+  return `<details class="dnode d${Math.min(depth,3)}" open>
+    <summary><label>${box}<span class="dn-name">${name}</span></label><span class="dn-meta${node.total===0?' dn-empty':''}">${meta}</span></summary>
+    <div class="dn-body">${kids}</div>
+  </details>`;
+}
+function cpRefresh(){
+  let total = 0, decksN = 0;
+  cpSelected.forEach(k => { decksN++; });
+  cpPanel.querySelectorAll('.cp-box').forEach(b => {
+    const units = cpUnits.get(b.dataset.path) || [];
+    const n = units.filter(u => cpSelected.has(deckKey(u))).length;
+    b.checked = units.length > 0 && n === units.length;
+    b.indeterminate = n > 0 && n < units.length;
+  });
+  cpCards.forEach((cnt, path) => { if(cpSelected.has(deckKey(path))) total += cnt; });
+  document.getElementById('cpCount').textContent = decksN ? `${decksN} deck${decksN===1?'':'s'} · ${total} card${total===1?'':'s'} selected` : 'Nothing selected yet';
+  document.getElementById('cpStart').disabled = decksN === 0;
+}
+function cpRender(){
+  const root = buildDeckTree();
+  cpUnits = new Map(); cpCards = new Map();
+  sortedChildren(root).forEach(cpCollect);
+  const q = document.getElementById('cpFilter').value.trim().toLowerCase();
+  const html = sortedChildren(root).map(n => cpNode(n, 0, q)).join('');
+  document.getElementById('cpTree').innerHTML = html;
+  document.getElementById('cpEmpty').style.display = html ? 'none' : 'block';
+  // keep only picks that still exist (decks can be renamed or deleted)
+  const live = new Set([...cpCards.keys()].map(deckKey));
+  cpSelected = new Set([...cpSelected].filter(k => live.has(k)));
+  cpRefresh();
+}
+function openCustomPanel(){
+  cpSelected = new Set(cpLoad());
+  document.getElementById('cpFilter').value = '';
+  cpRender();
+  cpPanel.classList.add('open');
+  document.getElementById('customReviewBtn').setAttribute('aria-expanded', 'true');
+  const first = cpPanel.querySelector('.cp-box:not(:disabled)'); if(first) first.focus();
+}
+function closeCustomPanel(){
+  cpPanel.classList.remove('open');
+  document.getElementById('customReviewBtn').setAttribute('aria-expanded', 'false');
+}
+function customReviewLabel(){
+  const names = [...cpCards.keys()].filter(p => reviewPaths && reviewPaths.has(deckKey(p)))
+    .map(p => p.split(' / ').slice(-2).map(prettySeg).join(' › '));
+  if(!names.length) return 'Custom review';
+  return 'Custom: ' + (names.length <= 3 ? names.join(', ') : names.length + ' decks');
+}
+document.getElementById('customReviewBtn').addEventListener('click', () => { cpPanel.classList.contains('open') ? closeCustomPanel() : openCustomPanel(); });
+document.getElementById('cpCancel').addEventListener('click', closeCustomPanel);
+document.getElementById('cpFilter').addEventListener('input', () => { cpRender(); });
+document.getElementById('cpAll').addEventListener('click', () => { cpCards.forEach((c, p) => cpSelected.add(deckKey(p))); cpSave(); cpRefresh(); });
+document.getElementById('cpNone').addEventListener('click', () => { cpSelected.clear(); cpSave(); cpRefresh(); });
+document.getElementById('cpTree').addEventListener('change', (e) => {
+  const b = e.target.closest('.cp-box'); if(!b) return;
+  const units = cpUnits.get(b.dataset.path) || [];
+  units.forEach(u => { if(b.checked) cpSelected.add(deckKey(u)); else cpSelected.delete(deckKey(u)); });
+  cpSave(); cpRefresh();
+});
+document.getElementById('cpTree').addEventListener('click', (e) => { if(e.target.closest('label')) e.stopPropagation(); });
+document.getElementById('cpStart').addEventListener('click', () => {
+  if(!cpSelected.size) return;
+  reviewPaths = new Set(cpSelected);
+  cpSave(); closeCustomPanel();
+  enterReview('__custom__');
+});
 
 /* ---------------- Boot ---------------- */
 if(!session){
