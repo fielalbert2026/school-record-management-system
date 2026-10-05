@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script>(function(){try{var t=localStorage.getItem('srms_theme')||'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<script src="maintenance-guard.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Study Hub — Personalized School Record Management System</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -179,6 +180,38 @@
   }
 
   footer{text-align:center; color:var(--muted); font-size:12px; margin-top:36px;}
+
+  /* ---- Collapsible top-level sections (Resources / Decks): closed on every page load ---- */
+  .coll-section{ margin-bottom:22px; }
+  .coll-section > .section-toolbar{ margin-bottom:0; padding:6px 0; border-bottom:1px solid var(--paper-line); }
+  .coll-section.open > .section-toolbar{ margin-bottom:14px; }
+  .sec-h{ margin:0; font-family:'Merriweather',serif; font-size:19px; color:var(--ink); }
+  .sec-toggle{ display:inline-flex; align-items:center; gap:10px; min-height:40px; padding:4px 8px 4px 0; border:none; background:none; color:inherit; font:inherit; cursor:pointer; border-radius:var(--radius-sm); }
+  .sec-toggle:focus-visible{ outline:2px solid var(--sage); outline-offset:2px; }
+  .sec-sign{ display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; border:1.5px solid var(--paper-line); font-family:'IBM Plex Mono',monospace; font-size:16px; line-height:1; color:var(--muted); transition:background .14s ease, color .14s ease, border-color .14s ease; }
+  .sec-toggle:hover .sec-sign, .coll-section.open .sec-sign{ background:var(--sage-bg); color:var(--sage); border-color:var(--sage); }
+  .coll-section:not(.open) .sec-open-only, .coll-section:not(.open) #addDeckToggleBtn{ display:none !important; }
+
+  /* ---- Resources (reuses the .dnode folder styles above) ---- */
+  #resFilterRow{ display:none; margin-bottom:10px; }
+  #resFilterInput{ flex:1; }
+  .res-files{ padding:0 0 4px; }
+  .res-loose{ margin-top:6px; }
+  .res-file{ display:flex; align-items:center; gap:10px; min-height:40px; padding:6px 8px; border-bottom:1px dashed var(--paper-line); border-radius:var(--radius-sm); text-decoration:none; color:var(--ink); transition:background .12s ease; }
+  .res-file:last-child{ border-bottom:none; }
+  .res-file:hover, .res-file:focus-visible{ background:var(--color-hover-wash); }
+  .res-ext{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; font-weight:500; letter-spacing:.04em; color:var(--sage); background:var(--sage-bg); padding:2px 6px; border-radius:4px; flex-shrink:0; min-width:38px; text-align:center; }
+  .res-name{ flex:1; min-width:0; font-size:13.5px; overflow-wrap:anywhere; }
+  @media (max-width:560px){
+    .dnode.res-node > summary{ display:flex; flex-wrap:wrap; }
+    .dnode.res-node > summary .dn-name{ flex:1 1 0; }
+  }
+
+  /* ---- Deck label shown during multi-deck review ---- */
+  .deck-tag{ display:none; align-items:center; gap:8px; width:fit-content; max-width:100%; margin:0 auto 6px; padding:4px 12px 4px 4px; border:1px solid var(--paper-line); border-radius:var(--radius-full); background:var(--card); font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--graphite); }
+  .deck-tag.show{ display:flex; }
+  .deck-tag-k{ flex-shrink:0; padding:2px 8px; border-radius:var(--radius-full); background:var(--sage-bg); color:var(--sage); font-weight:500; letter-spacing:.04em; text-transform:uppercase; font-size:10px; }
+  .deck-tag-v{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 </style>
 </head>
 <body>
@@ -224,10 +257,23 @@
   </div>
 
   <div id="content" style="display:none;">
+    <div class="coll-section" id="resourcesWrap">
+      <div class="section-toolbar">
+        <h2 class="sec-h"><button type="button" class="sec-toggle" id="resToggle" aria-expanded="false" aria-controls="resBody"><span class="sec-name">Resources</span><span class="sec-sign" aria-hidden="true">+</span></button></h2>
+        <div class="toolbar-actions"><span class="note" id="resSummary"></span><button class="btn-text sec-open-only" id="resRefreshBtn" type="button">Refresh</button></div>
+      </div>
+      <div id="resBody" hidden>
+        <div id="resFilterRow"><input id="resFilterInput" type="search" placeholder="Filter resources..." aria-label="Filter resources"></div>
+        <div id="resBrowser"></div>
+      </div>
+    </div>
+
+    <div class="coll-section" id="decksSection">
     <div class="section-toolbar" id="deckBrowserToolbar">
-      <h2>Decks</h2>
+      <h2 class="sec-h"><button type="button" class="sec-toggle" id="decksToggle" aria-expanded="false" aria-controls="decksBody"><span class="sec-name">Decks</span><span class="sec-sign" aria-hidden="true">+</span></button></h2>
       <div class="toolbar-actions"><span class="note" id="deckBrowserSummary"></span><button class="btn-highlight" id="addDeckToggleBtn" type="button" style="display:none;">+ New deck</button></div>
     </div>
+    <div id="decksBody" hidden>
     <div class="panel" id="deckFormPanel">
       <h3 style="font-family:'Merriweather',serif; margin:0 0 14px; color:var(--ink); font-size:17px;">New deck</h3>
       <div class="field"><label for="nd_parent">Inside</label><select id="nd_parent"></select></div>
@@ -271,6 +317,8 @@
       <div id="deckFilterRow"><input id="deckFilterInput" type="search" placeholder="Filter decks…" aria-label="Filter decks"></div>
       <div id="deckBrowser"></div>
     </div>
+    </div>
+    </div>
 
     <div class="section-toolbar" id="reviewToolbar" style="display:none;">
       <h2><button class="btn-text" id="backToDecksBtn" type="button" style="font-size:15px; text-decoration:none; margin-right:4px;">←</button>Reviewing: <span id="reviewingDeckName"></span></h2>
@@ -291,6 +339,7 @@
         <span id="reviewPos">0 of 0</span>
         <span id="reviewType"></span>
       </div>
+      <div class="deck-tag" id="reviewDeckTag" aria-live="polite"><span class="deck-tag-k">Deck</span><span class="deck-tag-v" id="reviewDeckTagText"></span></div>
       <div id="reviewArea"></div>
       <div class="review-controls" id="reviewControls"></div>
     </div>
@@ -361,6 +410,7 @@ window.addEventListener('DOMContentLoaded', function(){
 });
 </script>
 <script src="flashcard-modes.js"></script>
+<script src="resources.js"></script>
 <script>
 const session = getSession();
 const isMaster = !!session && session.role === 'Master';
@@ -911,6 +961,7 @@ document.getElementById('shuffleBtn').addEventListener('click', () => { startRev
 function enterReview(deckName){
   reviewDeck = deckName;
   currentView = 'review';
+  if(window.SRMS && SRMS.resources) SRMS.resources.setVisible(false);
   document.getElementById('deckBrowserToolbar').style.display = 'none';
   document.getElementById('deckBrowserWrap').style.display = 'none';
   document.getElementById('reviewToolbar').style.display = 'flex';
@@ -921,6 +972,7 @@ function enterReview(deckName){
 }
 function showDeckBrowser(){
   currentView = 'decks';
+  if(window.SRMS && SRMS.resources) SRMS.resources.setVisible(true);
   document.getElementById('deckBrowserToolbar').style.display = 'flex';
   document.getElementById('deckBrowserWrap').style.display = 'block';
   document.getElementById('reviewToolbar').style.display = 'none';
@@ -968,6 +1020,27 @@ function renderReview(){
     const handled = window.SRMS && window.SRMS.modes && window.SRMS.modes.renderMode();
     if(handled === false || handled === undefined && !window.SRMS) renderFlashcardMode();
   }
+  updateDeckTag();
+}
+
+/* Shows which deck the current card is from, only when the review spans more than one deck
+   (Review all decks, a folder with several decks, or a custom selection). Hidden in Match mode. */
+function updateDeckTag(){
+  const tag = document.getElementById('reviewDeckTag');
+  if(!tag) return;
+  const c = queue.length ? cards.find(x => x.id === queue[0]) : null;
+  let show = false;
+  if(c && state.mode !== 'match'){
+    const seen = new Set();
+    for(const x of cards){ if(cardInReviewScope(x)) seen.add(pathString(deckPath(x.deck))); if(seen.size > 1) break; }
+    show = seen.size > 1;
+  }
+  if(show){
+    const label = pathString(deckPath(c.deck)).split(' / ').map(prettySeg).join(' \u203a ');
+    document.getElementById('reviewDeckTagText').textContent = label;
+    tag.title = label;
+  }
+  tag.classList.toggle('show', show);
 }
 
 // The original Flashcard mode renderer — extracted from the old renderReview().
@@ -1537,6 +1610,19 @@ if(!session){
     if(saved && isMaster){ ghToken = saved; editingEnabled = true; }
   }catch(e){}
   loadFromGitHub();
+  // Resources and Decks both start closed on every page load; the header toggles them.
+  [['resToggle','resBody','resourcesWrap'], ['decksToggle','decksBody','decksSection']].forEach(([t, b, s]) => {
+    const btn = document.getElementById(t), body = document.getElementById(b), sec = document.getElementById(s);
+    if(!btn || !body || !sec) return;
+    btn.addEventListener('click', () => {
+      const open = body.hidden;
+      body.hidden = !open;
+      sec.classList.toggle('open', open);
+      btn.setAttribute('aria-expanded', String(open));
+      btn.querySelector('.sec-sign').textContent = open ? '\u2212' : '+';
+    });
+  });
+  if(window.SRMS && SRMS.resources) SRMS.resources.init({ owner:GH.owner, repo:GH.repo, branch:GH.branch, root:'resources' });
   // Start broadcasting presence to the Active_Sessions sheet.
   if(window.SRMS && window.SRMS.presence) window.SRMS.presence.start();
 }
