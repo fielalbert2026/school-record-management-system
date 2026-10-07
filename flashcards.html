@@ -300,7 +300,7 @@
       </div>
       <div class="panel" id="customPanel" aria-label="Custom review">
         <h3 style="font-family:'Merriweather',serif; margin:0 0 6px; color:var(--ink); font-size:17px;">Custom review</h3>
-        <p class="note" style="margin:0 0 12px;">Tick the decks you want to study together — for example just Lesson 1 and Lesson 3. Ticking a folder ticks everything inside it.</p>
+        <p class="note" style="margin:0 0 12px;">Select the sections you want to study or export — for example one lesson, several lessons, or a whole subject. Selecting a folder includes everything inside it.</p>
         <div class="cp-tools">
           <input id="cpFilter" type="search" placeholder="Filter decks…" aria-label="Filter decks in the picker">
           <button type="button" class="btn-ghost btn-sm" id="cpAll">Select all</button>
@@ -310,7 +310,7 @@
         <div id="cpEmpty" class="note" style="display:none;">Nothing matches that filter.</div>
         <div class="form-actions">
           <span id="cpCount" class="note" role="status" aria-live="polite" style="margin-right:auto;align-self:center;"></span>
-          <button type="button" class="btn-ghost" id="cpExportPdf" disabled>Export PDF</button>
+          <button type="button" class="btn-ghost" id="cpExportPdf" disabled>Export selected Q&amp;A PDF</button>
           <button type="button" class="btn-ghost" id="cpCancel">Cancel</button>
           <button type="button" class="btn-primary" id="cpStart" disabled>Start review</button>
         </div>
@@ -1614,7 +1614,7 @@ document.getElementById('cpExportPdf').addEventListener('click', () => {
       const front = card.type === 'cloze'
         ? window.SRMS.rt.toPlain(card.front).replaceAll(CLOZE_MARKER, '________')
         : window.SRMS.rt.toPlain(card.front);
-      return `<article class="question"><p><strong>Question ${questionNumber}:</strong> ${esc(front)}</p><p class="answer"><strong>Answer:</strong> ${esc(card.back)}</p></article>`;
+      return `<article class="question"><p><strong>❓Question ${questionNumber}:</strong> ${esc(front)}</p><p class="answer"><strong>✅Answer:</strong> ${esc(card.back)}</p></article>`;
     }).join('');
     return `<section class="deck-group"><h2>${esc(path.split(' / ').map(prettySeg).join(' > '))}</h2>${items}</section>`;
   }).join('');

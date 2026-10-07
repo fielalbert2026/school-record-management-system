@@ -18,8 +18,8 @@ device.
 ```
 index.html                         Landing page / module hub
 subject_scheduler_dashboard.html   Module 01 — Subject Scheduler
-flashcards.html                    Module 02 — Study Hub (multi-mode reviewer + selected-deck PDF export)
-card_drafter.html                  Module 03 — Card Drafter (resource imports, local keyword cards, OCR, optional AI)
+flashcards.html                    Module 02 — Study Hub (multi-mode reviewer + selected-section Q&A PDF export)
+card_drafter.html                  Module 03 — Card Drafter (resource imports, local source-based questions, OCR, optional AI)
 audit_log.html                     Module 04 — Audit Log (owner only)
 active_users.html                  Module 05 — Active Users (owner only)
 Subject_Scheduler.xlsx             All app data (the "database")
@@ -182,8 +182,8 @@ serverless functions stand between the app and GitHub:
   serves static files only and has nowhere to run `/api/verify-master`.
   Card Drafter's optional **Draft with AI** action calls `/api/draft-cards`,
   so that action needs Vercel and the `GEMINI_API_KEY` env var below. The
-  repository resource picker, structured imports, local keyword-card
-  generation, and Study Hub's selected-deck print-to-PDF workflow work
+  repository resource picker, structured imports, local source-based
+  question generation, and Study Hub's selected-section Q&A PDF export work
   without that API. OCR uses Tesseract.js and its English language data from
   a CDN, then recognizes the document in the browser; it does not use an AI
   service or require an API key.
@@ -368,28 +368,29 @@ or refresh the page.
 ## Card Drafter
 
 `card_drafter.html` — Master accounts upload a file (PDF, DOCX, XLSX, CSV,
-TXT, MD), get a batch of AI-drafted flashcards from it, edit anything that's
-off, then save the keepers into the shared deck.
+TXT, MD), generate source-based question-and-answer cards locally, review
+them, and save approved cards into the shared deck.
 
-* **Three working paths for the AI**, picked automatically on load:
-  * **Using server** — the page probes `/api/draft-cards` once on load. If
-    the server returns 200, the drafter uses it. This is the cheapest
-    path; the API key lives in Vercel, not the browser.
-  * **Universal key** — the server holds one `GEMINI_API_KEY` and uses it
-    for every drafter call. Once it's set, every signed-in user gets AI
-    drafting without having to paste their own key.
-  * **No setup required** — if the key isn't set (or the route isn't
-    deployed), the drafter gracefully disables the "Draft cards" button
-    and shows a hint that you can still type cards in by hand. Nothing
-    silently fails.
-* **A status badge** in the "Draft options" header shows which path is
-  active, and a ⚙ button opens the key panel at any time.
-* **What's extracted**: identification and cloze (fill-in-the-blank) cards
-  only — the prompt explicitly forbids filler, agenda fragments, page
-  numbers, and ungrounded material. Every front and back must be
-  traceable to the supplied text.
+* **Local generation is the default and needs no AI service.** It creates
+  questions from explicit definitions and clear statements about what a
+  concept is, includes, uses, provides, causes, or does. It skips agenda
+  fragments, page numbers, and arbitrary keyword blanks rather than
+  generating a card just to meet the requested count. If the text does not
+  fit a supported pattern, it returns fewer cards (or none) for review.
+* **Optional AI drafting** remains a separate action for material that
+  doesn't fit those patterns. It extracts only from the supplied source,
+  and requires `/api/draft-cards` with a server-side Gemini key.
 * **Dedupe against the live deck** — drafts that overlap with cards
   already in the shared `Flashcards` sheet are dropped before review.
+
+## Study Hub
+
+`flashcards.html` lets users select any combination of sections in the
+deck hierarchy for a custom review or an **Export selected Q&A PDF**.
+Selecting a folder includes all its child decks; selecting an individual
+lesson limits the export to that section. The print-ready PDF uses two
+columns, 11 pt question and answer text, larger section headings, and
+bold red answers. Choose **Save as PDF** in the browser's print dialog.
 
 ## Audit Log
 
@@ -580,5 +581,3 @@ The styling across all pages comes from `shared/design-tokens.css` and
 
 When you change a color, font, or shadow, change it once in
 `shared/design-tokens.css` and every page follows.
-
-

@@ -168,7 +168,7 @@ window.addEventListener('DOMContentLoaded', function(){
   </div>
 
   <div id="content" style="display:none;">
-    <p class="lede">Load a document from <code>resources/</code> or your device, then import a structured deck, generate keyword cards locally, or optionally use AI. Nothing touches the shared deck until you click <strong>Save to shared deck</strong>.</p>
+    <p class="lede">Load a document from <code>resources/</code> or your device, then import a structured deck or generate source-based questions locally. Optional AI drafting is separate. Nothing touches the shared deck until you click <strong>Save to shared deck</strong>.</p>
 
     <section class="panel">
       <h2><span class="step-num">1</span>Source material</h2>
@@ -261,12 +261,12 @@ Question: [[Jupiter]] is the largest planet in the solar system.</pre>
       </details>
 
       <div class="row" style="margin-top:16px;">
-        <button class="btn-primary" id="generateBtn" disabled>Draft with AI</button>
-        <button class="btn-ghost" id="localGenerateBtn" type="button" hidden disabled>Generate keyword cards locally</button>
+        <button class="btn-ghost" id="generateBtn" disabled>Draft with AI (optional)</button>
+        <button class="btn-primary" id="localGenerateBtn" type="button" hidden disabled>Generate source-based questions</button>
         <span class="status" id="genStatus" aria-live="polite" role="status"></span>
       </div>
       <div class="progress-track" id="progressTrack"><div class="progress-fill" id="progressFill"></div></div>
-      <p class="hint" data-ai-only style="margin-top:10px;">An AI pass reads the extracted text and pulls out candidate cards — it's told to extract only (no outside explanation, filler, or examples) and to skip agenda lines, page numbers, and other non-testable fragments rather than force a card out of them. It's better at handling material that doesn't fit a rigid "Term: definition" shape, but it's still a draft: check it against the source before approving.</p>
+      <p class="hint" style="margin-top:10px;">Local question generation runs in this browser without an AI service. It turns explicit definitions and clear source statements into question-and-answer cards, and skips text that does not fit those patterns. Optional AI drafting is separate; always check drafts against the source before approving.</p>
     </section>
 
     <section class="panel">
@@ -998,9 +998,9 @@ function applySourceText(){
     if (notes.length) { importWarnings.innerHTML = notes.map(n => '<li>' + escapeHtml(n) + '</li>').join(''); importWarnings.style.display = 'block'; }
   } else {
     aiEls.forEach(el => el.hidden = false);
-    generateBtn.textContent = 'Draft with AI';
+    generateBtn.textContent = 'Draft with AI (optional)';
     parseStatus.className = 'status ok';
-    parseStatus.textContent = 'Extracted ' + extractedText.length.toLocaleString() + ' characters. Choose local keyword generation or optional AI drafting.';
+    parseStatus.textContent = 'Extracted ' + extractedText.length.toLocaleString() + ' characters. Generate source-based questions locally, or optionally try AI drafting.';
     localGenerateBtn.hidden = false;
     localGenerateBtn.disabled = false;
   }
@@ -1057,63 +1057,140 @@ function isNearDuplicate(front){
   return cards.some(c => { const f = normalizeForDedupe(c.front); return f && (f === n || f.includes(n) || n.includes(f)); });
 }
 
-const LOCAL_STOP_WORDS = new Set(('a an and are as at be been being but by can could did do does for from had has have he her hers him his how i if in into is it its may might more most no not of on or our out she should so than that the their them then there these they this those through to was we were what when where which who will with would you your about after all also any because before between both each during few further here once other own same such very').split(' '));
-function deterministicKeywordCards(text, limit){
-  const tokens = String(text).match(/[A-Za-z][A-Za-z'-]{3,}/g) || [];
-  const frequencies = new Map();
-  tokens.forEach(token => {
-    const key = token.toLowerCase();
-    if (!LOCAL_STOP_WORDS.has(key)) frequencies.set(key, (frequencies.get(key) || 0) + 1);
-  });
-  const sentences = String(text).split(/\n+/).flatMap(line => line.match(/[^.!?]+[.!?]?/g) || []).map(s => s.trim().replace(/^(?:[-*•]|\d+[.)])\s*/, '')).filter(s => s.length >= 35 && s.length <= 320);
-  const out = [], seenFronts = new Set(), seenAnswers = new Set();
-  const addCard = (sentence, term, frontOverride) => {
-    const key = term.toLowerCase().replace(/\s+/g, ' ').trim();
-    if (!key || seenAnswers.has(key)) return;
-    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const front = frontOverride || sentence.replace(new RegExp('\\b' + escaped + '\\b', 'i'), CLZ);
-    const frontKey = normalizeForDedupe(front);
-    if (!frontKey || front === sentence || seenFronts.has(frontKey) || isNearDuplicate(front)) return;
-    seenAnswers.add(key); seenFronts.add(frontKey);
-    out.push({ type:'cloze', front, back:term });
-  };
+const LOCAL_GENERIC_TERMS = new Set(('agenda activity answer chapter conclusion date definition exercise example figure introduction lesson note objective page reference slide subject table topic unit week').split(' '));
+const LOCAL_COMPOUND_ACTIONS = new Set(('calculate communicate compare control create deliver execute manage monitor organize perform process produce receive retrieve send store support transmit update use').split(' '));
+function deterministicQuestionCards(text, limit){
+  const sentences = String(text).split(/\r?\n+/)
+    .flatMap(line => line.match(/[^.!?]+[.!?]?/g) || [])
+    .map(sentence => sentence.trim().replace(/^(?:[-*•]|\d+[.)])\s*/, '').replace(/\s+/g, ' '))
+    .filter(sentence => sentence.length >= 18 && sentence.length <= 420);
+  const out = [], seenFronts = new Set(), seenFacts = new Set();
 
-  sentences.forEach(sentence => {
-    if (out.length >= limit) return;
-    const definition = sentence.match(/^(.{2,60}?)\s*[:\u2013\u2014-]\s*(.{15,})$/);
-    const definitionTerm = definition && definition[1].trim().replace(/^\W+|\W+$/g, '');
-    if (definitionTerm && /[A-Za-z]/.test(definitionTerm) && definitionTerm.length <= 60) {
-      addCard(sentence, definitionTerm, 'Definition: ' + definition[2].trim() + ' ' + CLZ);
-      return;
+  function cleanTerm(value){
+    const term = String(value || '').trim().replace(/^[\s"'`([{]+|[\s"'`)\]}.,;:]+$/g, '');
+    const displayTerm = term.replace(/^(a|an|the)\s+/i, (_, article) => article.toLowerCase() + ' ');
+    const bareTerm = term.replace(/^(?:a|an|the)\s+/i, '');
+    const words = bareTerm.match(/[A-Za-z][A-Za-z'-]*/g) || [];
+    if (term.length < 2 || term.length > 70 || words.length > 9 || !words.length) return '';
+    if (LOCAL_GENERIC_TERMS.has(bareTerm.toLowerCase()) ||
+        /\b(?:is|are|was|were|be|been|being|has|have|had|used|uses|use|provides?|supports?|stores?|produces?|enables?|requires?|offers?|creates?|causes?|cause|leads?|results?|consists?|comprises?|includes?|contains?|composed|defined|known|called|means|refers?)\b/i.test(bareTerm) ||
+        /^(?:lesson|chapter|unit|week|slide|page|course|subject|objectives?|references?|agenda|outline|introduction|conclusion|activity|exercise|example|table|figure|note|important|learning objectives?)\b/i.test(bareTerm) ||
+        /^\d+(?:st|nd|rd|th)?\s+year\b/i.test(bareTerm) ||
+        /^(?:this|that|these|those|it|they|there|however|therefore)\b/i.test(bareTerm)) return '';
+    return displayTerm.replace(/^([A-Z])(?=[a-z][a-z]+(?:\s|$))/, letter => letter.toLowerCase());
+  }
+  function addCard(question, answer, term){
+    const normalizedAnswer = String(answer || '').trim().replace(/\s+/g, ' ').replace(/^[,;:–—-]\s*/, '').replace(/[.;\s]+$/, '');
+    const termKey = String(term || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    const frontKey = normalizeForDedupe(question);
+    if (!question || !question.endsWith('?') || !normalizedAnswer || normalizedAnswer.length < 6 || normalizedAnswer.length > 360 || !/[A-Za-z]/.test(normalizedAnswer)) return;
+    const factKey = termKey + ':' + normalizedAnswer.toLowerCase();
+    if (!termKey || seenFacts.has(factKey) || !frontKey || seenFronts.has(frontKey) || isNearDuplicate(question)) return;
+    seenFacts.add(factKey);
+    seenFronts.add(frontKey);
+    out.push({ type:'basic', front:question, back:normalizedAnswer });
+  }
+  function askDefinition(term, answer){
+    addCard('What does ' + term + ' mean?', answer, term);
+  }
+
+  for (const sentence of sentences){
+    if (out.length >= limit) break;
+
+    const definition = sentence.match(/^(?:definition\s+of\s+)?(.{2,70}?)\s*[:\u2013\u2014-]\s*(.{8,})$/i);
+    if (definition){
+      const term = cleanTerm(definition[1]);
+      if (term) askDefinition(term, definition[2]);
+      if (out.length >= limit) break;
+      if (term) continue;
     }
-    const explanatory = sentence.match(/^(.{2,55}?)\s+(?:is|are|means|refers to|is defined as|is known as)\s+(.{12,})$/i);
-    const explanatoryTerm = explanatory && explanatory[1].trim().replace(/^\W+|\W+$/g, '');
-    if (explanatoryTerm && explanatoryTerm.length <= 55) {
-      addCard(sentence, explanatoryTerm);
-      return;
+
+    const definedAs = sentence.match(/^(.{2,70}?)\s+(?:is defined as|are defined as|refers to|refer to|is known as|are known as|is called|are called|means)\s+(.{8,})$/i);
+    if (definedAs){
+      const term = cleanTerm(definedAs[1]);
+      if (term) askDefinition(term, definedAs[2]);
+      if (term) continue;
     }
-    const candidates = (sentence.match(/[A-Za-z][A-Za-z'-]{4,}/g) || []).filter(token => {
-      const key = token.toLowerCase();
-      return !LOCAL_STOP_WORDS.has(key) && (token.length >= 7 || (frequencies.get(key) || 0) >= 2) && !seenAnswers.has(key) && (sentence.match(new RegExp('\\b' + token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'gi')) || []).length === 1;
-    });
-    candidates.sort((a,b) => {
-      const score = token => Math.min(frequencies.get(token.toLowerCase()) || 0, 2) * 1.5 + Math.min(token.length, 14) * 0.9 + (/^[A-Z]/.test(token) ? 1 : 0);
-      return score(b) - score(a);
-    });
-    if (candidates.length) addCard(sentence, candidates[0]);
-  });
+
+    const membership = sentence.match(/^(.{2,70}?)\s+(?:consists of|is composed of|are composed of|includes|include|contains|contain|comprises)\s+(.{8,})$/i);
+    if (membership){
+      const term = cleanTerm(membership[1]);
+      if (term){
+        const plural = /\b(?:include|contain|are composed of)\b/i.test(membership[0]);
+        const question = /\b(?:is|are) composed of\b/i.test(membership[0])
+          ? (plural ? 'What are ' + term + ' composed of?' : 'What is ' + term + ' composed of?')
+          : (plural ? 'What do ' : 'What does ') + term + ' ' + (
+            /\bconsists of\b/i.test(membership[0]) ? 'consist of' :
+            /\b(?:includes|include)\b/i.test(membership[0]) ? 'include' :
+            /\b(?:contains|contain)\b/i.test(membership[0]) ? 'contain' : 'comprise'
+          ) + '?';
+        addCard(question, membership[2], term);
+        continue;
+      }
+    }
+
+    const usage = sentence.match(/^(.{2,70}?)\s+(?:is|are)\s+used\s+(to|for)\s+(.{8,})$/i);
+    if (usage){
+      const term = cleanTerm(usage[1]);
+      if (!term) continue;
+      const plural = /^are\b/i.test(usage[0]);
+      const answer = usage[3];
+      const question = (plural ? 'What are ' : 'What is ') + term + ' used ' + usage[2].toLowerCase() + (usage[2].toLowerCase() === 'to' ? ' do?' : '?');
+      addCard(question, answer, term);
+      continue;
+    }
+
+    const action = sentence.match(/^(.{2,70}?)\s+(has|have|uses|use|provides|provide|supports|support|stores|store|produces|produce|enables|enable|requires|require|offers|offer|creates|create)\s+(.{8,})$/i);
+    if (action){
+      const term = cleanTerm(action[1]);
+      if (term){
+        const phrase = action[2].toLowerCase();
+        const plural = /^(?:have|use|provide|support|store|produce|enable|require|offer|create)$/.test(phrase);
+        const verb = phrase === 'has' || phrase === 'have' ? 'have' : phrase.replace(/s$/, '');
+        const compound = action[3].match(/^(and|or)\s+([A-Za-z]+)\s+(.+)$/i);
+        const secondVerb = compound && compound[2].toLowerCase();
+        const secondBase = secondVerb && (/ies$/.test(secondVerb) ? secondVerb.slice(0, -3) + 'y' :
+          /(?:ches|shes|sses|xes|zes|oes)$/.test(secondVerb) ? secondVerb.slice(0, -2) : secondVerb.replace(/s$/, ''));
+        if (compound && LOCAL_COMPOUND_ACTIONS.has(secondBase)){
+          addCard((plural ? 'What do ' : 'What does ') + term + ' do?', verb + ' ' + compound[1].toLowerCase() + ' ' + secondBase + ' ' + compound[3], term);
+        } else {
+          addCard((plural ? 'What do ' : 'What does ') + term + ' ' + verb + '?', action[3], term);
+        }
+        continue;
+      }
+    }
+
+    const cause = sentence.match(/^(.{2,70}?)\s+(causes|cause|leads to|lead to|results in|result in)\s+(.{8,})$/i);
+    if (cause){
+      const term = cleanTerm(cause[1]);
+      if (!term) continue;
+      const phrase = cause[2].toLowerCase();
+      const plural = /^(?:cause|lead to|result in)$/.test(phrase);
+      const verb = phrase.startsWith('lead') ? 'lead to' : phrase.startsWith('result') ? 'result in' : 'cause';
+      addCard((plural ? 'What do ' : 'What does ') + term + ' ' + verb + '?', cause[3], term);
+      continue;
+    }
+
+    const statement = sentence.match(/^(.{2,70}?)\s+(is|are)\s+(.{10,})$/i);
+    if (statement){
+      const term = cleanTerm(statement[1]);
+      if (term && /^(?:a|an|the|one|any|usually|generally|primarily|responsible|required|used|known|defined|composed)\b/i.test(statement[3].trim())){
+        addCard((statement[2].toLowerCase() === 'are' ? 'What are ' : 'What is ') + term + '?', statement[3], term);
+      }
+    }
+  }
   return out.slice(0, limit);
 }
 localGenerateBtn.addEventListener('click', () => {
   if (!extractedText) return;
   const target = Math.max(3, Math.min(60, parseInt(document.getElementById('targetCount').value, 10) || 15));
-  const generated = deterministicKeywordCards(extractedText, target);
+  const generated = deterministicQuestionCards(extractedText, target);
   generated.forEach(card => pendingCards.push({ tempId:uid(), type:card.type, front:card.front, back:card.back, checked:true }));
   renderPending();
   genStatus.className = generated.length ? 'status ok' : 'status err';
   genStatus.textContent = generated.length
-    ? generated.length + ' source-grounded keyword card' + (generated.length === 1 ? '' : 's') + ' generated locally without AI. Review, then approve.'
-    : 'No distinct keyword cards met the local quality rules. Try a document with more term definitions or repeated key terms.';
+    ? generated.length + ' source-grounded question' + (generated.length === 1 ? '' : 's') + ' generated locally without AI. Review, then approve.'
+    : 'No clear definitions or supported facts met the local quality rules. Try a document with explicit definitions or explanatory statements.';
   if (generated.length) document.getElementById('pendingList').scrollIntoView({ behavior:'smooth', block:'start' });
 });
 function renderDeckDatalist(){
