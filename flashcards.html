@@ -215,7 +215,7 @@
 </style>
 </head>
 <body>
-<button id="themeToggleBtn" class="theme-toggle" type="button" aria-label="Toggle color theme" title="Toggle dark mode">🌙</button>
+<button id="themeToggleBtn" class="theme-toggle" type="button" aria-label="Switch color theme" title="Switch color theme"></button>
 <div class="wrap">
   <header>
     <div>
@@ -310,6 +310,7 @@
         <div id="cpEmpty" class="note" style="display:none;">Nothing matches that filter.</div>
         <div class="form-actions">
           <span id="cpCount" class="note" role="status" aria-live="polite" style="margin-right:auto;align-self:center;"></span>
+          <button type="button" class="btn-ghost" id="cpExportPdf" disabled>Export PDF</button>
           <button type="button" class="btn-ghost" id="cpCancel">Cancel</button>
           <button type="button" class="btn-primary" id="cpStart" disabled>Start review</button>
         </div>
@@ -1543,6 +1544,7 @@ function cpRefresh(){
   cpCards.forEach((cnt, path) => { if(cpSelected.has(deckKey(path))) total += cnt; });
   document.getElementById('cpCount').textContent = decksN ? `${decksN} deck${decksN===1?'':'s'} · ${total} card${total===1?'':'s'} selected` : 'Nothing selected yet';
   document.getElementById('cpStart').disabled = decksN === 0;
+  document.getElementById('cpExportPdf').disabled = decksN === 0;
 }
 function cpRender(){
   const root = buildDeckTree();
@@ -1592,6 +1594,51 @@ document.getElementById('cpStart').addEventListener('click', () => {
   reviewPaths = new Set(cpSelected);
   cpSave(); closeCustomPanel();
   enterReview('__custom__');
+});
+document.getElementById('cpExportPdf').addEventListener('click', () => {
+  if(!cpSelected.size) return;
+  const selectedCards = cards.filter(c => cpSelected.has(deckKey(pathString(deckPath(c.deck)))));
+  if(!selectedCards.length) return;
+
+  const grouped = new Map();
+  selectedCards.forEach(card => {
+    const path = pathString(deckPath(card.deck));
+    if(!grouped.has(path)) grouped.set(path, []);
+    grouped.get(path).push(card);
+  });
+  const esc = value => escapeHtml(window.SRMS.rt.toPlain(String(value || '')).replace(/\u001f/g, ', '));
+  const groupsHtml = [...grouped.entries()].map(([path, deckCards]) => {
+    let questionNumber = 0;
+    const items = deckCards.map(card => {
+      questionNumber++;
+      const front = card.type === 'cloze'
+        ? window.SRMS.rt.toPlain(card.front).replaceAll(CLOZE_MARKER, '________')
+        : window.SRMS.rt.toPlain(card.front);
+      return `<article class="question"><p><strong>Question ${questionNumber}:</strong> ${esc(front)}</p><p class="answer"><strong>Answer:</strong> ${esc(card.back)}</p></article>`;
+    }).join('');
+    return `<section class="deck-group"><h2>${esc(path.split(' / ').map(prettySeg).join(' > '))}</h2>${items}</section>`;
+  }).join('');
+
+  const printWindow = window.open('', '_blank');
+  if(!printWindow){
+    alert('Allow pop-ups for this site to print or save the selected cards as a PDF.');
+    return;
+  }
+  printWindow.document.open();
+  printWindow.document.write(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Study Hub Questions and Answers</title><style>
+    @page{size:A4;margin:14mm}
+    *{box-sizing:border-box}
+    body{margin:0;color:#172033;font:11pt/1.42 Georgia,serif}
+    main{column-count:2;column-gap:10mm;column-rule:0.25pt solid #d7dce5}
+    .deck-group{break-inside:auto;margin:0 0 7mm}
+    h2{font:700 14pt/1.25 Arial,sans-serif;margin:0 0 3mm;break-after:avoid;overflow-wrap:anywhere}
+    .question{break-inside:avoid;margin:0 0 4mm}
+    p{margin:0 0 1.5mm;overflow-wrap:anywhere}
+    .answer{color:#b4232f;font-weight:700}
+    @media screen{body{max-width:210mm;margin:12mm auto;padding:14mm;box-shadow:0 2px 18px #0002}main{min-height:267mm}}
+    @media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
+  </style></head><body><main>${groupsHtml}</main><script>window.addEventListener('load',function(){window.print()})<\/script></body></html>`);
+  printWindow.document.close();
 });
 
 /* ---------------- Boot ---------------- */

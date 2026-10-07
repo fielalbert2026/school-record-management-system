@@ -11,40 +11,48 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link rel="stylesheet" href="shared/design-tokens.css">
 <link rel="stylesheet" href="shared/components.css">
+<script src="https://unpkg.com/lucide@0.468.0" defer></script>
 <script src="shared/theme.js" defer></script>
 <script src="shared/aria-utils.js" defer></script>
 <script src="shared/presence.js" defer></script>
+<script>window.addEventListener('DOMContentLoaded',function(){if(window.lucide)window.lucide.createIcons();});</script>
 <style>
   /* Page-specific layout only — colors / spacing / typography / shared
      components come from shared/design-tokens.css and shared/components.css. */
   *{box-sizing:border-box;}
   body{
     margin:0;
-    background:radial-gradient(circle at 15% -10%, var(--color-tint), transparent 55%), var(--paper);
+    background:linear-gradient(135deg,var(--color-tint),transparent 44%),linear-gradient(315deg,var(--color-accent-subtle),transparent 38%),var(--paper);
     color:var(--graphite);
     font-family:'Public Sans',system-ui,sans-serif;
     -webkit-font-smoothing:antialiased;
   }
   .wrap{max-width:min(1680px, 96vw); margin:0 auto; padding:56px 26px 90px;}
-  .dashboard-layout{
-    display:grid;
-    grid-template-columns: minmax(230px, 18%) 1fr;
-    gap:40px;
-    align-items:start;
+  .dashboard-layout{display:flex; flex-direction:column; gap:34px; align-items:stretch;}
+  .dashboard-sidebar{
+    min-width:0; width:100%; padding:0; border:0; display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    grid-template-areas:"ann-head rem-head" "ann-form rem-form" "ann-list rem-list";
+    align-items:start; gap:12px 24px;
   }
-  .dashboard-sidebar{min-width:0; padding-right:28px; border-right:1px solid var(--paper-line);}
-  .dashboard-sidebar .section-toolbar{flex-direction:column; align-items:flex-start; gap:8px;}
+  .dashboard-sidebar > .section-toolbar:first-child{grid-area:ann-head;}
+  .dashboard-sidebar > .section-toolbar:nth-child(4){grid-area:rem-head;}
+  #annFormPanel{grid-area:ann-form;}
+  #remFormPanel{grid-area:rem-form;}
+  #annList{grid-area:ann-list;}
+  #remList{grid-area:rem-list;}
+  .dashboard-sidebar .section-toolbar{flex-direction:row; align-items:center; gap:8px;}
   .dashboard-sidebar .ann-card{padding:16px 16px;}
   .dashboard-sidebar .rem-row{grid-template-columns:1fr; gap:6px;}
   .dashboard-main{min-width:0;}
   @media (max-width:900px){
-    .dashboard-layout{grid-template-columns:1fr; gap:32px;}
+    .dashboard-layout{gap:28px;}
     .dashboard-sidebar{padding-right:0; border-right:none;}
   }
   a{color:inherit;}
 
   /* ---------- Hero / masthead ---------- */
-  .masthead{text-align:center; margin-bottom:64px; padding-top:8px;}
+  .masthead{text-align:center; margin-bottom:38px; padding-top:8px;}
   .brand-eyebrow{
     font-family:'IBM Plex Mono',monospace; font-size:11.5px; letter-spacing:.16em;
     text-transform:uppercase; color:var(--sage); margin:0 0 18px;
@@ -72,7 +80,7 @@
   }
   .modules{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:44px;}
   .mod-card{
-    background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius);
+    background:var(--color-surface-glass); border:1px solid var(--color-glass-border); border-radius:var(--radius);
     box-shadow:var(--shadow); padding:0; display:flex; flex-direction:column;
     text-decoration:none; color:inherit; position:relative; overflow:hidden;
     transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
@@ -81,15 +89,17 @@
   .mod-card.live:hover{transform:translateY(-2px); border-color:var(--ink); box-shadow:var(--shadow-md);}
   .mod-card.soon{opacity:.72; cursor:default;}
   .mod-plaque{
-    background:var(--color-header-band); padding:22px 24px 18px;
-    display:flex; align-items:baseline; justify-content:space-between; gap:10px;
+    background:linear-gradient(120deg,var(--color-brand-subtle),var(--color-accent-subtle)); padding:18px 22px;
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
   }
-  .mod-card.soon .mod-plaque{background:var(--muted);}
+  .mod-card.soon .mod-plaque{background:var(--color-bg-hover);}
   .mod-eyebrow{
     font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:.14em;
-    text-transform:uppercase; color:var(--color-header-band-text);
+    text-transform:uppercase; color:var(--color-brand-text);
   }
-  .mod-num{ font-family:'Merriweather',serif; font-weight:900; font-size:42px; color:var(--highlighter); line-height:1; }
+  .mod-num{ font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:14px; color:var(--color-accent-text); line-height:1; }
+  .mod-icon{display:inline-flex; align-items:center; justify-content:center; width:42px; height:42px; border:1px solid var(--paper-line); border-radius:12px; color:var(--accent); background:var(--color-surface-glass);}
+  .mod-icon svg{width:21px; height:21px; stroke-width:1.8;}
   .mod-body{ padding:20px 24px 24px; display:flex; flex-direction:column; flex-grow:1; }
   .mod-title{
     font-family:'Merriweather',serif; font-size:19px; font-weight:700; color:var(--ink); margin:0 0 8px;
@@ -116,6 +126,7 @@
 
   @media (max-width:640px){
     .modules{grid-template-columns:1fr;}
+    .dashboard-sidebar{grid-template-columns:minmax(0,1fr);grid-template-areas:"ann-head" "ann-form" "ann-list" "rem-head" "rem-form" "rem-list";gap:10px;}
   }
 
   /* ---------- Sign-in gate ---------- */
@@ -264,10 +275,17 @@
   .ann-empty{color:var(--muted); font-size:13.5px; padding:18px 4px; text-align:center;}
   .ann-toggle-btn{ display:block; width:100%; margin-top:4px; padding:10px; font-size:12.5px; border-color:var(--paper-line); color:var(--muted); background:var(--card); }
   .ann-toggle-btn:hover{ color:var(--ink); border-color:var(--ink); }
+  .mod-card,#signinPanel,#tokenPanel,.ann-card,.ann-panel,.rem-list,.note-panel,.id-strip,.session-strip{
+    background:var(--color-surface-glass); border-color:var(--color-glass-border);
+    backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  }
+  .ann-card,#signinPanel,#tokenPanel,.rem-list,.note-panel{box-shadow:var(--shadow-md);}
+  .mod-card.live:hover{border-color:var(--color-brand);}
+  @media (prefers-reduced-motion:reduce){.mod-card{transition:none}.mod-card.live:hover{transform:none}}
 </style>
 </head>
 <body>
-<button id="themeToggleBtn" class="theme-toggle" type="button" aria-label="Toggle color theme" title="Toggle dark mode">🌙</button>
+<button id="themeToggleBtn" class="theme-toggle" type="button" aria-label="Switch color theme" title="Switch color theme"></button>
 <div class="wrap">
 
   <div class="masthead">
@@ -312,6 +330,31 @@
   </div>
 
   <div class="dashboard-layout">
+  <div class="dashboard-main">
+  <p class="section-label">Modules</p>
+  <div class="modules">
+    <a href="subject_scheduler_dashboard.html" class="mod-card live">
+      <div class="mod-plaque"><span class="mod-icon" aria-hidden="true"><i data-lucide="calendar-days"></i></span><span class="mod-num">01</span></div>
+      <div class="mod-body"><h2 class="mod-title">Weekly Schedule</h2><p class="mod-desc">Your weekly class schedule — professors, rooms, Classroom and Meet links, plus a live "today" view of what's now and next.</p><div class="mod-foot"><span class="mod-cta">Open module</span></div></div>
+    </a>
+    <a href="flashcards.html" class="mod-card live">
+      <div class="mod-plaque"><span class="mod-icon" aria-hidden="true"><i data-lucide="layers-3"></i></span><span class="mod-num">02</span></div>
+      <div class="mod-body"><h2 class="mod-title">Study Hub</h2><p class="mod-desc">Five ways to drill a deck — front/back flashcards, multiple choice, typed answers, match-the-pairs, and a 60-second speed round. Masters build the decks; anyone signed in can study them.</p><div class="mod-foot"><span class="mod-cta">Open module</span></div></div>
+    </a>
+    <a href="card_drafter.html" class="mod-card live" id="cardDrafterCard" style="display:none;">
+      <div class="mod-plaque"><span class="mod-icon" aria-hidden="true"><i data-lucide="files"></i></span><span class="mod-num">03</span></div>
+      <div class="mod-body"><h2 class="mod-title">Card Drafter</h2><p class="mod-desc">Build cards from class materials with local keyword extraction, structured imports, or optional AI drafting. Masters can push approved cards straight into the shared Study Hub deck.</p><div class="mod-foot"><span class="mod-cta">Open module</span></div></div>
+    </a>
+    <a href="audit_log.html" class="mod-card live" id="auditLogCard" style="display:none;">
+      <div class="mod-plaque"><span class="mod-icon" aria-hidden="true"><i data-lucide="shield-check"></i></span><span class="mod-num">04</span></div>
+      <div class="mod-body"><h2 class="mod-title">Audit Log</h2><p class="mod-desc">Read-only history of sign-ins and changes made across the system. Visible only to the account owner.</p><div class="mod-foot"><span class="mod-cta">Open module</span></div></div>
+    </a>
+    <a href="active_users.html" class="mod-card live" id="activeUsersCard" style="display:none;">
+      <div class="mod-plaque"><span class="mod-icon" aria-hidden="true"><i data-lucide="activity"></i></span><span class="mod-num">05</span></div>
+      <div class="mod-body"><h2 class="mod-title">Active Users</h2><p class="mod-desc">Live list of everyone currently signed in and active in any module, with their most recent page. Visible only to the account owner.</p><div class="mod-foot"><span class="mod-cta">Open module</span></div></div>
+    </a>
+  </div>
+  </div>
   <aside class="dashboard-sidebar">
 
   <div class="section-toolbar">
@@ -333,7 +376,7 @@
       <div class="pin-field">
         <label class="pin-checkbox-label">
           <input type="checkbox" id="annPinnedInput">
-          <span>📌 Pin to top</span>
+          <span>Pin to top</span>
         </label>
       </div>
     </div>
@@ -393,69 +436,6 @@
   </div>
 
   </aside>
-  <div class="dashboard-main">
-
-  <p class="section-label">Modules</p>
-  <div class="modules">
-
-    <a href="subject_scheduler_dashboard.html" class="mod-card live">
-      <div class="mod-plaque"><span class="mod-eyebrow">Module</span><span class="mod-num">01</span></div>
-      <div class="mod-body">
-        <h2 class="mod-title">Weekly Schedule</h2>
-        <p class="mod-desc">Your weekly class schedule — professors, rooms, Classroom and Meet links, plus a live "today" view of what's now and next.</p>
-        <div class="mod-foot">
-          <span class="mod-cta">Open module</span>
-        </div>
-      </div>
-    </a>
-
-    <a href="flashcards.html" class="mod-card live">
-      <div class="mod-plaque"><span class="mod-eyebrow">Module</span><span class="mod-num">02</span></div>
-      <div class="mod-body">
-        <h2 class="mod-title">Study Hub</h2>
-        <p class="mod-desc">Five ways to drill a deck — front/back flashcards, multiple choice, typed answers, match-the-pairs, and a 60-second speed round. Masters build the decks; anyone signed in can study them.</p>
-        <div class="mod-foot">
-          <span class="mod-cta">Open module</span>
-        </div>
-      </div>
-    </a>
-
-    <a href="card_drafter.html" class="mod-card live" id="cardDrafterCard" style="display:none;">
-      <div class="mod-plaque"><span class="mod-eyebrow">Module</span><span class="mod-num">03</span></div>
-      <div class="mod-body">
-        <h2 class="mod-title">Card Drafter</h2>
-        <p class="mod-desc">Upload a file from a class — PDF, Word, text, or spreadsheet — and get a batch of draft cards to review and edit before anything is saved. Masters can push approved cards straight into the shared Study Hub deck.</p>
-        <div class="mod-foot">
-          <span class="mod-cta">Open module</span>
-        </div>
-      </div>
-    </a>
-
-    <a href="audit_log.html" class="mod-card live" id="auditLogCard" style="display:none;">
-      <div class="mod-plaque"><span class="mod-eyebrow">Module</span><span class="mod-num">04</span></div>
-      <div class="mod-body">
-        <h2 class="mod-title">Audit Log</h2>
-        <p class="mod-desc">Read-only history of sign-ins and changes made across the system. Visible only to the account owner.</p>
-        <div class="mod-foot">
-          <span class="mod-cta">Open module</span>
-        </div>
-      </div>
-    </a>
-
-    <a href="active_users.html" class="mod-card live" id="activeUsersCard" style="display:none;">
-      <div class="mod-plaque"><span class="mod-eyebrow">Module</span><span class="mod-num">05</span></div>
-      <div class="mod-body">
-        <h2 class="mod-title">Active Users</h2>
-        <p class="mod-desc">Live list of everyone currently signed in and active in any module, with their most recent page. Visible only to the account owner.</p>
-        <div class="mod-foot">
-          <span class="mod-cta">Open module</span>
-        </div>
-      </div>
-    </a>
-
-  </div>
-
-  </div>
   </div>
 
   <div class="note-panel">
@@ -710,7 +690,7 @@ function renderSignedIn(s){
   const strip = document.getElementById('sessionStrip');
   strip.classList.add('show');
   const roleClass = isMaster ? 'master' : 'guest';
-  strip.innerHTML = `Welcome <b>${session.name}</b>! 😎<span class="role-pill ${roleClass}">${session.role}</span> <button id="logoutBtn" type="button">Log out</button>`;
+  strip.innerHTML = `Welcome <b>${session.name}</b><span class="role-pill ${roleClass}">${session.role}</span> <button id="logoutBtn" type="button">Log out</button>`;
   document.getElementById('logoutBtn').addEventListener('click', async () => {
     if(isMaster){
       await flushAuditNow('Logout', '');
@@ -1063,7 +1043,7 @@ function renderAnnouncements(){
   const cardsHtml = visible.map(a => {
     const expired = isExpired(a);
     const badges = [
-      a.pinned && !expired ? '<span class="ann-badge pinned">📌 Pinned</span>' : '',
+      a.pinned && !expired ? '<span class="ann-badge pinned">Pinned</span>' : '',
       expired ? '<span class="ann-badge expired">Expired</span>' : '',
       (!expired && a.expiresAt) ? `<span class="ann-badge expiring">Expires ${escapeHtml(fmtDate(a.expiresAt))}</span>` : ''
     ].filter(Boolean).join('');

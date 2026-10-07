@@ -127,7 +127,7 @@ window.addEventListener('DOMContentLoaded', function(){
 </style>
 </head>
 <body>
-<button id="themeToggleBtn" class="theme-toggle" type="button" aria-label="Toggle color theme" title="Toggle dark mode">🌙</button>
+<button id="themeToggleBtn" class="theme-toggle" type="button" aria-label="Switch color theme" title="Switch color theme"></button>
 <div class="wrap">
   <header>
     <div>
@@ -168,17 +168,26 @@ window.addEventListener('DOMContentLoaded', function(){
   </div>
 
   <div id="content" style="display:none;">
-    <p class="lede">Two ways to make cards: <strong>write them yourself</strong> in a simple text format (a .txt, .docx, .pdf or pasted text) and import them in one go, or let the AI draft cards from class notes. Nothing touches the shared deck until you click <strong>Save to shared deck</strong>.</p>
+    <p class="lede">Load a document from <code>resources/</code> or your device, then import a structured deck, generate keyword cards locally, or optionally use AI. Nothing touches the shared deck until you click <strong>Save to shared deck</strong>.</p>
 
     <section class="panel">
       <h2><span class="step-num">1</span>Source material</h2>
       <div class="dropzone" id="dropzone">
         <div><strong>Drop a file here</strong> or click to choose one</div>
         <div class="hint">.pdf · .docx · .txt · .xlsx / .csv — other text-like formats are read as plain text</div>
-        <input type="file" id="fileInput" style="display:none" accept=".pdf,.docx,.txt,.xlsx,.xls,.csv,.md">
+        <input type="file" id="fileInput" style="display:none" accept=".pdf,.docx,.txt,.xlsx,.xls,.csv,.md,.png,.jpg,.jpeg,.webp">
       </div>
+      <details class="resource-source" id="resourcePicker">
+        <summary>Choose a document from repository resources</summary>
+        <div class="row">
+          <div class="field grow"><label for="resourceSelect">Resource file</label><select id="resourceSelect"><option value="">Open this section to load files</option></select></div>
+          <button type="button" class="btn-ghost" id="loadResourceBtn" disabled>Load resource</button>
+        </div>
+        <p class="hint">PDF and text files are fetched from the public <code>resources/</code> folder and processed in this browser.</p>
+      </details>
       <div id="filePillWrap"></div>
       <div class="status" id="parseStatus" aria-live="polite" role="status"></div>
+      <button type="button" class="btn-ghost btn-sm" id="ocrBtn" hidden>Scan pages with OCR</button>
       <ul class="import-warn" id="importWarnings" style="display:none;"></ul>
       <div class="import-options" id="importOptions">
         <label data-opt="split"><input type="checkbox" id="optSplitBlanks"> Make one card per blank when a sentence has several blanks</label>
@@ -252,7 +261,8 @@ Question: [[Jupiter]] is the largest planet in the solar system.</pre>
       </details>
 
       <div class="row" style="margin-top:16px;">
-        <button class="btn-primary" id="generateBtn" disabled>Draft cards from this file</button>
+        <button class="btn-primary" id="generateBtn" disabled>Draft with AI</button>
+        <button class="btn-ghost" id="localGenerateBtn" type="button" hidden disabled>Generate keyword cards locally</button>
         <span class="status" id="genStatus" aria-live="polite" role="status"></span>
       </div>
       <div class="progress-track" id="progressTrack"><div class="progress-fill" id="progressFill"></div></div>
@@ -624,7 +634,55 @@ const filePillWrap = document.getElementById('filePillWrap');
 const previewWrap = document.getElementById('previewWrap');
 const extractPreview = document.getElementById('extractPreview');
 const generateBtn = document.getElementById('generateBtn');
+const localGenerateBtn = document.getElementById('localGenerateBtn');
+const ocrBtn = document.getElementById('ocrBtn');
 const deckNameInput = document.getElementById('deckNameInput');
+let currentPdfDocument = null;
+let ocrPageNumbers = [];
+let tesseractPromise = null;
+const resourcePicker = document.getElementById('resourcePicker');
+const resourceSelect = document.getElementById('resourceSelect');
+const loadResourceBtn = document.getElementById('loadResourceBtn');
+let resourceListLoaded = false;
+
+resourcePicker.addEventListener('toggle', async () => {
+  if (!resourcePicker.open || resourceListLoaded) return;
+  resourceSelect.innerHTML = '<option value="">Loading repository resources…</option>';
+  try {
+    const treeUrl = `https://api.github.com/repos/${GH.owner}/${GH.repo}/git/trees/${encodeURIComponent(GH.branch)}?recursive=1`;
+    const response = await fetch(treeUrl, { cache:'no-store' });
+    if (!response.ok) throw new Error('Could not load the repository file list (' + response.status + ').');
+    const json = await response.json();
+    const allowed = /\.(pdf|txt|md|docx|png|jpe?g|webp)$/i;
+    const files = (json.tree || []).filter(node => node.type === 'blob' && node.path.startsWith('resources/') && allowed.test(node.path)).map(node => node.path).sort((a,b) => a.localeCompare(b, undefined, {numeric:true, sensitivity:'base'}));
+    resourceSelect.innerHTML = '';
+    if (!files.length) resourceSelect.add(new Option('No supported documents found', ''));
+    files.forEach(path => resourceSelect.add(new Option(path.slice('resources/'.length), path)));
+    resourceListLoaded = true;
+    loadResourceBtn.disabled = !files.length;
+  } catch (err) {
+    resourceSelect.innerHTML = '<option value="">Resource list unavailable</option>';
+    parseStatus.className = 'status err'; parseStatus.textContent = err.message || String(err);
+  }
+});
+resourceSelect.addEventListener('change', () => { loadResourceBtn.disabled = !resourceSelect.value; });
+loadResourceBtn.addEventListener('click', async () => {
+  const path = resourceSelect.value;
+  if (!path) return;
+  loadResourceBtn.disabled = true;
+  parseStatus.className = 'status'; parseStatus.textContent = 'Fetching resource…';
+  try {
+    const encodedPath = path.split('/').map(encodeURIComponent).join('/');
+    const response = await fetch(`https://raw.githubusercontent.com/${GH.owner}/${GH.repo}/${GH.branch}/${encodedPath}`, { cache:'no-store' });
+    if (!response.ok) throw new Error('Could not fetch this resource (' + response.status + ').');
+    const file = new File([await response.blob()], path.split('/').pop());
+    await handleFile(file);
+  } catch (err) {
+    parseStatus.className = 'status err'; parseStatus.textContent = err.message || String(err);
+  } finally {
+    loadResourceBtn.disabled = !resourceSelect.value;
+  }
+});
 
 if (window.pdfjsLib) {
   pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -642,16 +700,26 @@ async function handleFile(file){
   filePillWrap.innerHTML = '';
   const pill = document.createElement('div');
   pill.className = 'filepill';
-  pill.textContent = '📄 ' + file.name + ' — ' + Math.round(file.size/1024) + ' KB';
+  pill.textContent = file.name + ' — ' + Math.round(file.size/1024) + ' KB';
   filePillWrap.appendChild(pill);
 
   parseStatus.className = 'status'; parseStatus.textContent = 'Reading file…';
   generateBtn.disabled = true;
+  localGenerateBtn.hidden = true; localGenerateBtn.disabled = true;
+  ocrBtn.hidden = true;
   extractedText = '';
 
   const ext = (file.name.split('.').pop() || '').toLowerCase();
   try {
-    if (ext === 'pdf') extractedText = await parsePdf(file);
+    currentPdfDocument = null; ocrPageNumbers = [];
+    if (ext === 'pdf') {
+      const pdf = await parsePdf(file);
+      extractedText = pdf.text;
+      currentPdfDocument = pdf.document;
+      ocrPageNumbers = pdf.ocrPages;
+      ocrBtn.hidden = !ocrPageNumbers.length;
+    }
+    else if (['png','jpg','jpeg','webp'].includes(ext)) extractedText = await recognizeImage(file);
     else if (ext === 'docx') extractedText = await parseDocx(file);
     else if (ext === 'xlsx' || ext === 'xls') extractedText = await parseXlsx(file);
     else extractedText = await parseAsText(file);
@@ -662,7 +730,7 @@ async function handleFile(file){
     extractedText = rawSourceText ? rawText.trim() : cleanExtractedText(rawText.trim());
     if (!extractedText) {
       parseStatus.className = 'status err';
-      parseStatus.textContent = 'Could not find readable text in this file. Try a .txt/.docx export of it instead.';
+      parseStatus.textContent = currentPdfDocument ? 'No selectable text found. Scan the page images with OCR to continue.' : 'Could not find readable text in this file. Try a .txt/.docx export of it instead.';
       return;
     }
     extractPreview.textContent = extractedText.slice(0, 6000) + (extractedText.length > 6000 ? '\n\n…(truncated preview; full text is used for drafting)' : '');
@@ -701,14 +769,70 @@ function parseAsText(file){
 async function parsePdf(file){
   const buf = await file.arrayBuffer();
   const doc = await pdfjsLib.getDocument({ data: buf }).promise;
-  let text = '';
+  let text = '', ocrPages = [];
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i);
     const content = await page.getTextContent();
-    text += content.items.map(it => it.str).join(' ') + '\n\n';
+    const pageText = content.items.map(it => it.str).join(' ').trim();
+    if (pageText.length < 20) ocrPages.push(i);
+    else text += pageText + '\n\n';
   }
-  return text;
+  return { text, document:doc, ocrPages };
 }
+function loadTesseract(){
+  if (window.Tesseract) return Promise.resolve(window.Tesseract);
+  if (!tesseractPromise) tesseractPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+    script.onload = () => resolve(window.Tesseract);
+    script.onerror = () => { tesseractPromise = null; reject(new Error('Could not load the browser OCR engine. Check your connection and try again.')); };
+    document.head.appendChild(script);
+  });
+  return tesseractPromise;
+}
+async function recognizeImage(image){
+  const tesseract = await loadTesseract();
+  const worker = await tesseract.createWorker('eng');
+  try { const result = await worker.recognize(image); return result.data.text || ''; }
+  finally { await worker.terminate(); }
+}
+ocrBtn.addEventListener('click', async () => {
+  if (!currentPdfDocument || !ocrPageNumbers.length) return;
+  ocrBtn.disabled = true;
+  parseStatus.className = 'status';
+  const canvas = document.createElement('canvas'), context = canvas.getContext('2d');
+  let worker;
+  try {
+    const tesseract = await loadTesseract();
+    worker = await tesseract.createWorker('eng');
+    const recognized = [];
+    for (let i = 0; i < ocrPageNumbers.length; i++) {
+      const pageNumber = ocrPageNumbers[i];
+      parseStatus.textContent = `Scanning page ${pageNumber} of ${currentPdfDocument.numPages} (${i + 1}/${ocrPageNumbers.length})…`;
+      const page = await currentPdfDocument.getPage(pageNumber);
+      const viewport = page.getViewport({ scale:1.5 });
+      canvas.width = viewport.width; canvas.height = viewport.height;
+      await page.render({ canvasContext:context, viewport }).promise;
+      const result = await worker.recognize(canvas);
+      if (result.data.text.trim()) recognized.push(result.data.text.trim());
+    }
+    extractedText = cleanExtractedText([extractedText, ...recognized].filter(Boolean).join('\n\n'));
+    if (!extractedText) throw new Error('OCR could not read text from the scanned pages.');
+    extractPreview.textContent = extractedText.slice(0, 6000) + (extractedText.length > 6000 ? '\n\n…(truncated preview; full text is used for drafting)' : '');
+    previewWrap.style.display = 'block';
+    ocrPageNumbers = [];
+    ocrBtn.hidden = true;
+    parseStatus.className = 'status ok'; parseStatus.textContent = 'OCR text extracted in this browser. Review the preview, then choose a card workflow.';
+    applySourceText();
+  } catch (err) {
+    parseStatus.className = 'status err';
+    parseStatus.textContent = 'OCR could not finish: ' + (err.message || err);
+  } finally {
+    if (worker) await worker.terminate();
+    canvas.width = 0; canvas.height = 0;
+    ocrBtn.disabled = false;
+  }
+});
 async function parseDocx(file){
   const buf = await file.arrayBuffer();
   const result = await mammoth.extractRawText({ arrayBuffer: buf });
@@ -858,6 +982,8 @@ function applySourceText(){
   const res = isAnki ? RT.parseAnki(rawSourceText, { markdown: optMd.checked, normalizeOptions: optNorm.checked }) : parseStructuredCards(extractedText);
   const aiEls = document.querySelectorAll('[data-ai-only]');
   importOptions.style.display = 'none';
+  localGenerateBtn.hidden = true;
+  localGenerateBtn.disabled = true;
   if (res.cards.length || isAnki) {
     structured = res;
     aiEls.forEach(el => el.hidden = true);
@@ -872,9 +998,11 @@ function applySourceText(){
     if (notes.length) { importWarnings.innerHTML = notes.map(n => '<li>' + escapeHtml(n) + '</li>').join(''); importWarnings.style.display = 'block'; }
   } else {
     aiEls.forEach(el => el.hidden = false);
-    generateBtn.textContent = 'Draft cards from this file';
+    generateBtn.textContent = 'Draft with AI';
     parseStatus.className = 'status ok';
-    parseStatus.textContent = 'Extracted ' + extractedText.length.toLocaleString() + ' characters. No Question/Answer or [[blank]] format found, so the AI drafter will be used.';
+    parseStatus.textContent = 'Extracted ' + extractedText.length.toLocaleString() + ' characters. Choose local keyword generation or optional AI drafting.';
+    localGenerateBtn.hidden = false;
+    localGenerateBtn.disabled = false;
   }
   renderRecentDeckChips();
   generateBtn.disabled = !res.cards.length && isAnki;
@@ -928,6 +1056,66 @@ function isNearDuplicate(front){
   if (!n) return false;
   return cards.some(c => { const f = normalizeForDedupe(c.front); return f && (f === n || f.includes(n) || n.includes(f)); });
 }
+
+const LOCAL_STOP_WORDS = new Set(('a an and are as at be been being but by can could did do does for from had has have he her hers him his how i if in into is it its may might more most no not of on or our out she should so than that the their them then there these they this those through to was we were what when where which who will with would you your about after all also any because before between both each during few further here once other own same such very').split(' '));
+function deterministicKeywordCards(text, limit){
+  const tokens = String(text).match(/[A-Za-z][A-Za-z'-]{3,}/g) || [];
+  const frequencies = new Map();
+  tokens.forEach(token => {
+    const key = token.toLowerCase();
+    if (!LOCAL_STOP_WORDS.has(key)) frequencies.set(key, (frequencies.get(key) || 0) + 1);
+  });
+  const sentences = String(text).split(/\n+/).flatMap(line => line.match(/[^.!?]+[.!?]?/g) || []).map(s => s.trim().replace(/^(?:[-*•]|\d+[.)])\s*/, '')).filter(s => s.length >= 35 && s.length <= 320);
+  const out = [], seenFronts = new Set(), seenAnswers = new Set();
+  const addCard = (sentence, term, frontOverride) => {
+    const key = term.toLowerCase().replace(/\s+/g, ' ').trim();
+    if (!key || seenAnswers.has(key)) return;
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const front = frontOverride || sentence.replace(new RegExp('\\b' + escaped + '\\b', 'i'), CLZ);
+    const frontKey = normalizeForDedupe(front);
+    if (!frontKey || front === sentence || seenFronts.has(frontKey) || isNearDuplicate(front)) return;
+    seenAnswers.add(key); seenFronts.add(frontKey);
+    out.push({ type:'cloze', front, back:term });
+  };
+
+  sentences.forEach(sentence => {
+    if (out.length >= limit) return;
+    const definition = sentence.match(/^(.{2,60}?)\s*[:\u2013\u2014-]\s*(.{15,})$/);
+    const definitionTerm = definition && definition[1].trim().replace(/^\W+|\W+$/g, '');
+    if (definitionTerm && /[A-Za-z]/.test(definitionTerm) && definitionTerm.length <= 60) {
+      addCard(sentence, definitionTerm, 'Definition: ' + definition[2].trim() + ' ' + CLZ);
+      return;
+    }
+    const explanatory = sentence.match(/^(.{2,55}?)\s+(?:is|are|means|refers to|is defined as|is known as)\s+(.{12,})$/i);
+    const explanatoryTerm = explanatory && explanatory[1].trim().replace(/^\W+|\W+$/g, '');
+    if (explanatoryTerm && explanatoryTerm.length <= 55) {
+      addCard(sentence, explanatoryTerm);
+      return;
+    }
+    const candidates = (sentence.match(/[A-Za-z][A-Za-z'-]{4,}/g) || []).filter(token => {
+      const key = token.toLowerCase();
+      return !LOCAL_STOP_WORDS.has(key) && (token.length >= 7 || (frequencies.get(key) || 0) >= 2) && !seenAnswers.has(key) && (sentence.match(new RegExp('\\b' + token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'gi')) || []).length === 1;
+    });
+    candidates.sort((a,b) => {
+      const score = token => Math.min(frequencies.get(token.toLowerCase()) || 0, 2) * 1.5 + Math.min(token.length, 14) * 0.9 + (/^[A-Z]/.test(token) ? 1 : 0);
+      return score(b) - score(a);
+    });
+    if (candidates.length) addCard(sentence, candidates[0]);
+  });
+  return out.slice(0, limit);
+}
+localGenerateBtn.addEventListener('click', () => {
+  if (!extractedText) return;
+  const target = Math.max(3, Math.min(60, parseInt(document.getElementById('targetCount').value, 10) || 15));
+  const generated = deterministicKeywordCards(extractedText, target);
+  generated.forEach(card => pendingCards.push({ tempId:uid(), type:card.type, front:card.front, back:card.back, checked:true }));
+  renderPending();
+  genStatus.className = generated.length ? 'status ok' : 'status err';
+  genStatus.textContent = generated.length
+    ? generated.length + ' source-grounded keyword card' + (generated.length === 1 ? '' : 's') + ' generated locally without AI. Review, then approve.'
+    : 'No distinct keyword cards met the local quality rules. Try a document with more term definitions or repeated key terms.';
+  if (generated.length) document.getElementById('pendingList').scrollIntoView({ behavior:'smooth', block:'start' });
+});
 function renderDeckDatalist(){
   const decks = [...new Set([...cards.map(c => c.deck), ...emptyDecks].filter(Boolean))].sort();
   document.getElementById('deckDatalist').innerHTML = decks.map(d => `<option value="${escapeHtml(d)}">`).join('');

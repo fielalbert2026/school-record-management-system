@@ -18,8 +18,8 @@ device.
 ```
 index.html                         Landing page / module hub
 subject_scheduler_dashboard.html   Module 01 — Subject Scheduler
-flashcards.html                    Module 02 — Study Hub (multi-mode reviewer: flashcards, MC, type, match, speed)
-card_drafter.html                  Module 03 — Card Drafter (upload a file, get AI-drafted cards)
+flashcards.html                    Module 02 — Study Hub (multi-mode reviewer + selected-deck PDF export)
+card_drafter.html                  Module 03 — Card Drafter (resource imports, local keyword cards, OCR, optional AI)
 audit_log.html                     Module 04 — Audit Log (owner only)
 active_users.html                  Module 05 — Active Users (owner only)
 Subject_Scheduler.xlsx             All app data (the "database")
@@ -180,10 +180,13 @@ serverless functions stand between the app and GitHub:
   *reading* still works fine (that's a direct, unauthenticated call to
   GitHub's public API), but "Enable editing" will fail, since GitHub Pages
   serves static files only and has nowhere to run `/api/verify-master`.
-  Card Drafter's "Draft cards from this file" button is in the same boat —
-  it calls `/api/draft-cards`, so it also needs Vercel (and the
-  `GEMINI_API_KEY` env var below) to work; everything else on that page
-  (upload, export to Anki/.xlsx/CSV) works anywhere.
+  Card Drafter's optional **Draft with AI** action calls `/api/draft-cards`,
+  so that action needs Vercel and the `GEMINI_API_KEY` env var below. The
+  repository resource picker, structured imports, local keyword-card
+  generation, and Study Hub's selected-deck print-to-PDF workflow work
+  without that API. OCR uses Tesseract.js and its English language data from
+  a CDN, then recognizes the document in the browser; it does not use an AI
+  service or require an API key.
 
 ### One-time server setup (only the repo owner needs to do this)
 

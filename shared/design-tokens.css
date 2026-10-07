@@ -410,3 +410,75 @@
 }
 /* (The values flip automatically via the underlying --color-* tokens,
    so no separate [data-theme="dark"] block is needed here.) */
+
+/* SRMS paired palette: violet detail in light mode; blue, gold, and white in dark mode. */
+:root {
+  --color-bg: #F7F6FB;
+  --color-bg-elevated: rgb(255 255 255 / 0.88);
+  --color-bg-hover: #F0EDF8;
+  --color-bg-active: #E7E2F2;
+  --color-border: #E3DFEC;
+  --color-border-strong: #C9C2D8;
+  --color-border-input: #A9A1BA;
+  --color-text-primary: #211B32;
+  --color-text-secondary: #4E485C;
+  --color-text-tertiary: #625B70;
+  --color-brand: #7053C7;
+  --color-brand-hover: #5F43B4;
+  --color-brand-active: #51379F;
+  --color-brand-subtle: #F0ECFA;
+  --color-brand-text: #4E388F;
+  --color-brand-on: #FFFFFF;
+  --color-accent: #D1A641;
+  --color-accent-hover: #B88C2B;
+  --color-accent-subtle: #F8F1DF;
+  --color-accent-text: #684B0B;
+  --color-accent-on: #211B32;
+  --color-header-band: #183B63;
+  --color-header-band-text: #F7F9FD;
+  --color-focus-ring: #7053C7;
+  --color-tint: rgb(112 83 199 / 0.09);
+  --color-surface-glass: rgb(255 255 255 / 0.82);
+  --color-glass-border: rgb(255 255 255 / 0.76);
+}
+
+[data-theme="dark"] {
+  --color-bg: #071727;
+  --color-bg-elevated: rgb(16 36 58 / 0.92);
+  --color-bg-hover: #18324F;
+  --color-bg-active: #254365;
+  --color-border: #31506F;
+  --color-border-strong: #476586;
+  --color-border-input: #6582A0;
+  --color-text-primary: #F6F8FC;
+  --color-text-secondary: #D1DAE6;
+  --color-text-tertiary: #BAC8D8;
+  --color-text-inverse: #071727;
+  --color-text-link: #9BC8FF;
+  --color-text-link-hover: #C2DEFF;
+  --color-brand: #4F9AE8;
+  --color-brand-hover: #72B0F3;
+  --color-brand-active: #93C4F5;
+  --color-brand-subtle: #142E49;
+  --color-brand-text: #B5D7FF;
+  --color-brand-on: #071727;
+  --color-accent: #F0C75E;
+  --color-accent-hover: #F6D77F;
+  --color-accent-subtle: rgb(240 199 94 / 0.15);
+  --color-accent-text: #FFE39A;
+  --color-accent-on: #17212D;
+  --color-header-band: #102B48;
+  --color-header-band-text: #F7F9FD;
+  --color-focus-ring: #A8D1FF;
+  --color-tint: rgb(79 154 232 / 0.11);
+  --color-surface-glass: rgb(16 36 58 / 0.88);
+  --color-glass-border: rgb(164 193 222 / 0.17);
+  --color-success: #55C99A;
+  --color-success-text: #B9F2D9;
+  --color-warning: #F2C35D;
+  --color-warning-text: #FFE4A0;
+  --color-error: #FF777F;
+  --color-error-text: #FFD1D4;
+  --shadow-md: 0 8px 24px rgb(0 0 0 / 0.28);
+  --shadow-lg: 0 16px 36px rgb(0 0 0 / 0.32);
+}

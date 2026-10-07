@@ -131,6 +131,7 @@ select { background: var(--color-bg-elevated); color: var(--color-text-primary);
 }
 .theme-toggle:hover { transform: scale(1.08); }
 .theme-toggle:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+.theme-toggle svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
 /* ---- .error-banner (always has aria-live=polite in markup) ---- */
 .error-banner {
