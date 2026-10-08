@@ -10,6 +10,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link rel="stylesheet" href="shared/design-tokens.css">
 <link rel="stylesheet" href="shared/components.css">
+<script src="shared/presence.js"></script>
 <script src="shared/theme.js" defer></script>
 <script src="shared/aria-utils.js" defer></script>
 <style>
@@ -132,7 +133,11 @@ function renderSessionStrip(){
   strip.style.display = 'inline-flex';
   const roleClass = isMaster ? 'master' : 'guest';
   strip.innerHTML = `Signed in as <b>${escapeHtml(session.name)}</b> <span class="role-pill ${roleClass}">${escapeHtml(session.role)}</span> <button id="logoutBtn" type="button" style="border:none;background:none;text-decoration:underline;cursor:pointer;font-size:12.5px;margin-left:4px;">Log out</button>`;
-  document.getElementById('logoutBtn').addEventListener('click', () => {
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    if(session.presenceToken && window.SRMS && window.SRMS.presence){
+      try{ await window.SRMS.presence.record('signout'); }
+      catch(err){ console.error('Could not record sign-out:', err.message || err); }
+    }
     sessionStorage.removeItem(SESSION_KEY);
     window.location.href = 'index.html';
   });
@@ -215,6 +220,7 @@ if(!session){
   renderSessionStrip();
 } else {
   renderSessionStrip();
+  if(window.SRMS && window.SRMS.presence) window.SRMS.presence.start();
   loadAuditLog();
 }
 </script>

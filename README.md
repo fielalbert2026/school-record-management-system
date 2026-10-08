@@ -28,9 +28,13 @@ shared/components.css              Shared UI primitives (button, panel, input, r
 shared/theme.js                    Theme toggle (light/dark), localStorage-backed
 shared/aria-utils.js               Tiny ARIA live-region helpers
 shared/api-fallback.js             Card Drafter's AI client: probes the server, falls back gracefully when the universal key isn't set
-shared/presence.js                 Lightweight presence library for the Active Users module (heartbeat → Active_Sessions sheet)
+shared/presence.js                 Presence heartbeats and sign-in/sign-out events for all roles
+data/presence.json                 Encrypted presence store (written by the serverless API)
 flashcard-modes.js                 Multi-mode reviewer (Multiple Choice, Type, Match, Speed 60s)
 api/verify-master.js               Server-side ID+passphrase check → signed edit session
+api/presence-auth.js               Verifies any signed-in user → scoped presence token
+api/presence.js                    Owner-only presence read + authenticated heartbeat/event writes
+api/_presence-token.js             Signs and verifies scoped presence tokens
 api/save.js                        Server-side commit to GitHub, using the signed session
 api/draft-cards.js                 Server-side proxy to Google's free Gemini API for card_drafter.html
 package.json                       Declares the xlsx dependency the functions above need
@@ -39,9 +43,9 @@ package.json                       Declares the xlsx dependency the functions ab
 Keep everything in the same repo — the hub links to the other pages by
 relative path, every page is hardcoded to read/write
 `fielalbert2026/school_record_management_system` on branch `main`, and the
-two `api/*.js` files are what make editing work (see "How this actually
-works" below) — this repo needs to be deployed on Vercel, not just GitHub
-Pages, for saving to function.
+`api/*.js` files provide editing, presence, and optional drafting (see "How
+this actually works" below) — this repo needs to be deployed on Vercel, not
+just GitHub Pages, for those server-backed features to function.
 
 ## Signing in
 
@@ -195,13 +199,31 @@ In the Vercel project → **Settings → Environment Variables**, add:
 | Name | Value |
 |---|---|
 | `GITHUB_TOKEN` | A GitHub fine-grained Personal Access Token — **your own account only**, scoped to just this repo, permission `Contents: Read and write`. This is the one and only GitHub credential the whole system uses. |
-| `SESSION_SECRET` | Any long random string (e.g. generate one with `openssl rand -hex 32`, or any password generator producing 40+ random characters). Used to sign edit sessions — treat it like a password; if it ever leaks, rotate it and every active edit session is instantly invalidated. |
+| `SESSION_SECRET` | Any long random string (e.g. generate one with `openssl rand -hex 32`, or any password generator producing 40+ random characters). Used to sign edit/presence sessions and encrypt the presence store — treat it like a password; if it ever leaks, rotate it and every active session is instantly invalidated. |
 | `GEMINI_API_KEY` | A **free** Google Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey) — no credit card required. Used only by `/api/draft-cards` to power Card Drafter's question drafting. Without this set, reading/reviewing/managing flashcards still works fine — only the Card Drafter's "Draft cards from this file" button needs it. |
 | `GEMINI_MODEL` *(optional)* | Defaults to `gemini-3.5-flash-lite` (the current free low-cost model as of September 2026 — Google renames/retires these periodically). Set to `gemini-3.6-flash` for somewhat better drafting quality at a smaller free daily allowance, if Lite's drafts aren't good enough. If drafting ever errors with "model ... no longer available," the error names the replacement — put that name here. |
 
 Redeploy after adding these (Vercel prompts for this automatically, or
 trigger it with an empty commit). That's the entire setup — no other Master
 needs to touch this section, ever.
+
+### Active Users and sign-in history
+
+After a successful sign-in, `/api/presence-auth` verifies the account and
+issues a scoped presence token. Signed-in Masters and Guests send a heartbeat
+every two minutes from the hub and app modules. The owner-only Active Users
+page shows users active within five minutes, recently offline sessions from
+the previous 24 hours, and sign-in/sign-out events from the last 30 days
+(capped at 2,000 events). Closing a browser without logging out is recorded
+as offline after the heartbeat expires; it cannot generate a reliable
+sign-out event.
+
+Presence data is kept in a separate `data/presence.json` file and encrypted
+with `SESSION_SECRET`; it does not add rows to the school workbook. The
+presence token cannot edit school data, and only a server-verified owner
+token can read the list/history. These server-backed features work on the
+Vercel deployment; a static/local preview can still permit the existing
+client-side sign-in, but cannot report presence.
 
 **Keeping `GITHUB_TOKEN` fresh:** fine-grained tokens expire (90 days is
 typical). When it does, generate a new one the same way and update the

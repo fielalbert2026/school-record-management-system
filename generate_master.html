@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@700;900&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="shared/design-tokens.css">
 <link rel="stylesheet" href="shared/components.css">
+<script src="shared/presence.js"></script>
 <script src="shared/theme.js" defer></script>
 <script src="shared/aria-utils.js" defer></script>
 <style>
@@ -854,7 +855,11 @@ function renderSessionStrip(){
   const roleClass = isMaster ? 'master' : 'guest';
   strip.innerHTML = `Signed in as <b>${escapeHtml(session.name)}</b> <span class="role-pill ${roleClass}">${escapeHtml(session.role)}</span> <button id="logoutBtn" type="button" style="border:none;background:none;text-decoration:underline;cursor:pointer;font-size:12.5px;margin-left:4px;color:inherit;">Log out</button>`;
   const lo = document.getElementById('logoutBtn');
-  if(lo) lo.addEventListener('click', () => {
+  if(lo) lo.addEventListener('click', async () => {
+    if(session.presenceToken && window.SRMS && window.SRMS.presence){
+      try{ await window.SRMS.presence.record('signout'); }
+      catch(err){ console.error('Could not record sign-out:', err.message || err); }
+    }
     sessionStorage.removeItem(SESSION_KEY);
     window.location.href = 'index.html';
   });
@@ -1180,6 +1185,7 @@ if(!session){
   renderSessionStrip();
 } else {
   renderSessionStrip();
+  if(window.SRMS && window.SRMS.presence) window.SRMS.presence.start();
   document.getElementById('content').style.display = 'block';
   refreshGenerateState();
   updatePassStrength();

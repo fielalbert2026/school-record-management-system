@@ -14,7 +14,7 @@
 <script src="https://unpkg.com/lucide@0.468.0" defer></script>
 <script src="shared/theme.js" defer></script>
 <script src="shared/aria-utils.js" defer></script>
-<script src="shared/presence.js" defer></script>
+<script src="shared/presence.js"></script>
 <script>window.addEventListener('DOMContentLoaded',function(){if(window.lucide)window.lucide.createIcons();});</script>
 <style>
   /* Page-specific layout only — colors / spacing / typography / shared
@@ -179,6 +179,7 @@
   }
   .session-strip.show{display:inline-flex;}
   .session-strip b{color:var(--ink); font-weight:600;}
+  .presence-warning{color:var(--color-accent-text); font-size:11px;}
   .role-pill{
     text-transform:uppercase; letter-spacing:.06em; font-size:10px; padding:3px 9px; border-radius:20px;
   }
@@ -737,8 +738,13 @@ function renderSignedIn(s){
   const strip = document.getElementById('sessionStrip');
   strip.classList.add('show');
   const roleClass = isMaster ? 'master' : 'guest';
-  strip.innerHTML = `Welcome <b>${session.name}</b><span class="role-pill ${roleClass}">${session.role}</span> <button id="logoutBtn" type="button">Log out</button>`;
+  const presenceWarning = session.presenceToken ? '' : `<span class="presence-warning" title="${escapeHtml(session.presenceUnavailable || 'Sign in on the deployed site to enable active-user tracking.')}">Presence tracking unavailable</span>`;
+  strip.innerHTML = `Welcome <b>${escapeHtml(session.name)}</b><span class="role-pill ${roleClass}">${escapeHtml(session.role)}</span>${presenceWarning} <button id="logoutBtn" type="button">Log out</button>`;
   document.getElementById('logoutBtn').addEventListener('click', async () => {
+    if(session.presenceToken && window.SRMS && window.SRMS.presence){
+      try{ await window.SRMS.presence.record('signout'); }
+      catch(err){ console.error('Could not record sign-out:', err.message || err); }
+    }
     if(isMaster){
       await flushAuditNow('Logout', '');
     }
@@ -757,8 +763,7 @@ function renderSignedIn(s){
     flushAuditNow('Login', session.role).catch(() => {});
   }
   loadAnnouncements();
-  // Start broadcasting presence to the Active_Sessions sheet so the
-  // owner can see who is online.
+  // Start the verified user's encrypted server-backed presence heartbeat.
   if(window.SRMS && window.SRMS.presence) window.SRMS.presence.start();
 }
 
@@ -1380,8 +1385,28 @@ document.getElementById('signinForm').addEventListener('submit', async (e) => {
       errEl.style.display = 'block';
       return;
     }
+    try{
+      const presenceResponse = await fetch('/api/presence-auth', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ id:idVal, passphrase:passVal })
+      });
+      const presenceResult = await presenceResponse.json();
+      if(!presenceResponse.ok) throw new Error(presenceResult.error || `Presence verification failed (${presenceResponse.status}).`);
+      if(!presenceResult.token || !presenceResult.sessionId) throw new Error('Presence service returned an invalid session.');
+      session.presenceToken = presenceResult.token;
+      session.presenceSessionId = presenceResult.sessionId;
+    }catch(presenceError){
+      session.presenceUnavailable = presenceError.message || 'The presence service could not be reached.';
+      console.error('Could not enable active-user tracking:', session.presenceUnavailable);
+    }
     setSession(session);
     renderSignedIn(session);
+    if(session.presenceToken && window.SRMS && window.SRMS.presence){
+      window.SRMS.presence.record('signin').catch(err => {
+        console.error('Could not record sign-in:', err.message || err);
+      });
+    }
     showWelcomeToast(session.name);
   }catch(err){
     errEl.textContent = err.message || 'Something went wrong — try again.';

@@ -14,7 +14,7 @@
 <link rel="stylesheet" href="shared/rich-text.css">
 <script src="shared/theme.js" defer></script>
 <script src="shared/aria-utils.js" defer></script>
-<script src="shared/presence.js" defer></script>
+<script src="shared/presence.js"></script>
 <style>
   /* Page-specific layout only — colors / spacing / typography / shared
      components come from shared/design-tokens.css and shared/components.css.
@@ -444,6 +444,10 @@ function renderSessionStrip(){
   const auditLink = session.isOwner ? ' <a href="audit_log.html" style="margin-left:8px; font-size:12px; text-decoration:underline;">Audit Log</a>' : '';
   strip.innerHTML = `Signed in as <b>${escapeHtml(session.name)}</b> <span class="role-pill ${roleClass}">${escapeHtml(session.role)}</span>${auditLink} <button id="logoutBtn" type="button" style="border:none;background:none;text-decoration:underline;cursor:pointer;font-size:12.5px;margin-left:4px;">Log out</button>`;
   document.getElementById('logoutBtn').addEventListener('click', async () => {
+    if(session.presenceToken && window.SRMS && window.SRMS.presence){
+      try{ await window.SRMS.presence.record('signout'); }
+      catch(err){ console.error('Could not record sign-out:', err.message || err); }
+    }
     if(isMaster){
       if(editingEnabled && ghToken){ await persistCards('Logout', ''); }
       else { queueAudit('Logout', ''); }
@@ -743,8 +747,8 @@ async function fetchFreshWorkbook(){
 /* Save a change. `applyFn(cards, decks)` must return {cards, decks}; the caller has already
    applied it locally. Fast path: if this page synced with the repo in the last 20 s, write
    straight away (1 request). Otherwise (or after a conflict) re-read the latest file, replay
-   applyFn on it, and write that — other pages (presence heartbeats, other Masters) change the
-   file in the background, so a stale copy is rejected with 409. GitHub only accepts a write whose
+   applyFn on it, and write that — other Masters may change the file in the background, so a
+   stale copy is rejected with 409. GitHub only accepts a write whose
    sha matches, so an accepted save is the exact content committed — no read-back needed. */
 async function persistCards(actionLabel, actionDetails, applyFn){
   if(!isMaster) return false;
@@ -1686,7 +1690,7 @@ if(!session){
     });
   });
   if(window.SRMS && SRMS.resources) SRMS.resources.init({ owner:GH.owner, repo:GH.repo, branch:GH.branch, root:'resources' });
-  // Start broadcasting presence to the Active_Sessions sheet.
+  // Start the verified user's encrypted server-backed presence heartbeat.
   if(window.SRMS && window.SRMS.presence) window.SRMS.presence.start();
 }
 </script>

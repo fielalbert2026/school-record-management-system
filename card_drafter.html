@@ -17,7 +17,7 @@
 <script src="shared/theme.js" defer></script>
 <script src="shared/aria-utils.js" defer></script>
 <script src="shared/api-fallback.js" defer></script>
-<script src="shared/presence.js" defer></script>
+<script src="shared/presence.js"></script>
 <script src="shared/rich-text.js"></script>
 <script>
 /* If shared/rich-text.js didn't load (file missing from the shared/ folder), say so instead of hanging. */
@@ -329,7 +329,11 @@ function renderSessionStrip(){
   const roleClass = isMaster ? 'master' : 'guest';
   const auditLink = session.isOwner ? ' <a href="audit_log.html" style="margin-left:8px; font-size:12px; text-decoration:underline;">Audit Log</a>' : '';
   strip.innerHTML = `Signed in as <b>${escapeHtml(session.name)}</b> <span class="role-pill ${roleClass}">${escapeHtml(session.role)}</span>${auditLink} <button id="logoutBtn" type="button" style="border:none;background:none;text-decoration:underline;cursor:pointer;font-size:12.5px;margin-left:4px;">Log out</button>`;
-  document.getElementById('logoutBtn').addEventListener('click', () => {
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    if(session.presenceToken && window.SRMS && window.SRMS.presence){
+      try{ await window.SRMS.presence.record('signout'); }
+      catch(err){ console.error('Could not record sign-out:', err.message || err); }
+    }
     if(isMaster) queueAudit('Logout', '');
     sessionStorage.removeItem(SESSION_KEY);
     window.location.href = 'index.html';
@@ -507,9 +511,9 @@ async function fetchFreshWorkbook(){
 }
 
 /* Save newCards into the shared Flashcards sheet (one read + one write).
-   Why read-merge-write: other pages write to this same xlsx in the background
-   (presence heartbeats every 2 min, other Masters), so the copy loaded when this page
-   opened goes stale and GitHub rejects the write with 409. So every save starts from the
+   Why read-merge-write: other Masters can write to this same xlsx in the background,
+   so the copy loaded when this page opened goes stale and GitHub rejects the write
+   with 409. So every save starts from the
    latest file, appends the new cards to it, and retries on a conflict. Success is only
    reported after the cards are read back from the repo. */
 async function persistCards(actionLabel, actionDetails, newCards){
@@ -1633,7 +1637,7 @@ if(!session || !isMaster){
   loadFromGitHub();
   renderPending();
   renderDrafted();
-  // Start broadcasting presence to the Active_Sessions sheet.
+  // Start the verified user's encrypted server-backed presence heartbeat.
   if(window.SRMS && window.SRMS.presence) window.SRMS.presence.start();
 }
 </script>

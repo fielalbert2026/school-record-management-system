@@ -12,7 +12,7 @@
 <link rel="stylesheet" href="shared/components.css">
 <script src="shared/theme.js" defer></script>
 <script src="shared/aria-utils.js" defer></script>
-<script src="shared/presence.js" defer></script>
+<script src="shared/presence.js"></script>
 <style>
   /* Page-specific layout only — colors / spacing / typography / shared
      components come from shared/design-tokens.css and shared/components.css.
@@ -434,6 +434,10 @@ function renderSessionStrip(){
   const auditLink = session.isOwner ? ' <a href="audit_log.html" style="margin-left:8px; font-size:12px; text-decoration:underline;">Audit Log</a>' : '';
   strip.innerHTML = `Signed in as <b>${escapeHtml(session.name)}</b> <span class="role-pill ${roleClass}">${escapeHtml(session.role)}</span>${auditLink} <button id="logoutBtn" type="button">Log out</button>`;
   document.getElementById('logoutBtn').addEventListener('click', async () => {
+    if(session.presenceToken && window.SRMS && window.SRMS.presence){
+      try{ await window.SRMS.presence.record('signout'); }
+      catch(err){ console.error('Could not record sign-out:', err.message || err); }
+    }
     if(isMaster){
       if(editingEnabled && ghToken){ await persistToFile('Logout', ''); }
       else { queueAudit('Logout', ''); }
@@ -1067,7 +1071,7 @@ if(!session){
     }catch(e){}
   }
   loadFromGitHub();
-  // Start broadcasting presence to the Active_Sessions sheet.
+  // Start the verified user's encrypted server-backed presence heartbeat.
   if(window.SRMS && window.SRMS.presence) window.SRMS.presence.start();
 }
 </script>

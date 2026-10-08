@@ -46,14 +46,15 @@
   .live-stat{ display:flex; align-items:center; gap:14px; }
   .live-stat .num{ font-family:'Merriweather',serif; font-weight:900; font-size:32px; color:var(--ink); line-height:1; }
   .live-stat .lbl{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
-  .role-row{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
+  .role-row{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin-bottom:20px; }
   @media (max-width:560px){ .role-row{grid-template-columns:1fr;} }
   .role-card{ background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px 20px; }
-  .role-card.master{ border-color: var(--sage); }
-  .role-card.guest{ border-color: var(--paper-line); }
+  .role-card.master{ border-color: var(--color-brand); }
+  .role-card.guest{ border-color: var(--color-accent); }
   .role-card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
   .role-card h3{ font-family:'Merriweather',serif; font-size:15px; color:var(--ink); margin:0; }
   .role-card .count{ font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--muted); }
+  @media (max-width:800px){ .role-row{grid-template-columns:repeat(2,minmax(0,1fr));} }
   ul.user-list{ list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:6px; }
   ul.user-list li{ display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:6px; background:var(--paper); border:1px solid var(--paper-line); font-size:13.5px; }
   ul.user-list li .who{ display:flex; flex-direction:column; min-width:0; flex:1; }
@@ -119,6 +120,7 @@
   <div id="loadPanel">
     <h2>Loading active users…</h2>
     <p id="loadText" aria-live="polite" role="status">Fetching the live presence list.</p>
+    <button class="btn-ghost" id="retryLoadBtn" type="button" style="display:none;">Try again</button>
   </div>
 
   <div id="content" style="display:none;">
@@ -140,7 +142,7 @@
     </div>
 
     <p class="note" style="margin-bottom:16px;">
-      Live list of everyone currently signed in and active in any module. Presence is broadcast every 2 minutes from each open tab; entries go offline after 5 minutes of no heartbeat. Owners and Masters can sign in to be counted; Guests are not currently tracked. All timestamps are in Philippines time (UTC+8).
+      Signed-in users across the site are listed here. Open pages send a heartbeat every 2 minutes and are considered online for 5 minutes after their last heartbeat. Sign-in/sign-out history is retained for 30 days. All timestamps are in Philippines time (UTC+8).
     </p>
 
     <div class="role-row">
@@ -153,21 +155,30 @@
       </section>
       <section class="role-card guest">
         <div class="role-card-head">
-          <h3>Recently offline</h3>
+          <h3>Guests online</h3>
+          <span class="count" id="guestCount">0</span>
+        </div>
+        <ul class="user-list" id="guestList"></ul>
+      </section>
+      <section class="role-card guest">
+        <div class="role-card-head">
+          <h3>Recently offline · 24h</h3>
           <span class="count" id="recentCount">0</span>
         </div>
         <ul class="user-list" id="recentList"></ul>
       </section>
     </div>
 
-    <h2 style="font-family:'Merriweather',serif; font-size:17px; color:var(--ink); margin:0 0 10px;">All sessions</h2>
+    <h2 style="font-family:'Merriweather',serif; font-size:17px; color:var(--ink); margin:0 0 10px;">Online and recently offline</h2>
     <div id="tableWrap"></div>
+    <h2 style="font-family:'Merriweather',serif; font-size:17px; color:var(--ink); margin:26px 0 10px;">Sign-in activity · 30 days</h2>
+    <div id="activityWrap"></div>
   </div>
 
   <footer>DFCAMCLP · Personalized School Record Management System · Active Users</footer>
 </div>
 
-<script src="shared/presence.js" defer></script>
+<script src="shared/presence.js"></script>
 <script>
 /* Theme toggle is handled by shared/theme.js (loaded with defer). */
 const SESSION_KEY = 'srms_session';
@@ -186,7 +197,11 @@ function renderSessionStrip(){
   const roleClass = isMaster ? 'master' : 'guest';
   const auditLink = session.isOwner ? ' <a href="audit_log.html" style="margin-left:8px; font-size:12px; text-decoration:underline;">Audit Log</a>' : '';
   strip.innerHTML = `Signed in as <b>${escapeHtml(session.name)}</b> <span class="role-pill ${roleClass}">${escapeHtml(session.role)}</span>${auditLink} <button id="logoutBtn" type="button" style="border:none;background:none;text-decoration:underline;cursor:pointer;font-size:12.5px;margin-left:4px;">Log out</button>`;
-  document.getElementById('logoutBtn').addEventListener('click', () => {
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    if(session.presenceToken && window.SRMS && window.SRMS.presence){
+      try{ await window.SRMS.presence.record('signout'); }
+      catch(err){ console.error('Could not record sign-out:', err.message || err); }
+    }
     sessionStorage.removeItem(SESSION_KEY);
     window.location.href = 'index.html';
   });
@@ -248,19 +263,47 @@ function renderTable(rows){
   </table>`;
 }
 
+function renderActivity(events){
+  const wrap = document.getElementById('activityWrap');
+  const q = (document.getElementById('searchInput').value || '').toLowerCase();
+  const filtered = events.filter(event =>
+    !q || (event.name + ' ' + event.role + ' ' + event.event + ' ' + event.page).toLowerCase().includes(q)
+  );
+  if(!filtered.length){
+    wrap.innerHTML = '<div class="empty">No sign-in activity matches your filter.</div>';
+    return;
+  }
+  wrap.innerHTML = `<table>
+    <thead><tr><th>Time</th><th>User</th><th>Role</th><th>Event</th><th>Page</th></tr></thead>
+    <tbody>
+      ${filtered.map(event => `<tr>
+        <td class="ts" data-label="Time" title="${escapeHtml(fmtPHT(event.timestamp))}">${fmtAgo(event.timestamp)}</td>
+        <td class="name" data-label="User">${escapeHtml(event.name)}</td>
+        <td data-label="Role">${escapeHtml(event.role)}</td>
+        <td data-label="Event">${escapeHtml(event.event)}</td>
+        <td data-label="Page">${escapeHtml(event.page || '—')}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
 function render(){
   if(!lastData) return;
   const q = (document.getElementById('searchInput').value || '').toLowerCase();
   const filterFn = r => !q || (r.name + ' ' + r.page + ' ' + r.role).toLowerCase().includes(q);
   const online = lastData.online.filter(filterFn);
   const masters = online.filter(r => r.role === 'Master');
+  const guests = online.filter(r => r.role !== 'Master');
   const recentlyOffline = lastData.recentlyOffline.filter(filterFn);
   document.getElementById('onlineCount').textContent = online.length;
   document.getElementById('masterCount').textContent = masters.length;
+  document.getElementById('guestCount').textContent = guests.length;
   document.getElementById('recentCount').textContent = recentlyOffline.length;
   renderUserList(document.getElementById('masterList'), masters);
+  renderUserList(document.getElementById('guestList'), guests);
   renderUserList(document.getElementById('recentList'), recentlyOffline);
   renderTable(online.concat(recentlyOffline));
+  renderActivity(lastData.activity || []);
   if(lastFetch){
     const secs = Math.max(0, Math.round((Date.now() - lastFetch) / 1000));
     document.getElementById('lastSyncNote').textContent = secs < 5 ? 'Synced just now' : 'Synced ' + secs + 's ago';
@@ -270,6 +313,7 @@ function render(){
 async function loadActive(){
   if(!window.SRMS || !window.SRMS.presence) {
     document.getElementById('loadText').textContent = 'Presence library failed to load. Reload the page to try again.';
+    document.getElementById('retryLoadBtn').style.display = 'inline-flex';
     return;
   }
   try{
@@ -279,14 +323,21 @@ async function loadActive(){
     document.getElementById('content').style.display = 'block';
     render();
   }catch(e){
+    document.querySelector('#loadPanel h2').textContent = 'Could not load active users';
     document.getElementById('loadText').textContent = "Couldn't load active users: " + e.message;
+    document.getElementById('retryLoadBtn').style.display = 'inline-flex';
+    document.getElementById('loadPanel').style.display = 'block';
+    document.getElementById('content').style.display = 'none';
   }
 }
 
 document.getElementById('searchInput').addEventListener('input', render);
 document.getElementById('refreshBtn').addEventListener('click', loadActive);
-// Auto-refresh every 60s so the "synced Xs ago" line stays honest.
-setInterval(() => { render(); loadActive(); }, 60000);
+document.getElementById('retryLoadBtn').addEventListener('click', loadActive);
+// Auto-refresh only after the page has an owner-scoped presence session.
+if(session && session.isOwner && session.presenceToken){
+  setInterval(() => { render(); loadActive(); }, 60000);
+}
 
 /* ---------------- Boot ---------------- */
 // Same access pattern as audit_log.html: only the account owner can see it.
@@ -301,9 +352,12 @@ if(!session){
   renderSessionStrip();
 } else {
   renderSessionStrip();
-  // Fire our own heartbeat so opening this page counts as activity.
-  if(window.SRMS && window.SRMS.presence) window.SRMS.presence.heartbeat({ force: true });
-  loadActive();
+  if(!session.presenceToken){
+    document.getElementById('loadText').textContent = 'This sign-in does not have a presence session. Log out, then sign in again from the deployed site.';
+  } else {
+    if(window.SRMS && window.SRMS.presence) window.SRMS.presence.start();
+    loadActive();
+  }
 }
 </script>
 </body>
