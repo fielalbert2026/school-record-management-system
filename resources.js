@@ -87,11 +87,18 @@
 
   /* ---------- render ---------- */
   function fileHtml(f){
-    return `<a class="res-file" href="${esc(hrefFor(f.path))}" target="_blank" rel="noopener">
-      <span class="res-ext">${esc(extOf(f.name))}</span>
-      <span class="res-name">${esc(f.name)}</span>
-      <span class="dn-meta">${esc(fmtSize(f.size))}</span>
-    </a>`;
+    const href = esc(hrefFor(f.path));
+    const name = esc(f.name);
+    return `<div class="res-file">
+      <a class="res-open" href="${href}" target="_blank" rel="noopener">
+        <span class="res-ext">${esc(extOf(f.name))}</span>
+        <span class="res-name">${name}</span>
+        <span class="dn-meta">${esc(fmtSize(f.size))}</span>
+      </a>
+      <a class="res-download" href="${href}" download="${name}" aria-label="Download ${name}" title="Download ${name}">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
+      </a>
+    </div>`;
   }
 
   // Returns '' when a node has nothing matching the current filter.
