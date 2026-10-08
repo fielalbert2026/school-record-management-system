@@ -300,10 +300,39 @@
   .ann-card,#signinPanel,#tokenPanel,.rem-list,.note-panel{box-shadow:var(--shadow-md);}
   .mod-card.live:hover{border-color:var(--color-brand);}
   @media (prefers-reduced-motion:reduce){.mod-card{transition:none}.mod-card.live:hover{transform:none}}
+  .welcome-toast{
+    position:fixed; z-index:var(--z-toast); left:50%; top:50%; width:min(440px, calc(100vw - 32px));
+    display:grid; grid-template-columns:44px 1fr 30px; align-items:center; gap:14px;
+    padding:18px 18px 18px 20px; border:1px solid rgb(213 173 85 / 0.65); border-radius:20px;
+    color:#FFFFFF; background:linear-gradient(135deg, #102944, #173B63);
+    box-shadow:0 22px 64px rgb(8 24 42 / 0.3), inset 0 1px 0 rgb(255 255 255 / 0.12);
+    transform:translate(-50%, -44%) scale(.96); opacity:0; visibility:hidden;
+    transition:opacity 180ms ease, transform 180ms ease, visibility 180ms;
+  }
+  .welcome-toast.show{opacity:1; visibility:visible; transform:translate(-50%, -50%) scale(1);}
+  .welcome-toast-icon{
+    display:grid; place-items:center; width:44px; height:44px; border-radius:14px;
+    color:#F0D991; background:rgb(213 173 85 / 0.15); font-size:23px;
+  }
+  .welcome-toast-message{margin:0; font-size:15px; font-weight:600; line-height:1.6; overflow-wrap:anywhere;}
+  .welcome-toast-message strong{color:#F0D991; font-weight:700;}
+  .welcome-toast-close{
+    display:grid; place-items:center; width:30px; height:30px; padding:0;
+    border:1px solid rgb(255 255 255 / 0.24); border-radius:50%; color:#FFFFFF;
+    background:rgb(255 255 255 / 0.08); font-size:18px; line-height:1;
+  }
+  .welcome-toast-close:hover:not(:disabled){background:rgb(255 255 255 / 0.18); transform:none;}
+  .welcome-toast-close:focus-visible{outline:2px solid #F0D991; outline-offset:2px;}
+  @media (prefers-reduced-motion:reduce){.welcome-toast{transition:none; transform:translate(-50%, -50%)}}
 </style>
 </head>
 <body>
 <button id="themeToggleBtn" class="theme-toggle" type="button" aria-label="Switch color theme" title="Switch color theme"></button>
+<div id="welcomeToast" class="welcome-toast" role="status" aria-live="polite" aria-atomic="true">
+  <span class="welcome-toast-icon" aria-hidden="true"></span>
+  <p class="welcome-toast-message"></p>
+  <button class="welcome-toast-close" type="button" aria-label="Dismiss welcome message">&times;</button>
+</div>
 <div class="wrap">
 
   <div class="masthead">
@@ -732,6 +761,37 @@ function renderSignedIn(s){
   // owner can see who is online.
   if(window.SRMS && window.SRMS.presence) window.SRMS.presence.start();
 }
+
+const welcomeMessages = [
+  { emoji:'✨', before:'Welcome sa may bitaw na tulad mo, ', after:'! Ready na ang school hub mo.' },
+  { emoji:'🌟', before:'Perfect-score dust for you, accling ', after:"! Claim it, kaya mo 'yan! ✨" },
+  { emoji:'📚', before:'Uy, ', after:'! Main character ka na naman sa academic journey mo.' },
+  { emoji:'🍀', before:'Welcome, ', after:'! Claiming smooth classes and perfect-score energy for you.' },
+  { emoji:'🎉', before:'Nandito na si ', after:'! Let’s make this school day a little more fabulous.' },
+  { emoji:'💫', before:'Hello, ', after:'! Your next small win is loading…' },
+  { emoji:'🧠', before:'Brain power: activated, ', after:'! Welcome back to your study space.' },
+  { emoji:'🏆', before:'Welcome, ', after:'! Big achiever energy, zero pressure.' }
+];
+let welcomeToastTimer;
+function showWelcomeToast(name){
+  const toast = document.getElementById('welcomeToast');
+  const message = toast.querySelector('.welcome-toast-message');
+  const icon = toast.querySelector('.welcome-toast-icon');
+  const selected = welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)];
+  icon.textContent = selected.emoji;
+  message.replaceChildren(
+    document.createTextNode(selected.before),
+    Object.assign(document.createElement('strong'), {textContent:name}),
+    document.createTextNode(selected.after)
+  );
+  toast.classList.add('show');
+  clearTimeout(welcomeToastTimer);
+  welcomeToastTimer = setTimeout(() => toast.classList.remove('show'), 4800);
+}
+document.querySelector('.welcome-toast-close').addEventListener('click', () => {
+  clearTimeout(welcomeToastTimer);
+  document.getElementById('welcomeToast').classList.remove('show');
+});
 
 /* ---------------- Announcements ----------------
  * Master-only CRUD, stored as a sheet in Subject_Scheduler.xlsx alongside
@@ -1322,6 +1382,7 @@ document.getElementById('signinForm').addEventListener('submit', async (e) => {
     }
     setSession(session);
     renderSignedIn(session);
+    showWelcomeToast(session.name);
   }catch(err){
     errEl.textContent = err.message || 'Something went wrong — try again.';
     errEl.style.display = 'block';
