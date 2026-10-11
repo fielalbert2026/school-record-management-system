@@ -38,6 +38,11 @@
     mono: "'IBM Plex Mono', 'Courier New', monospace",
     hand: "'Comic Sans MS', 'Segoe Print', cursive"
   };
+  var COLOR_TAGS = {
+    blue: '#2563eb', navy: '#173b63', gold: '#b8860b', red: '#dc2626',
+    green: '#15803d', teal: '#0f766e', purple: '#7e22ce', orange: '#c2410c',
+    pink: '#be185d', gray: '#4b5563', black: '#111827'
+  };
   var SIZE_CSS = { small: '0.85em', large: '1.2em', xl: '1.5em', xxl: '2em' };
   var DROP_WITH_CONTENT = { script: 1, style: 1, noscript: 1, iframe: 1, object: 1, embed: 1, template: 1, head: 1, title: 1, svg: 1, math: 1, textarea: 1, select: 1, button: 1 };
   var BLOCK = { div: 1, p: 1, blockquote: 1, pre: 1, section: 1, article: 1, table: 1, tr: 1, h1: 1, h2: 1, h3: 1, h4: 1, h5: 1, h6: 1 };
@@ -168,6 +173,7 @@
         continue;
       }
       var o = INLINE_STYLED[tag] ? parseStyleAttr(n) : {};
+      if (COLOR_TAGS[tag]) o.color = COLOR_TAGS[tag];
       if (tag === 'b' || tag === 'strong') o.bold = !o.fontWeight || /^(bold|bolder|[6-9]00)$/.test(o.fontWeight);
       else if (tag === 'i' || tag === 'em') o.italic = !o.fontStyle || /^(italic|oblique)$/.test(o.fontStyle);
       else if (tag === 'u' || tag === 'ins') o.underline = true;
