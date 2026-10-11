@@ -1626,15 +1626,17 @@ document.getElementById('cpExportPdf').addEventListener('click', () => {
     if(!grouped.has(path)) grouped.set(path, []);
     grouped.get(path).push(card);
   });
-  const esc = value => escapeHtml(window.SRMS.rt.toPlain(String(value || '')).replace(/\u001f/g, ', '));
+  const rt = window.SRMS.rt;
+  const esc = value => escapeHtml(rt.toPlain(String(value || '')).replace(/\u001f/g, ', '));
   const groupsHtml = [...grouped.entries()].map(([path, deckCards]) => {
     let questionNumber = 0;
     const items = deckCards.map(card => {
       questionNumber++;
       const front = card.type === 'cloze'
-        ? window.SRMS.rt.toPlain(card.front).replaceAll(CLOZE_MARKER, '________')
-        : window.SRMS.rt.toPlain(card.front);
-      return `<article class="question"><p><strong>❓Question ${questionNumber}:</strong> ${esc(front)}</p><p class="answer"><strong>✅Answer:</strong> ${esc(card.back)}</p></article>`;
+        ? rt.html(card.front).replaceAll(CLOZE_MARKER, '________')
+        : rt.html(card.front);
+      const answer = card.type === 'cloze' ? rt.answersHtml(card).join(', ') : rt.html(card.back);
+      return `<article class="question"><p><strong>❓Question ${questionNumber}:</strong> ${front}</p><p class="answer"><strong>✅Answer:</strong> ${answer}</p></article>`;
     }).join('');
     return `<section class="deck-group"><h2>${esc(path.split(' / ').map(prettySeg).join(' > '))}</h2>${items}</section>`;
   }).join('');

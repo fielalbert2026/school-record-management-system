@@ -6,7 +6,7 @@
    - A card field with no formatting is stored exactly as before: plain text.
    - A field with formatting is stored as  <!--rt-->  followed by a small,
      sanitised HTML subset (bold, italic, underline, strike, colour,
-     highlight, font, size, sub/superscript, line breaks, lists).
+     highlight, font, size, text styling, sub/superscript, line breaks, lists).
    - Everything is re-sanitised (allow-list, DOM based) before it is ever
      shown, so a hand-edited spreadsheet cell can't inject script or styles.
 
@@ -62,7 +62,16 @@
   }
   function parseFont(v) {
     var first = String(v || '').toLowerCase().split(',')[0].replace(/["']/g, '').trim();
-    return FONT_CLASS[first] || null;
+    if (FONT_CLASS[first]) return FONT_CLASS[first];
+    if (/^(serif|sans-serif|monospace|cursive|fantasy|system-ui|ui-serif|ui-sans-serif|ui-monospace)$/.test(first)) return 'generic:' + first;
+    return /^[a-z0-9][a-z0-9 -]{0,39}$/.test(first) ? 'custom:' + first : null;
+  }
+  function parseLength(v, maxAbs, allowNegative) {
+    var m = String(v || '').match(/^(-?(?:\d+\.?\d*|\.\d+))(px|pt|em|rem|%)$/);
+    if (!m) return null;
+    var n = parseFloat(m[1]);
+    if (!isFinite(n) || Math.abs(n) > maxAbs || (!allowNegative && n < 0)) return null;
+    return String(Math.round(n * 1000) / 1000) + m[2];
   }
   function parseSize(v) {
     v = String(v || '').trim().toLowerCase().replace('-webkit-', '');
@@ -70,8 +79,12 @@
     if (v === 'large' || v === 'larger') return 'large';
     if (v === 'x-large') return 'xl';
     if (v === 'xx-large' || v === 'xxx-large') return 'xxl';
-    var m = v.match(/^([\d.]+)em$/);
-    if (m) { var n = parseFloat(m[1]); if (n <= 0.95) return 'small'; if (n < 1.05) return null; if (n < 1.4) return 'large'; if (n < 1.8) return 'xl'; return 'xxl'; }
+    var m = v.match(/^(\d+(?:\.\d+)?|\.\d+)(px|pt|em|rem|%)$/);
+    if (m) {
+      var n = parseFloat(m[1]), max = { px:48, pt:36, em:3, rem:3, '%':300 }[m[2]];
+      var min = { px:8, pt:6, em:0.5, rem:0.5, '%':50 }[m[2]];
+      if (n >= min && n <= max) return String(Math.round(n * 1000) / 1000) + m[2];
+    }
     return null;
   }
   function parseStyleAttr(el) {
@@ -86,12 +99,22 @@
       else if (p === 'background-color' || p === 'background') { var b = parseColor(v); if (b) o.bg = b; }
       else if (p === 'font-family') { var f = parseFont(v); if (f) o.font = f; }
       else if (p === 'font-size') { var z = parseSize(v); if (z) o.size = z; }
-      else if (p === 'font-weight') { if (v === 'bold' || v === 'bolder' || +v >= 600) o.bold = true; }
-      else if (p === 'font-style') { if (v === 'italic' || v === 'oblique') o.italic = true; }
+      else if (p === 'font-weight' && /^(normal|bold|bolder|lighter|[1-9]00)$/.test(v)) o.fontWeight = v;
+      else if (p === 'font-style' && /^(normal|italic|oblique)$/.test(v)) o.fontStyle = v;
       else if (p === 'text-decoration' || p === 'text-decoration-line') {
         if (v.indexOf('underline') >= 0) o.underline = true;
         if (v.indexOf('line-through') >= 0) o.strike = true;
-      }
+        if (v.indexOf('overline') >= 0) o.overline = true;
+      } else if (p === 'text-transform' && /^(uppercase|lowercase|capitalize|none)$/.test(v)) o.textTransform = v;
+      else if (p === 'text-align' && /^(left|right|center|justify|start|end)$/.test(v)) o.textAlign = v;
+      else if (p === 'font-variant' && /^(normal|small-caps)$/.test(v)) o.fontVariant = v;
+      else if (p === 'letter-spacing' || p === 'word-spacing') {
+        var spacing = v === 'normal' ? 'normal' : parseLength(v, p === 'letter-spacing' ? 32 : 64, true);
+        if (spacing) o[p === 'letter-spacing' ? 'letterSpacing' : 'wordSpacing'] = spacing;
+      } else if (p === 'line-height') {
+        var lineHeight = v === 'normal' ? 'normal' : (/^(?:\d+(?:\.\d+)?|\.\d+)$/.test(v) && +v >= 0.7 && +v <= 3.5 ? String(+v) : parseLength(v, 96, false));
+        if (lineHeight) o.lineHeight = lineHeight;
+      } else if (p === 'vertical-align' && /^(baseline|sub|super|top|middle|bottom|text-top|text-bottom)$/.test(v)) o.verticalAlign = v;
     });
     return o;
   }
@@ -105,8 +128,17 @@
     var css = [];
     if (color) css.push('color:' + color);
     if (bg) css.push('background-color:' + bg);
-    if (o.font) css.push('font-family:' + FONT_CSS[o.font]);
-    if (o.size) css.push('font-size:' + SIZE_CSS[o.size]);
+    if (o.font) css.push('font-family:' + (FONT_CSS[o.font] || (o.font.indexOf('generic:') === 0 ? o.font.slice(8) : "'" + o.font.slice(7) + "'")));
+    if (o.size) css.push('font-size:' + (SIZE_CSS[o.size] || o.size));
+    if (o.fontWeight) css.push('font-weight:' + o.fontWeight);
+    if (o.fontStyle) css.push('font-style:' + o.fontStyle);
+    if (o.fontVariant) css.push('font-variant:' + o.fontVariant);
+    if (o.textTransform) css.push('text-transform:' + o.textTransform);
+    if (o.letterSpacing) css.push('letter-spacing:' + o.letterSpacing);
+    if (o.wordSpacing) css.push('word-spacing:' + o.wordSpacing);
+    if (o.lineHeight) css.push('line-height:' + o.lineHeight);
+    if (o.verticalAlign) css.push('vertical-align:' + o.verticalAlign);
+    if (o.overline) css.push('text-decoration-line:overline');
     if (css.length) { opens.push('<span style="' + css.join(';') + '">'); closes.unshift('</span>'); }
     if (o.bold) { opens.push('<b>'); closes.unshift('</b>'); }
     if (o.italic) { opens.push('<i>'); closes.unshift('</i>'); }
@@ -129,13 +161,15 @@
       if (tag === 'li') { out += inner ? '<li>' + inner + '</li>' : ''; continue; }
       if (tag === 'td' || tag === 'th') { out += inner + ' '; continue; }
       if (BLOCK[tag]) {
+        var blockStyle = parseStyleAttr(n), align = blockStyle.textAlign;
+        delete blockStyle.textAlign;
         if (/^h[1-6]$/.test(tag)) inner = inner ? '<b>' + inner + '</b>' : '';
-        out += inner ? '<div>' + inner + '</div>' : '';
+        out += inner ? '<div' + (align ? ' style="text-align:' + align + '"' : '') + '>' + wrapStyled(inner, blockStyle) + '</div>' : '';
         continue;
       }
       var o = INLINE_STYLED[tag] ? parseStyleAttr(n) : {};
-      if (tag === 'b' || tag === 'strong') o.bold = true;
-      else if (tag === 'i' || tag === 'em') o.italic = true;
+      if (tag === 'b' || tag === 'strong') o.bold = !o.fontWeight || /^(bold|bolder|[6-9]00)$/.test(o.fontWeight);
+      else if (tag === 'i' || tag === 'em') o.italic = !o.fontStyle || /^(italic|oblique)$/.test(o.fontStyle);
       else if (tag === 'u' || tag === 'ins') o.underline = true;
       else if (tag === 's' || tag === 'strike' || tag === 'del') o.strike = true;
       else if (tag === 'mark') { if (!o.bg) o.bg = '#fde047'; }
@@ -206,7 +240,7 @@
     do { prev = h; h = h.replace(lead, '').replace(trail, ''); } while (h !== prev);
     return h;
   }
-  var FORMAT_RE = /<(?:b|i|u|s|span|sub|sup|ul|ol|li)\b/;
+  var FORMAT_RE = /<(?:b|i|u|s|span|sub|sup|ul|ol|li)\b|<div\b[^>]*\bstyle=/;
   function hasFormatting(sanitizedHtml) { return FORMAT_RE.test(sanitizedHtml); }
 
   /* Editor HTML -> stored string (plain when nothing is formatted). */
@@ -585,8 +619,28 @@
     });
     area.addEventListener('paste', function (e) {
       e.preventDefault();
-      var t = (e.clipboardData || window.clipboardData).getData('text/plain') || '';
-      document.execCommand('insertText', false, t.replace(/\r\n?/g, '\n'));
+      var clipboard = e.clipboardData || window.clipboardData;
+      var html = clipboard && clipboard.getData('text/html');
+      var text = clipboard && clipboard.getData('text/plain') || '';
+      var containsFormattingMarkup = /<\/?(?:b|strong|i|em|u|ins|s|strike|del|span|font|mark|sub|sup|small|big|code|br|div|p|blockquote|pre|ul|ol|li|h[1-6])(?:\s|\/?>)/i.test(text);
+      var content = html ? sanitize(html) : containsFormattingMarkup ? sanitize(text) : escText(text.replace(/\r\n?/g, '\n')).replace(/\n/g, '<br>');
+      if (!content) return;
+      var selection = window.getSelection();
+      var range = selection && selection.rangeCount && inArea(selection.anchorNode)
+        ? selection.getRangeAt(0)
+        : document.createRange();
+      if (!inArea(range.startContainer)) {
+        range.selectNodeContents(area);
+        range.collapse(false);
+      }
+      range.deleteContents();
+      var fragment = range.createContextualFragment(content);
+      var last = fragment.lastChild;
+      range.insertNode(fragment);
+      if (last) range.setStartAfter(last);
+      range.collapse(true);
+      if (selection) { selection.removeAllRanges(); selection.addRange(range); }
+      save(); changed();
     });
     area.addEventListener('drop', function (e) { e.preventDefault(); });
     area.addEventListener('keyup', save);

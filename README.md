@@ -404,6 +404,12 @@ them, and save approved cards into the shared deck.
   and requires `/api/draft-cards` with a server-side Gemini key.
 * **Dedupe against the live deck** — drafts that overlap with cards
   already in the shared `Flashcards` sheet are dropped before review.
+* **Formatted card text** — the Study Hub and Card Drafter accept pasted
+  rich text and HTML-formatted fields in structured imports. Safe text styles
+  such as emphasis, colors, font family/size, spacing, alignment, and text
+  transforms are retained through review and saving. Scripts, link targets,
+  and layout CSS are stripped before storage or display; safe text content is
+  retained.
 
 ## Study Hub
 

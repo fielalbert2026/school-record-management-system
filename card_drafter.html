@@ -862,23 +862,22 @@ async function parseXlsx(file){
    ===================================================================== */
 const BLANK_RE = /\[\[([^\[\]]+?)\]\]/g;
 function hasBlank(t){ BLANK_RE.lastIndex = 0; const r = BLANK_RE.test(t); BLANK_RE.lastIndex = 0; return r; }
-function clip(t, n){ t = String(t).replace(/\s+/g,' ').trim(); return t.length > n ? t.slice(0, n) + '…' : t; }
+function clip(t, n){ t = RT.toPlain(RT.serialize(String(t || ''))).replace(/\s+/g,' ').trim(); return t.length > n ? t.slice(0, n) + '…' : t; }
 
 let splitBlanks = false;   // old behaviour: one card per blank
 function clozeCardsFromSentence(sentence){
   const answers = [];
   sentence.replace(BLANK_RE, (m, a) => { answers.push(a.trim()); return m; });
   if (!splitBlanks) {
-    const kept = answers.filter(Boolean);
-    if (!kept.length) return [];
-    const front = sentence.replace(BLANK_RE, (m, a) => a.trim() ? CLOZE_MARKER : a).replace(/\s+/g,' ').trim();
-    return [{ type:'cloze', front, back: kept.join(' ' + RT.SEP + ' ') }];
+    const result = RT.clozeFromSentence(sentence);
+    return result.error ? [] : [{ type:'cloze', front:result.front, back:result.back }];
   }
   return answers.map((ans, i) => {
     let k = -1;
-    const front = sentence.replace(BLANK_RE, (m, a) => { k++; return k === i ? CLOZE_MARKER : a.trim(); }).replace(/\s+/g,' ').trim();
-    return { type:'cloze', front, back:ans };
-  }).filter(c => c.back);
+    const marked = sentence.replace(BLANK_RE, (m, a) => { k++; return k === i ? '[[' + a.trim() + ']]' : a.trim(); });
+    const result = RT.clozeFromSentence(marked);
+    return result.error ? null : { type:'cloze', front:result.front, back:result.back };
+  }).filter(Boolean);
 }
 
 function parseStructuredCards(raw){
@@ -919,8 +918,8 @@ function parseStructuredCards(raw){
     if (cur.front && cur.back) {
       if (hasBlank(cur.front)) {
         out.warnings.push('Has both [[blanks]] and an answer, imported as Identification with the brackets removed: "' + clip(cur.front, 60) + '"');
-        out.cards.push({ type:'basic', front: cur.front.replace(BLANK_RE, '$1'), back: cur.back });
-      } else out.cards.push({ type:'basic', front: cur.front, back: cur.back });
+        out.cards.push({ type:'basic', front: RT.serialize(cur.front.replace(BLANK_RE, '$1')), back: RT.serialize(cur.back) });
+      } else out.cards.push({ type:'basic', front: RT.serialize(cur.front), back: RT.serialize(cur.back) });
     } else if (cur.front && hasBlank(cur.front)) {
       clozeCardsFromSentence(cur.front.replace(/\n/g, ' ')).forEach(c => out.cards.push(c));
     } else if (cur.front) {
@@ -1053,7 +1052,7 @@ document.getElementById('downloadTemplateBtn').addEventListener('click', () => {
 
 /* ---- dedupe against the LIVE shared deck ---- */
 function normalizeForDedupe(s){
-  return String(RT.toPlain(s||'')).replace(/<br\s*\/?>/gi,' ').replace(/[^a-z0-9]+/gi,' ').trim().toLowerCase().slice(0,120);
+  return String(RT.toPlain(RT.serialize(s||''))).replace(/<br\s*\/?>/gi,' ').replace(/[^a-z0-9]+/gi,' ').trim().toLowerCase().slice(0,120);
 }
 function isNearDuplicate(front){
   const n = normalizeForDedupe(front);
@@ -1368,6 +1367,10 @@ const pendingList = document.getElementById('pendingList');
 const pendingCounts = document.getElementById('pendingCounts');
 
 function renderPending(){
+  pendingCards.forEach(card => {
+    card.front = RT.serialize(card.front);
+    card.back = RT.serialize(card.back);
+  });
   pendingList.innerHTML = '';
   if (!pendingCards.length) {
     pendingList.innerHTML = '<div class="empty">No drafts yet — generate some above.</div>';
