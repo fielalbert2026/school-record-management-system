@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<script src="maintenance-guard.js"></script>
 <script>(function(){try{var t=localStorage.getItem('srms_theme')||'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Active Users — Personalized School Record Management System</title>
@@ -152,7 +153,7 @@
     </div>
 
     <p class="note" style="margin-bottom:16px;">
-      Signed-in users across the site are listed here. Open pages send a heartbeat every 2 minutes and are considered online for 5 minutes after their last heartbeat. Sign-in/sign-out history is retained for 30 days. All timestamps are in Philippines time (UTC+8).
+      Signed-in users across the site are listed here. Open pages send a heartbeat every 2 minutes and are considered online for 5 minutes after their last heartbeat. Sign-in/sign-out and offline-package request history is retained for 30 days. All timestamps are in Philippines time (UTC+8).
     </p>
 
     <div class="role-row">
@@ -181,7 +182,7 @@
 
     <h2 style="font-family:'Merriweather',serif; font-size:17px; color:var(--ink); margin:0 0 10px;">Online and recently offline</h2>
     <div id="tableWrap"></div>
-    <h2 style="font-family:'Merriweather',serif; font-size:17px; color:var(--ink); margin:26px 0 10px;">Sign-in activity · 30 days</h2>
+    <h2 style="font-family:'Merriweather',serif; font-size:17px; color:var(--ink); margin:26px 0 10px;">Account activity · 30 days</h2>
     <div id="activityWrap"></div>
   </div>
 

@@ -138,15 +138,19 @@ function applyAction(data, identity, action, page) {
     else data.sessions[idx] = entry;
   }
 
-  if (action === 'signin' || action === 'signout') {
-    const eventKey = `${identity.sessionId}:${action}`;
+  if (action === 'signin' || action === 'signout' || action === 'offline-download') {
+    const eventKey = action === 'offline-download'
+      ? `${identity.sessionId}:${action}:${crypto.randomBytes(12).toString('hex')}`
+      : `${identity.sessionId}:${action}`;
     if (!data.events.some(event => event.eventKey === eventKey)) {
       data.events.push({
         eventKey,
         timestamp: now,
         name: identity.name,
         role: identity.role,
-        event: action === 'signin' ? 'Sign in' : 'Sign out',
+        event: action === 'signin' ? 'Sign in'
+          : action === 'signout' ? 'Sign out'
+          : 'Offline package requested',
         page,
         sessionId: identity.sessionId
       });
@@ -215,7 +219,7 @@ module.exports = async (req, res) => {
     }
 
     const { action, page } = req.body || {};
-    if (!['signin', 'heartbeat', 'signout'].includes(action)) {
+    if (!['signin', 'heartbeat', 'signout', 'offline-download'].includes(action)) {
       res.status(400).json({ error: 'Unsupported presence action.' });
       return;
     }
@@ -224,4 +228,11 @@ module.exports = async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: e.message || 'Presence update failed.' });
   }
+};
+
+module.exports.recordOfflineDownload = async identity => {
+  const githubToken = process.env.GITHUB_TOKEN;
+  const secret = process.env.SESSION_SECRET;
+  if (!githubToken || !secret) throw new Error('Presence service is missing GITHUB_TOKEN or SESSION_SECRET.');
+  await mutate('offline-download', identity, 'flashcards.html', githubToken, secret);
 };

@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script>(function(){try{var t=localStorage.getItem('srms_theme')||'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <script src="maintenance-guard.js"></script>
+<script>(function(){try{var t=localStorage.getItem('srms_theme')||'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="manifest.webmanifest">
 <title>Personalized School Record Management System</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@700;900&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -15,6 +16,7 @@
 <script src="shared/theme.js" defer></script>
 <script src="shared/aria-utils.js" defer></script>
 <script src="shared/presence.js"></script>
+<script src="shared/offline-access.js"></script>
 <script>window.addEventListener('DOMContentLoaded',function(){if(window.lucide)window.lucide.createIcons();});</script>
 <style>
   /* Page-specific layout only — colors / spacing / typography / shared
@@ -192,6 +194,14 @@
 
   #hubContent{display:none;}
   #hubContent.show{display:block;}
+  #ownerMaintenancePanel{
+    display:none; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+    margin:0 0 24px; padding:16px 20px; background:var(--card); border:1px solid var(--color-accent);
+    border-left:4px solid var(--color-accent); border-radius:14px; box-shadow:var(--shadow-sm);
+  }
+  #ownerMaintenancePanel.show{display:flex;}
+  #ownerMaintenancePanel h2{font-family:'Merriweather',serif; font-size:16px; color:var(--ink); margin:0 0 4px;}
+  #ownerMaintenanceStatus{font-size:12.5px; color:var(--muted); margin:0;}
 
   /* ---------- Shared button variants (mirrors scheduler module) ---------- */
   .btn-primary{background:var(--accent); color:var(--color-brand-on);}
@@ -376,6 +386,14 @@
       This unlocks editing everywhere (Scheduler, Study Hub, Announcements) — no need to repeat it per module.
     </p>
   </div>
+
+  <section id="ownerMaintenancePanel" aria-labelledby="maintenancePanelTitle">
+    <div>
+      <h2 id="maintenancePanelTitle">Site maintenance</h2>
+      <p id="ownerMaintenanceStatus" role="status" aria-live="polite">Checking maintenance status…</p>
+    </div>
+    <button type="button" class="btn-highlight" id="ownerMaintenanceToggle" disabled>Loading status…</button>
+  </section>
 
   <div class="dashboard-layout">
   <div class="dashboard-main">
@@ -717,10 +735,17 @@ function registerFail(){
 }
 
 function getSession(){
-  try{ return JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); }catch(e){ return null; }
+  try{
+    const saved = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
+    if(saved) return saved;
+  }catch(e){}
+  return window.SRMS && window.SRMS.offline ? window.SRMS.offline.restoreSession() : null;
 }
 function setSession(s){ sessionStorage.setItem(SESSION_KEY, JSON.stringify(s)); }
-function clearSession(){ sessionStorage.removeItem(SESSION_KEY); }
+function clearSession(){
+  sessionStorage.removeItem(SESSION_KEY);
+  if(window.SRMS && window.SRMS.offline) window.SRMS.offline.clearGrant();
+}
 
 // Global session/role state — the Announcements section (and the token
 // panel it shares) reads these, same pattern as the Scheduler module.
@@ -735,6 +760,10 @@ function renderSignedIn(s){
   document.getElementById('cardDrafterCard').style.display = isMaster ? '' : 'none';   // Card Drafter: Masters only
   document.getElementById('auditLogCard').style.display = session.isOwner ? '' : 'none';
   document.getElementById('activeUsersCard').style.display = session.isOwner ? '' : 'none';
+  const maintenancePanel = document.getElementById('ownerMaintenancePanel');
+  const isOwnerMaster = isMaster && session.isOwner === true;
+  maintenancePanel.classList.toggle('show', isOwnerMaster);
+  if(isOwnerMaster) loadOwnerMaintenanceStatus();
   const strip = document.getElementById('sessionStrip');
   strip.classList.add('show');
   const roleClass = isMaster ? 'master' : 'guest';
@@ -766,6 +795,56 @@ function renderSignedIn(s){
   // Start the verified user's encrypted server-backed presence heartbeat.
   if(window.SRMS && window.SRMS.presence) window.SRMS.presence.start();
 }
+
+let maintenanceEnabled = false;
+async function loadOwnerMaintenanceStatus(){
+  const status = document.getElementById('ownerMaintenanceStatus');
+  const button = document.getElementById('ownerMaintenanceToggle');
+  status.textContent = 'Checking maintenance status…';
+  button.disabled = true;
+  try{
+    const response = await fetch('/api/maintenance', {cache:'no-store'});
+    const data = await response.json();
+    if(!response.ok) throw new Error(data.error || 'Could not read maintenance status.');
+    maintenanceEnabled = data.enabled === true;
+    status.textContent = maintenanceEnabled
+      ? 'Maintenance is ON. Visitors are being sent to the maintenance page.'
+      : 'Maintenance is OFF. The site is open to visitors.';
+    button.textContent = maintenanceEnabled ? 'Turn maintenance off' : 'Turn maintenance on';
+    const canToggle = session && session.role === 'Master' && session.isOwner === true && session.presenceToken;
+    if(!canToggle) status.textContent += ' Sign out and back in on the deployed site to enable owner controls.';
+    button.disabled = !canToggle;
+  }catch(error){
+    status.textContent = (error.message || 'Could not read maintenance status.') + ' Use the deployed Vercel site to control maintenance.';
+    button.textContent = 'Status unavailable';
+    button.disabled = true;
+  }
+}
+document.getElementById('ownerMaintenanceToggle').addEventListener('click', async () => {
+  const button = document.getElementById('ownerMaintenanceToggle');
+  const status = document.getElementById('ownerMaintenanceStatus');
+  if(!session || session.role !== 'Master' || !session.presenceToken || !session.isOwner) return;
+  button.disabled = true;
+  status.textContent = 'Updating the maintenance switch…';
+  try{
+    const response = await fetch('/api/maintenance', {
+      method:'POST',
+      headers:{'Content-Type':'application/json', 'Authorization':'Bearer ' + session.presenceToken},
+      body:JSON.stringify({enabled:!maintenanceEnabled})
+    });
+    const data = await response.json();
+    if(!response.ok) throw new Error(data.error || 'Could not update maintenance status.');
+    maintenanceEnabled = data.enabled === true;
+    status.textContent = maintenanceEnabled
+      ? 'Maintenance is ON. Visitors are being sent to the maintenance page.'
+      : 'Maintenance is OFF. The site is open to visitors.';
+    button.textContent = maintenanceEnabled ? 'Turn maintenance off' : 'Turn maintenance on';
+    button.disabled = false;
+  }catch(error){
+    status.textContent = (error.message || 'Could not update maintenance status.') + ' Nothing changed.';
+    button.disabled = false;
+  }
+});
 
 const welcomeMessages = [
   { emoji:'✨', before:'Welcome sa may bitaw na tulad mo, ', after:'! Ready na ang school hub mo.' },

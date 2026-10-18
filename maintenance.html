@@ -49,6 +49,21 @@
   .up .dot{ background:var(--sage); animation:none; }
 
   .actions{ display:flex; justify-content:center; margin-top:24px; }
+  .owner-panel{
+    margin-top:22px; padding:14px 16px; background:var(--card);
+    border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow);
+  }
+  .owner-panel summary{font-size:13px;font-weight:600;cursor:pointer;}
+  .owner-panel p{font-size:12px;line-height:1.5;color:var(--muted);}
+  .owner-panel form{display:flex;gap:8px;flex-wrap:wrap;}
+  .owner-panel input{
+    flex:1 1 150px;min-width:0;padding:9px 10px;border:1px solid var(--line);
+    border-radius:8px;background:var(--paper);color:var(--ink);font:inherit;font-size:13px;
+  }
+  .owner-panel .owner-status{font-size:12px;color:var(--muted);}
+  .owner-panel [hidden]{display:none !important;}
+  .owner-panel .owner-error{color:#b4232f;}
+  :root[data-theme="dark"] .owner-panel .owner-error{color:#ff9b9b;}
   button{
     font:inherit; font-size:13.5px; font-weight:600; color:var(--ink); background:var(--card);
     border:1px solid var(--line); border-radius:10px; padding:10px 18px; cursor:pointer;
@@ -144,6 +159,20 @@
 
   <div class="actions"><button type="button" id="recheckBtn">Check again</button></div>
   <p class="foot">This page checks automatically every 30 seconds.</p>
+  <details class="owner-panel" id="ownerPanel">
+    <summary>Owner controls</summary>
+    <p>Sign in with the unique owner Master account to turn maintenance on or off.</p>
+    <form id="ownerLoginForm">
+      <input id="ownerIdInput" inputmode="numeric" autocomplete="username" placeholder="Owner school ID" aria-label="Owner school ID" required>
+      <input id="ownerPassInput" type="password" autocomplete="current-password" placeholder="Owner passphrase" aria-label="Owner passphrase" required>
+      <button type="submit" id="ownerLoginBtn">Verify owner</button>
+    </form>
+    <div id="ownerControls" hidden>
+      <p class="owner-status" id="ownerStatus" role="status" aria-live="polite"></p>
+      <button type="button" id="ownerToggleBtn">Turn maintenance off</button>
+    </div>
+    <p class="owner-error" id="ownerError" role="status" aria-live="polite" hidden></p>
+  </details>
 </main>
 
 <script>
@@ -174,6 +203,52 @@
 
   /* Optional custom image/GIF: set "image": "images/brb.gif" in maintenance.json. Falls back to the drawing. */
   let customImage = '';
+  let maintenanceConfig = null;
+  let ownerToken = '';
+  const OWNER_SESSION_KEY = 'srms_session';
+
+  function decodeToken(token){
+    try{
+      const encoded = token.split('.')[0].replace(/-/g, '+').replace(/_/g, '/');
+      const binary = atob(encoded);
+      const bytes = Uint8Array.from(binary, ch => ch.charCodeAt(0));
+      return JSON.parse(new TextDecoder().decode(bytes));
+    }catch(e){ return null; }
+  }
+  function setOwnerToken(token){
+    const claims = decodeToken(token);
+    if(!claims || claims.role !== 'Master' || claims.isOwner !== true) return false;
+    ownerToken = token;
+    $('ownerLoginForm').hidden = true;
+    $('ownerControls').hidden = false;
+    $('ownerError').hidden = true;
+    try{
+      sessionStorage.setItem(OWNER_SESSION_KEY, JSON.stringify({
+        name:claims.name, role:claims.role, isOwner:true,
+        presenceToken:token, sessionId:claims.sessionId
+      }));
+    }catch(e){}
+    updateOwnerButton();
+    return true;
+  }
+  function updateOwnerButton(){
+    const button = $('ownerToggleBtn');
+    const status = $('ownerStatus');
+    button.disabled = !maintenanceConfig;
+    if(!maintenanceConfig){
+      status.textContent = 'Maintenance status is unavailable. Try again when the site connection is restored.';
+      return;
+    }
+    status.textContent = maintenanceConfig.enabled
+      ? 'Maintenance is ON. Visitors are being sent to this page.'
+      : 'Maintenance is OFF. The site is open to visitors.';
+    button.textContent = maintenanceConfig.enabled ? 'Turn maintenance off' : 'Turn maintenance on';
+  }
+  try{
+    const saved = JSON.parse(sessionStorage.getItem(OWNER_SESSION_KEY) || 'null');
+    if(saved && saved.isOwner && saved.presenceToken) setOwnerToken(saved.presenceToken);
+  }catch(e){}
+
   function applyImage(src, alt){
     if(src === customImage) return;
     customImage = src;
@@ -190,11 +265,19 @@
   async function check(){
     let cfg = null;
     try{
-      const res = await fetch('maintenance.json?_=' + Date.now(), { cache:'no-store' });
-      if(res.ok) cfg = await res.json();
-    }catch(e){}
+      const live = await fetch('/api/maintenance', { cache:'no-store' });
+      if(!live.ok) throw new Error('Maintenance API unavailable');
+      cfg = await live.json();
+    }catch(e){
+      try{
+        const fallback = await fetch('maintenance.json?_=' + Date.now(), { cache:'no-store' });
+        if(fallback.ok) cfg = await fallback.json();
+      }catch(fallbackError){}
+    }
     $('checkedVal').textContent = fmtTime(new Date());
-    if(!cfg) return;                                   // keep showing the last known state
+    if(!cfg){ updateOwnerButton(); return; }            // keep showing the last known state
+    maintenanceConfig = cfg;
+    updateOwnerButton();
 
     if(cfg.title)   $('title').textContent = cfg.title;
     if(cfg.message) $('message').textContent = cfg.message;
@@ -220,6 +303,56 @@
   }
 
   $('recheckBtn').addEventListener('click', check);
+  $('ownerLoginForm').addEventListener('submit', async function(event){
+    event.preventDefault();
+    const button = $('ownerLoginBtn'), error = $('ownerError');
+    button.disabled = true;
+    error.hidden = true;
+    try{
+      const response = await fetch('/api/presence-auth', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({id:$('ownerIdInput').value.trim(), passphrase:$('ownerPassInput').value})
+      });
+      const data = await response.json();
+      if(!response.ok) throw new Error(data.error || 'Owner sign-in failed.');
+      if(!setOwnerToken(data.token)) throw new Error('This account is not the verified owner Master.');
+      $('ownerIdInput').value = '';
+      $('ownerPassInput').value = '';
+      fetch('/api/presence', {
+        method:'POST',
+        headers:{'Content-Type':'application/json', 'Authorization':'Bearer ' + ownerToken},
+        body:JSON.stringify({action:'signin', page:'maintenance.html'})
+      }).catch(error => console.warn('Could not record owner sign-in from maintenance page:', error));
+      check();
+    }catch(errorValue){
+      error.textContent = (errorValue.message || 'Owner verification failed.') + ' Owner controls require the deployed site.';
+      error.hidden = false;
+    }finally{
+      button.disabled = false;
+    }
+  });
+  $('ownerToggleBtn').addEventListener('click', async function(){
+    if(!ownerToken || !maintenanceConfig) return;
+    const button = $('ownerToggleBtn'), error = $('ownerError');
+    button.disabled = true;
+    error.hidden = true;
+    try{
+      const response = await fetch('/api/maintenance', {
+        method:'POST',
+        headers:{'Content-Type':'application/json', 'Authorization':'Bearer ' + ownerToken},
+        body:JSON.stringify({enabled:!maintenanceConfig.enabled})
+      });
+      const data = await response.json();
+      if(!response.ok) throw new Error(data.error || 'Could not update maintenance status.');
+      maintenanceConfig = data;
+      updateOwnerButton();
+      if(!maintenanceConfig.enabled) check();
+    }catch(errorValue){
+      error.textContent = (errorValue.message || 'Could not update maintenance status.') + ' Nothing changed.';
+      error.hidden = false;
+      button.disabled = false;
+    }
+  });
   check();
   setInterval(check, 30000);
 })();

@@ -25,7 +25,12 @@
 
   /* ---------------------------------------------------------------- helpers */
   function escText(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  function escAttr(s) { return escText(s).replace(/"/g, '&quot;'); }
   function isRich(s) { return typeof s === 'string' && s.indexOf(MARK) === 0; }
+  function safeImageSource(src) {
+    return typeof src === 'string' && src.length <= 24000 &&
+      /^data:image\/(?:png|jpe?g|webp|gif);base64,[a-z0-9+/]+=*$/i.test(src);
+  }
 
   /* ------------------------------------------------------- sanitiser tables */
   var FONT_CLASS = {
@@ -160,6 +165,11 @@
       var tag = n.tagName.toLowerCase();
       if (DROP_WITH_CONTENT[tag]) continue;
       if (tag === 'br') { out += '<br>'; continue; }
+      if (tag === 'img') {
+        var src = n.getAttribute('src') || '';
+        if (safeImageSource(src)) out += '<img src="' + src + '" alt="' + escAttr((n.getAttribute('alt') || 'Question image').slice(0, 120)) + '">';
+        continue;
+      }
       var inner = walk(n);
       if (tag === 'sub' || tag === 'sup') { out += inner ? '<' + tag + '>' + inner + '</' + tag + '>' : ''; continue; }
       if (tag === 'ul' || tag === 'ol') { out += inner ? '<' + tag + '>' + inner + '</' + tag + '>' : ''; continue; }
@@ -211,6 +221,7 @@
         if (n.nodeType !== 1) continue;
         var t = n.tagName.toLowerCase();
         if (t === 'br') { out += '\n'; continue; }
+        if (t === 'img') { out += n.getAttribute('alt') || 'Question image'; continue; }
         var blk = BLOCKY[t];
         if (blk && out && out.slice(-1) !== '\n') out += '\n';
         if (t === 'li') out += '- ';
@@ -246,7 +257,7 @@
     do { prev = h; h = h.replace(lead, '').replace(trail, ''); } while (h !== prev);
     return h;
   }
-  var FORMAT_RE = /<(?:b|i|u|s|span|sub|sup|ul|ol|li)\b|<div\b[^>]*\bstyle=/;
+  var FORMAT_RE = /<(?:b|i|u|s|span|sub|sup|ul|ol|li|img)\b|<div\b[^>]*\bstyle=/;
   function hasFormatting(sanitizedHtml) { return FORMAT_RE.test(sanitizedHtml); }
 
   /* Editor HTML -> stored string (plain when nothing is formatted). */

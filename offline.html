@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#102944">
+  <link rel="manifest" href="manifest.webmanifest">
+  <title>Offline — School Record Management System</title>
+  <link rel="stylesheet" href="shared/design-tokens.css">
+  <style>
+    body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:var(--paper);color:var(--ink);font:16px/1.6 system-ui,sans-serif}
+    main{max-width:560px;padding:30px;border:1px solid var(--color-border);border-top:4px solid var(--color-accent);border-radius:16px;background:var(--card);box-shadow:var(--shadow-sm)}
+    h1{margin:0 0 10px;color:var(--ink);font-size:1.6rem}
+    p{color:var(--muted)}
+    a{display:inline-block;margin:8px 12px 0 0;color:var(--ink);font-weight:700}
+    .notice{padding:12px;border-radius:8px;background:var(--color-tint);font-size:.9rem}
+  </style>
+</head>
+<body>
+  <main>
+    <h1>You’re offline</h1>
+    <p>Previously opened pages and a prepared offline copy may still be available on this device.</p>
+    <p class="notice">Offline copies are read-only, stay on this device until removed, and cannot be remotely revoked. A device-local Guest profile can reopen the cached study pages; sign in online to sync changes.</p>
+    <p><a href="/__offline-data/manifest.json">View the offline-copy source and use notice</a></p>
+    <a href="flashcards.html">Open Study Hub</a>
+    <a href="subject_scheduler_dashboard.html">Open schedule</a>
+    <a href="index.html">Go to home</a>
+  </main>
+</body>
+</html>

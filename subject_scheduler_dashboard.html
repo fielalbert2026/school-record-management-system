@@ -2,8 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<script src="maintenance-guard.js"></script>
 <script>(function(){try{var t=localStorage.getItem('srms_theme')||'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="manifest.webmanifest">
 <title>Subject Scheduler — Personalized School Record Management System</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@700;900&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -13,6 +15,7 @@
 <script src="shared/theme.js" defer></script>
 <script src="shared/aria-utils.js" defer></script>
 <script src="shared/presence.js"></script>
+<script src="shared/offline-access.js"></script>
 <style>
   /* Page-specific layout only — colors / spacing / typography / shared
      components come from shared/design-tokens.css and shared/components.css.
@@ -286,6 +289,7 @@
       <button class="btn-ghost" id="retryLoadBtn">Retry load</button>
     </div>
   </div>
+  <p id="offlineReadOnlyNotice" class="error-banner" hidden role="status" style="margin:0 0 18px;">Offline copy loaded · read-only snapshot · changes will not sync and cannot be remotely revoked.</p>
 
   <div id="tokenPanel" style="display:none;">
     <h2>Enable editing</h2>
@@ -421,10 +425,15 @@ function normalizeTime(v){
  */
 const SESSION_KEY = 'srms_session';
 function getSession(){
-  try{ return JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); }catch(e){ return null; }
+  try{
+    const saved = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
+    if(saved) return saved;
+  }catch(e){}
+  return window.SRMS && window.SRMS.offline ? window.SRMS.offline.restoreSession() : null;
 }
 const session = getSession();
 const isMaster = !!session && session.role === 'Master';
+let offlineSnapshot = false;
 
 function renderSessionStrip(){
   if(!session) return;
@@ -443,6 +452,7 @@ function renderSessionStrip(){
       else { queueAudit('Logout', ''); }
     }
     sessionStorage.removeItem(SESSION_KEY);
+    if(window.SRMS && window.SRMS.offline) window.SRMS.offline.clearGrant();
     window.location.href = 'index.html';
   });
 }
@@ -506,12 +516,12 @@ function appendAuditToWorkbook(wb, entries){
 function renderConnectBox(){
   const box = document.getElementById('connectBox');
   if(!connected){ box.innerHTML=''; return; }
-  const canEdit = isMaster; // Guests never see an edit entry point, at all
+  const canEdit = isMaster && !offlineSnapshot; // Guests and offline snapshots are read-only.
   box.innerHTML = `
     <div class="file-chip">
       <span class="dot" id="saveDot"></span>
-      <span class="name">Live schedule</span>
-      <span class="status" id="saveStatus">${editingEnabled ? 'editing enabled' : 'read-only'}</span>
+      <span class="name">${offlineSnapshot ? 'Offline copy' : 'Live schedule'}</span>
+      <span class="status" id="saveStatus">${offlineSnapshot ? 'read-only snapshot' : editingEnabled ? 'editing enabled' : 'read-only'}</span>
     </div>
     <button class="btn-ghost" id="reloadBtn">Refresh</button>
     ${canEdit && !editingEnabled ? '<button class="btn-primary" id="headerEnableEditBtn">Enable editing</button>' : ''}
@@ -612,6 +622,8 @@ async function loadFromGitHub(){
     currentSha = json.sha;
     const buf = b64ToArrayBuffer(json.content);
     workbook = XLSX.read(buf, {type:'array'});
+    offlineSnapshot = false;
+    document.getElementById('offlineReadOnlyNotice').hidden = true;
     parseSubjectsFromWorkbook();
     connected = true;
     panel.style.display = 'none';
@@ -623,9 +635,34 @@ async function loadFromGitHub(){
     renderConnectBox();
     render();
   }catch(e){
+    let displayError = e;
+    try{
+      const offlineCopy = window.SRMS && window.SRMS.offline
+        ? await window.SRMS.offline.readWorkbook()
+        : null;
+      if(offlineCopy){
+        workbook = XLSX.read(offlineCopy, {type:'array'});
+        currentSha = null;
+        offlineSnapshot = true;
+        editingEnabled = false;
+        ghToken = null;
+        parseSubjectsFromWorkbook();
+        connected = true;
+        panel.style.display = 'none';
+        document.getElementById('offlineReadOnlyNotice').hidden = false;
+        document.getElementById('tokenPanel').style.display = 'none';
+        document.getElementById('addToggleBtn').style.display = 'none';
+        document.getElementById('enableEditBtn').style.display = 'none';
+        renderConnectBox();
+        render();
+        return;
+      }
+    }catch(offlineError){
+      displayError = new Error(`${e.message} Offline copy could not be read: ${offlineError.message || offlineError}`);
+    }
     connected = false;
     document.getElementById('connectPanelTitle').textContent = "Couldn't load your schedule";
-    document.getElementById('connectPanelText').textContent = e.message;
+    document.getElementById('connectPanelText').textContent = displayError.message;
     document.getElementById('connectActions').style.display = 'flex';
     document.getElementById('enableEditBtn').style.display = 'none';
     render();
@@ -646,6 +683,7 @@ function buildSheetAOA(){
 }
 
 async function persistToFile(actionLabel, actionDetails){
+  if(offlineSnapshot) return false;
   if(!editingEnabled || !ghToken){
     // Never fail silently: a Master whose session lapsed needs to know the
     // change did NOT save, instead of believing it did.
@@ -695,7 +733,7 @@ async function persistToFile(actionLabel, actionDetails){
 // Delete before editing is enabled, surface the token panel immediately
 // instead of letting the action quietly go nowhere.
 function promptEnableEditing(){
-  if(!isMaster) return;
+  if(!isMaster || offlineSnapshot) return;
   document.getElementById('tokenPanel').style.display = 'block';
   document.getElementById('tokenInput').focus();
 }
@@ -888,7 +926,7 @@ function renderDayPanel(){
           ${s.notes?`<br>${escapeHtml(s.notes)}`:''}
         </div>
       </div>
-      ${isMaster ? `<div class="row-actions">
+      ${isMaster && !offlineSnapshot ? `<div class="row-actions">
         <button class="btn-ghost" onclick="startEdit('${s.id}')">Edit</button>
         <button class="btn-text" onclick="deleteEntry('${s.id}')" style="color:var(--pencil-red);">Delete</button>
       </div>` : '<div></div>'}

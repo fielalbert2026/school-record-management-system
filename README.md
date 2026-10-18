@@ -29,14 +29,19 @@ shared/theme.js                    Theme toggle (light/dark), localStorage-backe
 shared/aria-utils.js               Tiny ARIA live-region helpers
 shared/api-fallback.js             Card Drafter's AI client: probes the server, falls back gracefully when the universal key isn't set
 shared/presence.js                 Presence heartbeats and sign-in/sign-out events for all roles
-data/presence.json                 Encrypted presence store (written by the serverless API)
+shared/offline-access.js            Device-local offline package preparation and read-only access
+data/presence.json                  Encrypted presence store (written by the serverless API)
 flashcard-modes.js                 Multi-mode reviewer (Multiple Choice, Type, Match, Speed 60s)
 api/verify-master.js               Server-side ID+passphrase check → signed edit session
 api/presence-auth.js               Verifies any signed-in user → scoped presence token
 api/presence.js                    Owner-only presence read + authenticated heartbeat/event writes
 api/_presence-token.js             Signs and verifies scoped presence tokens
+api/offline-pack.js                Creates an authenticated, filtered workbook snapshot
 api/save.js                        Server-side commit to GitHub, using the signed session
 api/draft-cards.js                 Server-side proxy to Google's free Gemini API for card_drafter.html
+service-worker.js                  Offline app shell and approved resource caching
+offline.html                       Fallback page when an uncached page is requested offline
+manifest.webmanifest               Installable PWA metadata
 package.json                       Declares the xlsx dependency the functions above need
 ```
 
@@ -61,25 +66,23 @@ The hub (`index.html`) now asks for a school ID before showing the modules.
     the one above). Nobody — not the code, not the salt, not the sheet — can
     turn `Name_Enc` back into a name without already knowing the ID it
     belongs to. Logging in with your own ID is what derives your own key.
-* **What it's *not*:** unbreakable. This is a static site with no server, so
-  the hashing/decryption code has to be public for the browser to run it.
-  School IDs look like an 8-digit space, so someone willing to brute-force
-  all ~10⁸ combinations offline could still recover any single name given
-  enough compute time — this raises that bar from "readable at a glance" to
-  "requires targeted computation," it doesn't make the data theoretically
-  secret. The Designation column (`Guest`/`Master`) is left in plain text
-  since it's low-sensitivity — it's genuinely just two possible values.
+* **What it's *not*:** a confidentiality boundary. The repository is public
+  and the browser reads `Subject_Scheduler.xlsx` directly, so anyone can
+  download the workbook without signing in. The lookup hashes and encrypted
+  names are not secret; in particular, Guest IDs use a fast ID-derived key
+  and an 8-digit ID space can be brute-forced offline. Master passphrase
+  verifiers use PBKDF2, which raises the cost of guessing but does not make
+  the public workbook private. Do not put sensitive personal information in
+  this public workbook.
 * **The actual security boundary changed for the better here:** writing to
   the file now requires re-confirming your passphrase through
   `/api/verify-master`, which independently re-derives your identity
   server-side — it doesn't just trust whatever the sign-in step already
   decided. See "How this actually works" further down for the full picture.
-* Sign-in state lives in `sessionStorage` (cleared when the tab closes) — it
-  isn't a cookie or a token sent to any server, so there's nothing here that
-  functions like a session token that could be intercepted or replayed
-  against a backend. `subject_scheduler_dashboard.html` also checks for it
-  directly, so opening that file without signing in on the hub first shows a
-  locked screen instead of the schedule.
+* Sign-in state and the scoped presence token live in `sessionStorage`
+  (cleared when the tab closes). Server-backed operations independently
+  verify their signed tokens; the browser's role checks only control the
+  interface and are not the authorization boundary.
 
 ### Master accounts need a second factor now
 
@@ -224,6 +227,47 @@ presence token cannot edit school data, and only a server-verified owner
 token can read the list/history. These server-backed features work on the
 Vercel deployment; a static/local preview can still permit the existing
 client-side sign-in, but cannot report presence.
+
+### Owner maintenance switch
+
+The unique owner Master can switch maintenance on or off from the signed-in
+hub. If maintenance is already on, the owner can open **Owner controls** on
+`maintenance.html`, authenticate with the owner ID and passphrase, and switch
+it off there. The `/api/maintenance` endpoint checks the signed owner token
+server-side and updates only `maintenance.json` through GitHub; no manual
+file edit or push is needed. That automated update creates a GitHub commit
+and may trigger a Vercel deployment, while the live endpoint makes the new
+switch state available immediately. This requires the deployed Vercel API
+and the existing `GITHUB_TOKEN` and `SESSION_SECRET`.
+
+### Offline use and data access
+
+The Study Hub can prepare an offline copy on a device through the **Prepare
+offline access** control in its Resources section. Preparation requires an
+online signed-in session and an explicit acceptable-use acknowledgment. The
+server records the account, role, timestamp, and offline-package request in
+the encrypted presence activity log; the owner can review it on the Active
+Users page. This records a request, not proof of how the files were later
+used.
+
+The service worker caches the app shell, the study resources, and a read-only
+workbook snapshot containing only `Subject_Scheduler`, `Flashcards`, and
+`Decks`. Only the expected schedule, card, and deck columns are retained;
+workbook document properties and defined names are stripped. `Valid_Users`,
+`Audit_Log`, and every other workbook sheet are omitted. Offline changes do
+not sync. A device-local Guest profile can reopen the prepared study pages
+and grants no Master editing controls. Signing out removes that profile;
+**Remove offline copy** clears the bundle from this browser. Neither action
+can remove copies saved elsewhere.
+
+Offline copies can be copied, modified, or redistributed, and can remain
+available during a maintenance period. The use acknowledgment, local
+attribution notice, and activity record improve transparency and
+traceability, but do not prevent misuse or guarantee legal protection. Keep
+only materials cleared for offline distribution in `resources/`, retain
+source attribution, and obtain school/rights-holder approval where required.
+The original online workbook remains public and includes other sheets; this
+offline snapshot does not change or secure the online source data.
 
 **Keeping `GITHUB_TOKEN` fresh:** fine-grained tokens expire (90 days is
 typical). When it does, generate a new one the same way and update the
@@ -410,6 +454,10 @@ them, and save approved cards into the shared deck.
   transforms are retained through review and saving. Scripts, link targets,
   and layout CSS are stripped before storage or display; safe text content is
   retained.
+* **Question images in manual cards** — a Master can paste an image into the
+  Study Hub's Front field or choose an image from a computer or mobile device.
+  Images are resized and stored with the question in the existing workbook;
+  no separate image service is needed.
 
 ## Study Hub
 
