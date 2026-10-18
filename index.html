@@ -170,6 +170,13 @@
   #idInput:focus, #passInput:focus{outline:2px solid var(--color-focus-ring); outline-offset:1px; border-color:var(--color-brand);}
   #signinError{color:var(--pencil-red); font-size:12.5px; display:none;}
   #signinNote{font-size:11.5px; color:var(--muted); margin-top:14px;}
+  #guestPasswordDialog{width:min(440px,calc(100% - 28px));border:1px solid var(--color-border);border-top:4px solid var(--color-accent);border-radius:16px;padding:24px;background:var(--card);color:var(--ink);box-shadow:var(--shadow-md);}
+  #guestPasswordDialog::backdrop{background:rgb(6 18 32 / .62);}
+  #guestPasswordDialog h2{font-family:'Merriweather',serif;margin:0 0 10px;font-size:20px;}
+  #guestPasswordDialog p{color:var(--muted);font-size:13px;line-height:1.6;}
+  #guestPasswordDialog .field{display:flex;flex-direction:column;gap:6px;margin:14px 0;}
+  #guestPasswordDialog input{width:100%;padding:10px;border:1px solid var(--paper-line);border-radius:7px;background:var(--card);color:var(--ink);}
+  #guestPasswordCurrent[hidden]{display:none;}
 
   .session-strip{
     display:none; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap;
@@ -354,16 +361,40 @@
 
   <div id="signinPanel">
     <h2>Sign in</h2>
-    <p>Enter your school ID to open the dashboard. Passphrase is OPTIONAL if you're a Visitor.</p>
+    <p>Enter your school ID and password. If you have not created a password yet, sign in with your school ID to set one up.</p>
     <form id="signinForm">
       <input id="idInput" type="text" inputmode="numeric" autocomplete="off" placeholder="School ID" required>
-      <input id="passInput" type="password" autocomplete="off" placeholder="Owner passphrase — Master accounts only">
+      <input id="passInput" type="password" autocomplete="current-password" placeholder="Password or Master passphrase">
       <button type="submit" id="signinBtn">Sign in</button>
     </form>
     <div id="signinError" class="error-banner" aria-live="polite" role="status">ID not recognized. Check with the system owner if this seems wrong.</div>
     <div id="signinLocked" class="error-banner" aria-live="polite" role="status" style="display:none;"></div>
-    <p id="signinNote">Your ID is hashed in this browser before it's checked — the plain ID is never sent or stored anywhere. Master accounts also need the owner passphrase.</p>
+    <p id="signinNote">Masters use their existing owner passphrase. Other accounts create a password the first time they sign in; use that password next time.</p>
   </div>
+
+  <dialog id="guestPasswordDialog" aria-labelledby="guestPasswordTitle">
+    <h2 id="guestPasswordTitle">Create your password</h2>
+    <p id="guestPasswordDescription">Set a password for this account. You will need it for future sign-ins. Anyone who knows this school ID could claim it first, so create your password now.</p>
+    <form id="guestPasswordForm">
+      <label class="field" id="guestPasswordCurrent" hidden>
+        <span>Current password</span>
+        <input id="guestCurrentPassword" type="password" autocomplete="current-password">
+      </label>
+      <label class="field">
+        <span>New password</span>
+        <input id="guestNewPassword" type="password" autocomplete="new-password" minlength="10" maxlength="128" required>
+      </label>
+      <label class="field">
+        <span>Confirm new password</span>
+        <input id="guestConfirmPassword" type="password" autocomplete="new-password" minlength="10" maxlength="128" required>
+      </label>
+      <p id="guestPasswordError" class="error-banner" role="status" aria-live="polite" hidden></p>
+      <div class="actions">
+        <button id="guestPasswordSubmit" type="submit" class="btn-primary">Save password</button>
+        <button id="guestPasswordCancel" type="button" class="btn-ghost" hidden>Cancel</button>
+      </div>
+    </form>
+  </dialog>
 
   <div id="hubContent">
 
@@ -745,6 +776,128 @@ function clearSession(){ sessionStorage.removeItem(SESSION_KEY); }
 // panel it shares) reads these, same pattern as the Scheduler module.
 let session = null;
 let isMaster = false;
+let pendingGuestLogin = null;
+let guestPasswordMode = 'setup';
+
+async function postPresenceAuth(id, password){
+  const response = await fetch('/api/presence-auth', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ id, passphrase:password })
+  });
+  let result = {};
+  try{ result = await response.json(); }catch(error){}
+  return { response, result };
+}
+
+function applyPresenceResult(target, result){
+  if(!result.token || !result.sessionId) throw new Error('The sign-in service returned an invalid session.');
+  target.presenceToken = result.token;
+  target.presenceSessionId = result.sessionId;
+  if(result.guestPasswordVersion === 1) target.guestPasswordVersion = 1;
+}
+
+function finishSignIn(s){
+  setSession(s);
+  renderSignedIn(s);
+  if(s.presenceToken && window.SRMS && window.SRMS.presence){
+    window.SRMS.presence.record('signin').catch(err => {
+      console.error('Could not record sign-in:', err.message || err);
+    });
+  }
+  showWelcomeToast(s.name);
+}
+
+function openGuestPasswordDialog(mode){
+  guestPasswordMode = mode;
+  const dialog = document.getElementById('guestPasswordDialog');
+  const currentField = document.getElementById('guestPasswordCurrent');
+  const error = document.getElementById('guestPasswordError');
+  currentField.hidden = mode !== 'change';
+  document.getElementById('guestPasswordCancel').hidden = mode !== 'change';
+  document.getElementById('guestPasswordTitle').textContent = mode === 'setup' ? 'Create your password' : 'Change your password';
+  document.getElementById('guestPasswordDescription').textContent = mode === 'setup'
+    ? 'Set a password for this account. You will need it for future sign-ins. Anyone who knows this school ID could claim it first, so create your password now.'
+    : 'Enter your current password and choose a new one.';
+  document.getElementById('guestPasswordSubmit').textContent = mode === 'setup' ? 'Create password' : 'Update password';
+  document.getElementById('guestCurrentPassword').value = '';
+  document.getElementById('guestNewPassword').value = '';
+  document.getElementById('guestConfirmPassword').value = '';
+  error.hidden = true;
+  error.textContent = '';
+  if(!dialog.open) dialog.showModal();
+  document.getElementById(mode === 'change' ? 'guestCurrentPassword' : 'guestNewPassword').focus();
+}
+
+async function initializeGuestPassword(id, password){
+  const response = await fetch('/api/guest-password', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ action:'setup', id, password })
+  });
+  let result = {};
+  try{ result = await response.json(); }catch(error){}
+  if(!response.ok) throw new Error(result.error || `Could not create password (${response.status}).`);
+  const auth = await postPresenceAuth(id, password);
+  if(!auth.response.ok) throw new Error(auth.result.error || `Sign-in failed (${auth.response.status}).`);
+  applyPresenceResult(pendingGuestLogin, auth.result);
+  const signedIn = pendingGuestLogin;
+  delete signedIn.id;
+  pendingGuestLogin = null;
+  document.getElementById('guestPasswordDialog').close();
+  document.getElementById('passInput').value = '';
+  finishSignIn(signedIn);
+}
+
+document.getElementById('guestPasswordCancel').addEventListener('click', () => {
+  if(guestPasswordMode === 'change') document.getElementById('guestPasswordDialog').close();
+});
+document.getElementById('guestPasswordForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  const currentPassword = document.getElementById('guestCurrentPassword').value;
+  const password = document.getElementById('guestNewPassword').value;
+  const confirmation = document.getElementById('guestConfirmPassword').value;
+  const error = document.getElementById('guestPasswordError');
+  const submit = document.getElementById('guestPasswordSubmit');
+  error.hidden = true;
+  if(password.length < 10 || password.length > 128){
+    error.textContent = 'Choose a password between 10 and 128 characters.';
+    error.hidden = false;
+    return;
+  }
+  if(password !== confirmation){
+    error.textContent = 'The new passwords do not match.';
+    error.hidden = false;
+    return;
+  }
+  submit.disabled = true;
+  try{
+    if(guestPasswordMode === 'setup'){
+      await initializeGuestPassword(pendingGuestLogin.id, password);
+    }else{
+      const response = await fetch('/api/guest-password', {
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          'Authorization':'Bearer ' + session.presenceToken
+        },
+        body:JSON.stringify({ action:'change', currentPassword, password })
+      });
+      let result = {};
+      try{ result = await response.json(); }catch(parseError){}
+      if(!response.ok) throw new Error(result.error || `Could not update password (${response.status}).`);
+      document.getElementById('guestPasswordDialog').close();
+      alert('Password updated. Please sign in again with your new password.');
+      clearSession();
+      window.location.reload();
+    }
+  }catch(requestError){
+    error.textContent = requestError.message || 'Could not save the password. Please try again.';
+    error.hidden = false;
+  }finally{
+    submit.disabled = false;
+  }
+});
 
 function renderSignedIn(s){
   session = s;
@@ -762,7 +915,10 @@ function renderSignedIn(s){
   strip.classList.add('show');
   const roleClass = isMaster ? 'master' : 'guest';
   const presenceWarning = session.presenceToken ? '' : `<span class="presence-warning" title="${escapeHtml(session.presenceUnavailable || 'Sign in on the deployed site to enable active-user tracking.')}">Presence tracking unavailable</span>`;
-  strip.innerHTML = `Welcome <b>${escapeHtml(session.name)}</b><span class="role-pill ${roleClass}">${escapeHtml(session.role)}</span>${presenceWarning} <button id="logoutBtn" type="button">Log out</button>`;
+  const passwordButton = isMaster ? '' : ' <button id="changeGuestPasswordBtn" type="button" class="btn-ghost">Change password</button>';
+  strip.innerHTML = `Welcome <b>${escapeHtml(session.name)}</b><span class="role-pill ${roleClass}">${escapeHtml(session.role)}</span>${presenceWarning}${passwordButton} <button id="logoutBtn" type="button">Log out</button>`;
+  const changePasswordButton = document.getElementById('changeGuestPasswordBtn');
+  if(changePasswordButton) changePasswordButton.addEventListener('click', () => openGuestPasswordDialog('change'));
   document.getElementById('logoutBtn').addEventListener('click', async () => {
     if(session.presenceToken && window.SRMS && window.SRMS.presence){
       try{ await window.SRMS.presence.record('signout'); }
@@ -1458,29 +1614,33 @@ document.getElementById('signinForm').addEventListener('submit', async (e) => {
       errEl.style.display = 'block';
       return;
     }
+    if(session.role !== 'Master'){
+      const auth = await postPresenceAuth(idVal, passVal);
+      if(auth.response.status === 428 && auth.result.code === 'GUEST_PASSWORD_SETUP_REQUIRED'){
+        pendingGuestLogin = { ...session, id:idVal };
+        openGuestPasswordDialog('setup');
+        return;
+      }
+      if(!auth.response.ok){
+        registerFail();
+        errEl.textContent = auth.result.error || 'ID not recognized. Check with the system owner if this seems wrong.';
+        errEl.style.display = 'block';
+        return;
+      }
+      applyPresenceResult(session, auth.result);
+      if(session.guestPasswordVersion !== 1) throw new Error('The sign-in service did not verify this account password.');
+      finishSignIn(session);
+      return;
+    }
     try{
-      const presenceResponse = await fetch('/api/presence-auth', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ id:idVal, passphrase:passVal })
-      });
-      const presenceResult = await presenceResponse.json();
-      if(!presenceResponse.ok) throw new Error(presenceResult.error || `Presence verification failed (${presenceResponse.status}).`);
-      if(!presenceResult.token || !presenceResult.sessionId) throw new Error('Presence service returned an invalid session.');
-      session.presenceToken = presenceResult.token;
-      session.presenceSessionId = presenceResult.sessionId;
+      const auth = await postPresenceAuth(idVal, passVal);
+      if(!auth.response.ok) throw new Error(auth.result.error || `Presence verification failed (${auth.response.status}).`);
+      applyPresenceResult(session, auth.result);
     }catch(presenceError){
       session.presenceUnavailable = presenceError.message || 'The presence service could not be reached.';
       console.error('Could not enable active-user tracking:', session.presenceUnavailable);
     }
-    setSession(session);
-    renderSignedIn(session);
-    if(session.presenceToken && window.SRMS && window.SRMS.presence){
-      window.SRMS.presence.record('signin').catch(err => {
-        console.error('Could not record sign-in:', err.message || err);
-      });
-    }
-    showWelcomeToast(session.name);
+    finishSignIn(session);
   }catch(err){
     errEl.textContent = err.message || 'Something went wrong — try again.';
     errEl.style.display = 'block';
@@ -1491,6 +1651,10 @@ document.getElementById('signinForm').addEventListener('submit', async (e) => {
 
 (function boot(){
   const existing = getSession();
+  if(existing && existing.role !== 'Master' && existing.guestPasswordVersion !== 1){
+    clearSession();
+    return;
+  }
   if(existing) renderSignedIn(existing);
 })();
 </script>

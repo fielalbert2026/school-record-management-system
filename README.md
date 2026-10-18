@@ -33,6 +33,9 @@ data/presence.json                  Encrypted presence store (written by the ser
 flashcard-modes.js                 Multi-mode reviewer (Multiple Choice, Type, Match, Speed 60s)
 api/verify-master.js               Server-side ID+passphrase check → signed edit session
 api/presence-auth.js               Verifies any signed-in user → scoped presence token
+api/guest-password.js              Guest password setup and authenticated password changes
+api/_guest-passwords.js             Encrypts and stores Guest password verifiers
+data/guest-passwords.json            Encrypted Guest password store (written by the serverless API)
 api/presence.js                    Owner-only presence read + authenticated heartbeat/event writes
 api/_presence-token.js             Signs and verifies scoped presence tokens
 api/save.js                        Server-side commit to GitHub, using the signed session
@@ -102,8 +105,19 @@ that matter here, not just decoration:
   both paths, even when it's thrown away), so response speed alone can't be
   used to tell them apart either.
 
-Guest accounts are unchanged — fast ID-hash lookup, no passphrase — since
-they're view-only and the extra cost isn't proportionate there.
+Non-Master accounts create a password on their first sign-in. This initial
+claim is intentionally school-ID-only because those accounts have no
+existing credential; anyone who learns an unclaimed school ID could claim
+that account first. Users should create their password promptly and avoid
+sharing their IDs. Subsequent sign-ins require the password. The server
+stores a salted PBKDF2 verifier in an AES-GCM-encrypted file, using
+`SESSION_SECRET` for encryption; it is not added to the public workbook.
+Non-Master users can change their password from the signed-in dashboard by
+confirming the current password. Master passphrase sign-in is unchanged.
+Guest password setup and sign-in require the deployed Vercel API; a static
+preview cannot create or verify Guest passwords. Password setup and changes
+write an encrypted credential file through the configured GitHub token, so
+each change creates a repository commit.
 
 **A basic form-level lockout** (5 failed attempts → 30s cooldown) also
 exists, but be clear-eyed about what it does and doesn't do: it only slows
@@ -495,10 +509,9 @@ to a single account — not "Masters in general."
     limitation anymore — it could be closed by silently requesting a write
     session at every login instead of waiting for "Enable editing," if that
     trade-off is ever worth making.
-  * **Guest activity is never logged, at all.** Guests have no passphrase
-    or write session in this system by design (that's what keeps them
-    view-only), so there's nothing that could authorize writing a Guest's
-    login anywhere.
+  * **Guest activity is not written to the workbook audit sheet.** Guests
+    do not have a GitHub edit session. Their sign-in and presence are
+    recorded separately in the encrypted, server-backed Active Users log.
 
 ## Flashcards
 

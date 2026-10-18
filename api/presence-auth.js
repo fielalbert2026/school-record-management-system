@@ -5,6 +5,7 @@
 const crypto = require('crypto');
 const XLSX = require('xlsx');
 const { sign } = require('./_presence-token');
+const guestPasswords = require('./_guest-passwords');
 
 const GH = { owner: 'fielalbert2026', repo: 'school_record_management_system', branch: 'main', path: 'Subject_Scheduler.xlsx' };
 const AUTH_SALT = 'SRMS-Santino67-67-v1';
@@ -95,13 +96,33 @@ module.exports = async (req, res) => {
 
     const role = String(match[3] || 'Guest');
     let name;
-    try {
-      name = role === 'Master'
-        ? decryptNameMaster(id, passphrase, match[4], match[1], match[2], match[5])
-        : decryptNameGuest(id, match[1], match[2]);
-    } catch (e) {
-      res.status(401).json({ error: 'Presence could not verify this sign-in. Please sign in again.' });
-      return;
+    if (role === 'Master') {
+      try {
+        name = decryptNameMaster(id, passphrase, match[4], match[1], match[2], match[5]);
+      } catch (e) {
+        res.status(401).json({ error: 'Presence could not verify this sign-in. Please sign in again.' });
+        return;
+      }
+    } else {
+      const { credentials } = await guestPasswords.read(githubToken, sessionSecret);
+      const credential = credentials[userHash];
+      if (!credential) {
+        res.status(428).json({
+          code: 'GUEST_PASSWORD_SETUP_REQUIRED',
+          error: 'Create a password for this account before continuing.'
+        });
+        return;
+      }
+      if (!guestPasswords.verifyPassword(passphrase, credential)) {
+        res.status(401).json({ error: 'ID not recognized. Check with the system owner if this seems wrong.' });
+        return;
+      }
+      try {
+        name = decryptNameGuest(id, match[1], match[2]);
+      } catch (e) {
+        res.status(401).json({ error: 'Presence could not verify this sign-in. Please sign in again.' });
+        return;
+      }
     }
 
     const sessionId = crypto.randomBytes(16).toString('hex');
@@ -112,9 +133,10 @@ module.exports = async (req, res) => {
       userKey: userHash,
       sessionId,
       isOwner: role === 'Master' && id.trim() === OWNER_SCHOOL_ID,
+      ...(role === 'Master' ? {} : { guestPasswordVersion: 1 }),
       exp: Date.now() + PRESENCE_SESSION_MS
     }, sessionSecret);
-    res.status(200).json({ token, sessionId });
+    res.status(200).json({ token, sessionId, guestPasswordVersion: role === 'Master' ? undefined : 1 });
   } catch (e) {
     res.status(500).json({ error: 'Could not initialize presence tracking.' });
   }

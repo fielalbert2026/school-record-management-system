@@ -187,6 +187,10 @@ module.exports = async (req, res) => {
     res.status(401).json({ error: 'Presence session expired. Please sign in again.' });
     return;
   }
+  if (identity.role !== 'Master' && identity.guestPasswordVersion !== 1) {
+    res.status(401).json({ error: 'Sign in with your account password to continue.' });
+    return;
+  }
 
   try {
     if (req.method === 'GET') {
