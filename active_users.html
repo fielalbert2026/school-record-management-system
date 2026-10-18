@@ -69,6 +69,7 @@
   tbody tr:last-child td{border-bottom:none;}
   td.ts{ font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--muted); white-space:nowrap; }
   td.name{ font-weight:600; color:var(--ink); }
+  .end-session-btn{font-size:11px; padding:6px 9px; white-space:nowrap; color:var(--pencil-red);}
   @media (max-width: 640px) {
     table, thead, tbody, tr, th, td { display: block; width: 100%; }
     thead { display: none; }
@@ -153,7 +154,7 @@
     </div>
 
     <p class="note" style="margin-bottom:16px;">
-      Signed-in users across the site are listed here. Open pages send a heartbeat every 2 minutes and are considered online for 5 minutes after their last heartbeat. Online rows include the active session count for that account and a best-effort device/browser label. These details require the server-backed presence API; GitHub Pages alone cannot collect cross-device sessions. Sign-in/sign-out history is retained for 30 days. All timestamps are in Philippines time (UTC+8).
+      Signed-in users across the site are listed here. Open pages send a heartbeat every 2 minutes and are considered online for 5 minutes after their last heartbeat. The owner can end an individual session; that client will be signed out at its next presence check, within about 2 minutes. The account owner's own sessions are protected. Online rows include the active session count for that account and a best-effort device/browser label. These controls require the server-backed presence API; GitHub Pages alone cannot collect cross-device sessions. Sign-in/sign-out and owner termination history is retained for 30 days. All timestamps are in Philippines time (UTC+8).
     </p>
 
     <div class="role-row">
@@ -262,7 +263,7 @@ function renderTable(rows){
     return;
   }
   wrap.innerHTML = `<table>
-    <thead><tr><th>Name</th><th>Role</th><th>Page</th><th>Device / browser</th><th>Account sessions</th><th>Last seen</th></tr></thead>
+    <thead><tr><th>Name</th><th>Role</th><th>Page</th><th>Device / browser</th><th>Account sessions</th><th>Last seen</th><th>Session control</th></tr></thead>
     <tbody>
       ${rows.map(r => `<tr>
         <td class="name" data-label="Name">${escapeHtml(r.name)}${r.isOwner ? ' <span class="role-pill master" style="font-size:9px; margin-left:4px;">Owner</span>' : ''}</td>
@@ -271,6 +272,7 @@ function renderTable(rows){
         <td data-label="Device / browser">${escapeHtml(r.device || 'Unknown device')} / ${escapeHtml(r.browser || 'Unknown browser')}</td>
         <td data-label="Account sessions">${Number(r.instanceCount || 1)}</td>
         <td class="ts" data-label="Last seen" title="${escapeHtml(fmtPHT(r.lastSeen))}">${fmtAgo(r.lastSeen)}</td>
+        <td data-label="Session control">${r.isOwner ? 'Protected' : `<button class="btn-ghost end-session-btn" type="button" data-session-id="${escapeHtml(r.sessionId)}" data-session-name="${escapeHtml(r.name)}" data-session-device="${escapeHtml(r.device || 'Unknown device')} / ${escapeHtml(r.browser || 'Unknown browser')}">End session</button>`}</td>
       </tr>`).join('')}
     </tbody>
   </table>`;
@@ -280,20 +282,21 @@ function renderActivity(events){
   const wrap = document.getElementById('activityWrap');
   const q = (document.getElementById('searchInput').value || '').toLowerCase();
   const filtered = events.filter(event =>
-    !q || (event.name + ' ' + event.role + ' ' + event.event + ' ' + event.page).toLowerCase().includes(q)
+    !q || (event.name + ' ' + event.role + ' ' + event.event + ' ' + event.actor + ' ' + event.page).toLowerCase().includes(q)
   );
   if(!filtered.length){
     wrap.innerHTML = '<div class="empty">No sign-in activity matches your filter.</div>';
     return;
   }
   wrap.innerHTML = `<table>
-    <thead><tr><th>Time</th><th>User</th><th>Role</th><th>Event</th><th>Page</th></tr></thead>
+    <thead><tr><th>Time</th><th>User</th><th>Role</th><th>Event</th><th>Actor</th><th>Page</th></tr></thead>
     <tbody>
       ${filtered.map(event => `<tr>
         <td class="ts" data-label="Time" title="${escapeHtml(fmtPHT(event.timestamp))}">${fmtAgo(event.timestamp)}</td>
         <td class="name" data-label="User">${escapeHtml(event.name)}</td>
         <td data-label="Role">${escapeHtml(event.role)}</td>
         <td data-label="Event">${escapeHtml(event.event)}</td>
+        <td data-label="Actor">${escapeHtml(event.actor || '—')}</td>
         <td data-label="Page">${escapeHtml(event.page || '—')}</td>
       </tr>`).join('')}
     </tbody>
@@ -347,6 +350,23 @@ async function loadActive(){
 document.getElementById('searchInput').addEventListener('input', render);
 document.getElementById('refreshBtn').addEventListener('click', loadActive);
 document.getElementById('retryLoadBtn').addEventListener('click', loadActive);
+document.getElementById('tableWrap').addEventListener('click', async event => {
+  const button = event.target.closest('button[data-session-id]');
+  if(!button || !window.SRMS || !window.SRMS.presence) return;
+  const name = button.dataset.sessionName || 'this user';
+  const device = button.dataset.sessionDevice || 'Unknown device/browser';
+  if(!confirm(`End ${name}'s ${device} session? They will be signed out the next time their page checks in (usually within 2 minutes).`)) return;
+  button.disabled = true;
+  try{
+    await window.SRMS.presence.terminateSession(button.dataset.sessionId);
+    await loadActive();
+    document.getElementById('lastSyncNote').textContent = `Session ended for ${name}.`;
+  }catch(e){
+    button.disabled = false;
+    document.getElementById('lastSyncNote').textContent = 'Could not end session: ' + e.message;
+    console.error('Could not end presence session:', e.message || e);
+  }
+});
 // Auto-refresh only after the page has an owner-scoped presence session.
 if(session && session.isOwner && session.presenceToken){
   setInterval(() => { render(); loadActive(); }, 60000);

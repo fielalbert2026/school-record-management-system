@@ -216,6 +216,16 @@ the previous 24 hours, and sign-in/sign-out events from the last 30 days
 as offline after the heartbeat expires; it cannot generate a reliable
 sign-out event.
 
+The owner can end any listed non-owner session from Active Users. The server
+revokes that individual session token and records who ended it; its client is
+automatically signed out the next time it checks in (normally within two
+minutes). The owner's own sessions cannot be ended this way. This control
+also invalidates any editing token issued to that sign-in session. It requires
+the deployed presence API.
+
+Master editing tokens are bound to their sign-in session. A normal sign-out
+also revokes that session and clears the saved editing token.
+
 Presence data is kept in a separate `data/presence.json` file and encrypted
 with `SESSION_SECRET`; it does not add rows to the school workbook. The
 presence token cannot edit school data, and only a server-verified owner

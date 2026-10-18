@@ -1034,7 +1034,7 @@ document.getElementById('tokenForm').addEventListener('submit', async (e) => {
   submitBtn.disabled = true;
   try{
     const res = await fetch('/api/verify-master', {
-      method:'POST', headers:{'Content-Type':'application/json'},
+      method:'POST', headers:{'Content-Type':'application/json', 'Authorization':'Bearer ' + (session && session.presenceToken || '')},
       body: JSON.stringify({ id, passphrase: pass })
     });
     const json = await res.json();

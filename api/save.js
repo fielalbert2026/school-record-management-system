@@ -5,6 +5,7 @@
 // is the ONLY place that GitHub write credential is ever used — no Master
 // needs their own GitHub account, token, or repo-collaborator access.
 const crypto = require('crypto');
+const { isSessionActive } = require('./_presence-token');
 
 const GH = { owner: 'fielalbert2026', repo: 'school_record_management_system', branch: 'main', path: 'Subject_Scheduler.xlsx' };
 
@@ -20,7 +21,7 @@ function verifySession(tokenStr, secret) {
   let payload;
   try { payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8')); }
   catch (e) { return null; }
-  if (!payload.exp || Date.now() > payload.exp) return null;
+  if (!payload.exp || Date.now() > payload.exp || !payload.presenceSessionId) return null;
   if (payload.role !== 'Master') return null;
   return payload;
 }
@@ -42,6 +43,10 @@ module.exports = async (req, res) => {
     const session = verifySession(editToken, SESSION_SECRET);
     if (!session) {
       res.status(401).json({ error: 'Your editing session expired — click "Enable editing" and confirm your passphrase again.' });
+      return;
+    }
+    if (!await isSessionActive(session.presenceSessionId, GITHUB_TOKEN, SESSION_SECRET)) {
+      res.status(401).json({ error: 'Your sign-in session is no longer active. Sign in again to continue editing.' });
       return;
     }
 

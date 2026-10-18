@@ -1411,7 +1411,7 @@ document.getElementById('tokenForm').addEventListener('submit', async (e) => {
   submitBtn.disabled = true;
   try{
     const res = await fetch('/api/verify-master', {
-      method:'POST', headers:{'Content-Type':'application/json'},
+      method:'POST', headers:{'Content-Type':'application/json', 'Authorization':'Bearer ' + (session && session.presenceToken || '')},
       body: JSON.stringify({ id, passphrase: pass })
     });
     const json = await res.json();
@@ -1504,6 +1504,16 @@ document.getElementById('signinForm').addEventListener('submit', async (e) => {
 });
 
 (function boot(){
+  let sessionNotice = '';
+  try{
+    sessionNotice = sessionStorage.getItem('srms_session_notice') || '';
+    sessionStorage.removeItem('srms_session_notice');
+  }catch(e){}
+  if(sessionNotice){
+    const error = document.getElementById('signinError');
+    error.textContent = sessionNotice;
+    error.style.display = 'block';
+  }
   const existing = getSession();
   if(existing) renderSignedIn(existing);
 })();

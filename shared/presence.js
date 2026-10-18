@@ -31,6 +31,23 @@
     return { device: device, browser: browser };
   }
 
+  function forceLogout() {
+    try {
+      sessionStorage.setItem('srms_session_notice', 'Your session was ended by the account owner. Please sign in again.');
+      sessionStorage.removeItem('srms_session');
+    } catch (e) {}
+    try { localStorage.removeItem('gh_pat_school_scheduler'); } catch (e) {}
+    window.location.replace('index.html?session=terminated');
+  }
+
+  function checkResponse(response, result, fallback) {
+    if (result && result.code === 'SESSION_TERMINATED') {
+      forceLogout();
+      throw new Error(result.error || 'This session was ended by the account owner.');
+    }
+    if (!response.ok) throw new Error((result && result.error) || fallback);
+  }
+
   function request(action, token) {
     var session = getSession();
     var authToken = token || (session && session.presenceToken);
@@ -48,7 +65,7 @@
       });
       var result = {};
       try { result = await response.json(); } catch (e) {}
-      if (!response.ok) throw new Error(result.error || 'Presence could not be updated (' + response.status + ').');
+      checkResponse(response, result, 'Presence could not be updated (' + response.status + ').');
       state.lastBeat = Date.now();
       return result;
     });
@@ -77,6 +94,9 @@
         state.visibilityHandler = null;
       }
     }
+    if (action === 'signout') {
+      try { localStorage.removeItem('gh_pat_school_scheduler'); } catch (e) {}
+    }
     return request(action);
   }
 
@@ -91,7 +111,29 @@
     });
     var result = {};
     try { result = await response.json(); } catch (e) {}
-    if (!response.ok) throw new Error(result.error || 'Could not load presence (' + response.status + ').');
+    checkResponse(response, result, 'Could not load presence (' + response.status + ').');
+    return result;
+  }
+
+  async function terminateSession(targetSessionId) {
+    if (!/^[a-f0-9]{32}$/.test(String(targetSessionId || ''))) {
+      throw new Error('Choose a valid session to end.');
+    }
+    var session = getSession();
+    if (!session || !session.presenceToken || !session.isOwner) {
+      throw new Error('Only the signed-in account owner can end sessions.');
+    }
+    var response = await fetch('/api/presence', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + session.presenceToken
+      },
+      body: JSON.stringify({ action: 'terminate', targetSessionId: targetSessionId })
+    });
+    var result = {};
+    try { result = await response.json(); } catch (e) {}
+    checkResponse(response, result, 'Could not end that session (' + response.status + ').');
     return result;
   }
 
@@ -123,6 +165,7 @@
     heartbeat: heartbeat,
     record: record,
     readActive: readActive,
+    terminateSession: terminateSession,
     start: start,
     STALE_MS: STALE_MS
   };

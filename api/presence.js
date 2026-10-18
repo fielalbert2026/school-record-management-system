@@ -58,6 +58,7 @@ function decryptStore(encoded, secret) {
   ]).toString('utf8');
   const data = JSON.parse(plaintext);
   if (!Array.isArray(data.sessions) || !Array.isArray(data.events)) throw new Error('Presence data is invalid.');
+  if (!Array.isArray(data.revokedSessions)) data.revokedSessions = [];
   return data;
 }
 
@@ -103,10 +104,12 @@ async function writeStore(data, sha, githubToken, action) {
 
 function prune(data) {
   const now = Date.now();
+  if (!Array.isArray(data.revokedSessions)) data.revokedSessions = [];
   data.sessions = data.sessions.filter(session => {
     const seen = Date.parse(session.lastSeen);
     return Number.isFinite(seen) && now - seen <= SESSION_RETENTION_MS;
   });
+  data.revokedSessions = data.revokedSessions.filter(session => session.revokedUntil > now);
   data.events = data.events.filter(event => {
     const time = Date.parse(event.timestamp);
     return Number.isFinite(time) && now - time <= EVENT_RETENTION_MS;
@@ -131,6 +134,10 @@ function applyAction(data, identity, action, page, client) {
   const idx = data.sessions.findIndex(session => session.sessionId === identity.sessionId);
   if (action === 'signout') {
     if (idx !== -1) data.sessions.splice(idx, 1);
+    data.revokedSessions.push({
+      sessionId: identity.sessionId,
+      revokedUntil: Date.now() + SESSION_RETENTION_MS
+    });
   } else {
     const previous = idx === -1 ? null : data.sessions[idx];
     const entry = {
@@ -165,12 +172,65 @@ function applyAction(data, identity, action, page, client) {
   prune(data);
 }
 
+function sessionError(message, status, code) {
+  const error = new Error(message);
+  error.status = status;
+  if (code) error.code = code;
+  return error;
+}
+
+function ensureSessionActive(data, identity) {
+  if (!Array.isArray(data.revokedSessions)) data.revokedSessions = [];
+  if (data.revokedSessions.some(session => session.sessionId === identity.sessionId)) {
+    throw sessionError('This session was ended by the account owner. Please sign in again.', 401, 'SESSION_TERMINATED');
+  }
+}
+
 async function mutate(action, identity, page, client, githubToken, secret) {
   for (let attempt = 0; attempt < WRITE_ATTEMPTS; attempt++) {
     const current = await readStore(githubToken, secret);
+    ensureSessionActive(current.data, identity);
     applyAction(current.data, identity, action, page, client);
     try {
       await writeStore(current.data, current.sha, githubToken, action);
+      return;
+    } catch (e) {
+      if (e.status !== 409 && e.status !== 422) throw e;
+      if (attempt === WRITE_ATTEMPTS - 1) throw new Error('Presence data changed repeatedly. Please retry.');
+      await new Promise(resolve => setTimeout(resolve, 150 * (attempt + 1)));
+    }
+  }
+}
+
+async function terminateSession(targetSessionId, identity, githubToken, secret) {
+  for (let attempt = 0; attempt < WRITE_ATTEMPTS; attempt++) {
+    const current = await readStore(githubToken, secret);
+    ensureSessionActive(current.data, identity);
+    const targetIndex = current.data.sessions.findIndex(session => session.sessionId === targetSessionId);
+    if (targetIndex === -1) throw sessionError('That session is no longer available to end.', 404);
+
+    const target = current.data.sessions[targetIndex];
+    if (target.isOwner || target.userKey === identity.userKey) {
+      throw sessionError('The account owner cannot end their own sessions.', 403);
+    }
+    current.data.sessions.splice(targetIndex, 1);
+    current.data.revokedSessions.push({
+      sessionId: targetSessionId,
+      revokedUntil: Date.now() + SESSION_RETENTION_MS
+    });
+    current.data.events.push({
+      eventKey: `${targetSessionId}:owner-terminated`,
+      timestamp: timestamp(),
+      name: target.name,
+      role: target.role,
+      event: 'Session ended by owner',
+      actor: identity.name,
+      page: target.page,
+      sessionId: targetSessionId
+    });
+    prune(current.data);
+    try {
+      await writeStore(current.data, current.sha, githubToken, 'session ended by owner');
       return;
     } catch (e) {
       if (e.status !== 409 && e.status !== 422) throw e;
@@ -204,6 +264,7 @@ module.exports = async (req, res) => {
         return;
       }
       const { data } = await readStore(githubToken, secret);
+      ensureSessionActive(data, identity);
       prune(data);
       const now = Date.now();
       const online = data.sessions.filter(session => {
@@ -228,7 +289,20 @@ module.exports = async (req, res) => {
       return;
     }
 
-    const { action, page, client } = req.body || {};
+    const { action, page, client, targetSessionId } = req.body || {};
+    if (action === 'terminate') {
+      if (!identity.isOwner || identity.role !== 'Master') {
+        res.status(403).json({ error: 'Only the verified account owner can end sessions.' });
+        return;
+      }
+      if (typeof targetSessionId !== 'string' || !/^[a-f0-9]{32}$/.test(targetSessionId)) {
+        res.status(400).json({ error: 'Choose a valid session to end.' });
+        return;
+      }
+      await terminateSession(targetSessionId, identity, githubToken, secret);
+      res.status(200).json({ ok: true });
+      return;
+    }
     if (!['signin', 'heartbeat', 'signout'].includes(action)) {
       res.status(400).json({ error: 'Unsupported presence action.' });
       return;
@@ -236,6 +310,9 @@ module.exports = async (req, res) => {
     await mutate(action, identity, safePage(page), client, githubToken, secret);
     res.status(200).json({ ok: true });
   } catch (e) {
-    res.status(500).json({ error: e.message || 'Presence update failed.' });
+    res.status(e.status || 500).json({
+      error: e.message || 'Presence update failed.',
+      ...(e.code ? { code: e.code } : {})
+    });
   }
 };

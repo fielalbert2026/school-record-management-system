@@ -8,6 +8,7 @@
 // (GITHUB_TOKEN) never leaves this function.
 const XLSX = require('xlsx');
 const crypto = require('crypto');
+const { verify, isSessionActive } = require('./_presence-token');
 
 const GH = { owner: 'fielalbert2026', repo: 'school_record_management_system', branch: 'main', path: 'Subject_Scheduler.xlsx' };
 const AUTH_SALT = 'SRMS-Santino67-67-v1'; // must match index.html exactly
@@ -48,6 +49,13 @@ module.exports = async (req, res) => {
   try {
     const { id, passphrase } = req.body || {};
     if (!id || !passphrase) { res.status(400).json({ error: 'Missing ID or passphrase.' }); return; }
+    const authHeader = req.headers.authorization || '';
+    const presence = verify(authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '', SESSION_SECRET);
+    if (!presence || presence.role !== 'Master' || presence.userKey !== hashId(id) ||
+        !await isSessionActive(presence.sessionId, GITHUB_TOKEN, SESSION_SECRET)) {
+      res.status(401).json({ error: 'Your sign-in session is no longer active. Please sign in again.' });
+      return;
+    }
 
     const url = `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${encodeURIComponent(GH.path)}?ref=${GH.branch}`;
     const ghRes = await fetch(url, { headers: { Authorization: `Bearer ${GITHUB_TOKEN}` } });
@@ -92,7 +100,12 @@ module.exports = async (req, res) => {
     const ct = Buffer.from(match[2], 'base64');
     const name = aesGcmDecrypt(encKey, iv, ct).toString('utf8');
 
-    const editToken = signSession({ name, role: 'Master', exp: Date.now() + EDIT_SESSION_MS }, SESSION_SECRET);
+    const editToken = signSession({
+      name,
+      role: 'Master',
+      presenceSessionId: presence.sessionId,
+      exp: Date.now() + EDIT_SESSION_MS
+    }, SESSION_SECRET);
     res.status(200).json({ editToken, name });
   } catch (e) {
     res.status(500).json({ error: 'Server error: ' + e.message });
