@@ -52,8 +52,12 @@
   .review-controls{ display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-top:20px; }
   .review-controls .review-show-btn{ grid-column:1 / -1; justify-self:center; padding:10px 28px; }
   .review-controls .grade-btn{ width:100%; white-space:nowrap; padding:10px 8px; font-size:12.5px; }
+  .review-card-actions{ display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:14px; padding-top:12px; border-top:1px solid var(--paper-line); }
+  .review-card-actions .note{ margin-right:auto; }
+  .review-card-actions[hidden]{ display:none; }
   @media (max-width:560px){
     .review-controls{ grid-template-columns:1fr; }
+    .review-card-actions{ flex-wrap:wrap; }
   }
   .empty{ text-align:center; color:var(--muted); font-size:14px; padding:34px 10px; }
 
@@ -359,6 +363,11 @@
       <div class="deck-tag" id="reviewDeckTag" aria-live="polite"><span class="deck-tag-k">Deck</span><span class="deck-tag-v" id="reviewDeckTagText"></span></div>
       <div id="reviewArea"></div>
       <div class="review-controls" id="reviewControls"></div>
+      <div class="review-card-actions" id="reviewCardActions" hidden>
+        <span class="note" id="reviewCardActionNote"></span>
+        <button type="button" class="btn-ghost" id="editReviewCardBtn">Edit question</button>
+        <button type="button" class="btn-delete-selected" id="deleteReviewCardBtn">Delete question</button>
+      </div>
     </div>
 
     <div class="section-toolbar">
@@ -1012,6 +1021,7 @@ function startReview(shuffle){
   snoozed = [];
   revealed = false;
   stats = {again:0, hard:0, snoozed:0, seen:0};
+  if(window.SRMS && window.SRMS.modes) window.SRMS.modes.resetForReview();
   renderReview();
 }
 
@@ -1041,7 +1051,36 @@ function renderReview(){
     const handled = window.SRMS && window.SRMS.modes && window.SRMS.modes.renderMode();
     if(handled === false || handled === undefined && !window.SRMS) renderFlashcardMode();
   }
+  renderReviewCardActions();
   updateDeckTag();
+}
+
+function getReviewActionCard(){
+  if(state.mode === 'match'){
+    const selected = state.matchSelected;
+    if(!selected || !state.matchRound) return null;
+    if(selected.termIdx >= 0) return state.matchRound[selected.termIdx] || null;
+    if(selected.defIdx >= 0){
+      if(!state.matchRights) return null;
+      const id = state.matchRights[selected.defIdx];
+      return state.matchRound.find(card => card.id === id) || null;
+    }
+    return null;
+  }
+  return queue.length ? cards.find(card => card.id === queue[0]) || null : null;
+}
+function renderReviewCardActions(){
+  const actions = document.getElementById('reviewCardActions');
+  if(!actions) return;
+  const card = isMaster ? getReviewActionCard() : null;
+  actions.hidden = !card;
+  if(!card) return;
+  const note = document.getElementById('reviewCardActionNote');
+  note.textContent = state.mode === 'match'
+    ? 'Selected: ' + window.SRMS.rt.toPlain(card.front).replace(/\s+/g, ' ').trim().slice(0, 80)
+    : 'Master controls';
+  document.getElementById('editReviewCardBtn').onclick = () => startCardEdit(card.id);
+  document.getElementById('deleteReviewCardBtn').onclick = () => deleteCard(card.id);
 }
 
 /* Shows which deck the current card is from, only when the review spans more than one deck
@@ -1256,6 +1295,7 @@ function startCardEdit(id){
   document.getElementById('cardFormTitle').textContent = 'Edit card';
   document.getElementById('submitCardBtn').textContent = 'Save changes';
   openCardForm();
+  formPanel.scrollIntoView({ behavior:'smooth', block:'center' });
 }
 window.startCardEdit = startCardEdit;
 

@@ -419,6 +419,9 @@ Selecting a folder includes all its child decks; selecting an individual
 lesson limits the export to that section. The print-ready PDF uses two
 columns, 11 pt question and answer text, larger section headings, and
 bold red answers. Choose **Save as PDF** in the browser's print dialog.
+Master users also have Edit question and Delete question controls during
+review; Match mode applies them to the selected question. Updates and
+deletions use the existing shared-deck save protections.
 
 ## Audit Log
 

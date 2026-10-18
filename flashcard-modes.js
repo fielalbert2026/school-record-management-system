@@ -563,6 +563,13 @@
     renderReview();
   }
 
+  function resetForReview() {
+    state.mcOptions = null; state.mcPicked = null; state.mcRevealed = false; state.mcFeedback = null; state.mcCorrect = null;
+    state.typeRevealed = false; state.typeResult = null; state.typeFeedback = null;
+    state.matchRound = null; state.matchRights = null; state.matchSelected = null; state.matchMatched = []; state.matchRoundsLeft = 0;
+    if (state.mode === 'match') startMatchRound();
+  }
+
   // Wire the chips on page load. Called from flashcards.html's boot block.
   function wireModeChips() {
     document.querySelectorAll('.mode-chip').forEach(function (chip) {
@@ -608,6 +615,7 @@
     endSpeedRound: endSpeedRound,
     updateSpeedClock: updateSpeedClock,
     setMode: setMode,
+    resetForReview: resetForReview,
     loadMode: loadMode,
     saveMode: saveMode,
     wireModeChips: wireModeChips,
