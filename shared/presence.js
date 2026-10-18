@@ -15,6 +15,22 @@
     try { return JSON.parse(sessionStorage.getItem('srms_session') || 'null'); } catch (e) { return null; }
   }
 
+  function clientInfo() {
+    var ua = navigator.userAgent || '';
+    var lower = ua.toLowerCase();
+    var browser = /edg\//i.test(ua) ? 'Edge'
+      : /opr\//i.test(ua) ? 'Opera'
+      : /firefox\//i.test(ua) ? 'Firefox'
+      : /samsungbrowser\//i.test(ua) ? 'Samsung Internet'
+      : /(?:chrome|crios)\//i.test(ua) ? 'Chrome'
+      : /safari\//i.test(ua) ? 'Safari'
+      : 'Other browser';
+    var device = /ipad|tablet|kindle|silk/i.test(ua) ? 'Tablet'
+      : /mobile|iphone|ipod|android/i.test(lower) ? 'Phone'
+      : 'Desktop';
+    return { device: device, browser: browser };
+  }
+
   function request(action, token) {
     var session = getSession();
     var authToken = token || (session && session.presenceToken);
@@ -28,7 +44,7 @@
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ' + authToken
         },
-        body: JSON.stringify({ action: action, page: page })
+        body: JSON.stringify({ action: action, page: page, client: clientInfo() })
       });
       var result = {};
       try { result = await response.json(); } catch (e) {}

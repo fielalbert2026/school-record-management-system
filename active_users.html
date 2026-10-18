@@ -153,7 +153,7 @@
     </div>
 
     <p class="note" style="margin-bottom:16px;">
-      Signed-in users across the site are listed here. Open pages send a heartbeat every 2 minutes and are considered online for 5 minutes after their last heartbeat. Sign-in/sign-out history is retained for 30 days. All timestamps are in Philippines time (UTC+8).
+      Signed-in users across the site are listed here. Open pages send a heartbeat every 2 minutes and are considered online for 5 minutes after their last heartbeat. Online rows include the active session count for that account and a best-effort device/browser label. These details require the server-backed presence API; GitHub Pages alone cannot collect cross-device sessions. Sign-in/sign-out history is retained for 30 days. All timestamps are in Philippines time (UTC+8).
     </p>
 
     <div class="role-row">
@@ -249,7 +249,7 @@ function renderUserList(ul, rows){
     <li>
       <div class="who">
         <b>${escapeHtml(r.name)}${r.isOwner ? ' <span class="role-pill master" style="font-size:9px;">Owner</span>' : ''}</b>
-        <span class="meta">${escapeHtml(r.page || '—')}</span>
+        <span class="meta">${escapeHtml(r.page || '—')} · ${escapeHtml(r.device || 'Unknown device')} · ${escapeHtml(r.browser || 'Unknown browser')} · ${Number(r.instanceCount || 1)} account session${Number(r.instanceCount || 1) === 1 ? '' : 's'}</span>
       </div>
       <span class="when" title="${escapeHtml(fmtPHT(r.lastSeen))}">${fmtAgo(r.lastSeen)}</span>
     </li>`).join('');
@@ -262,12 +262,14 @@ function renderTable(rows){
     return;
   }
   wrap.innerHTML = `<table>
-    <thead><tr><th>Name</th><th>Role</th><th>Page</th><th>Last seen</th></tr></thead>
+    <thead><tr><th>Name</th><th>Role</th><th>Page</th><th>Device / browser</th><th>Account sessions</th><th>Last seen</th></tr></thead>
     <tbody>
       ${rows.map(r => `<tr>
         <td class="name" data-label="Name">${escapeHtml(r.name)}${r.isOwner ? ' <span class="role-pill master" style="font-size:9px; margin-left:4px;">Owner</span>' : ''}</td>
         <td data-label="Role">${escapeHtml(r.role)}</td>
         <td data-label="Page" style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--muted);">${escapeHtml(r.page || '—')}</td>
+        <td data-label="Device / browser">${escapeHtml(r.device || 'Unknown device')} / ${escapeHtml(r.browser || 'Unknown browser')}</td>
+        <td data-label="Account sessions">${Number(r.instanceCount || 1)}</td>
         <td class="ts" data-label="Last seen" title="${escapeHtml(fmtPHT(r.lastSeen))}">${fmtAgo(r.lastSeen)}</td>
       </tr>`).join('')}
     </tbody>
@@ -301,7 +303,7 @@ function renderActivity(events){
 function render(){
   if(!lastData) return;
   const q = (document.getElementById('searchInput').value || '').toLowerCase();
-  const filterFn = r => !q || (r.name + ' ' + r.page + ' ' + r.role).toLowerCase().includes(q);
+  const filterFn = r => !q || (r.name + ' ' + r.page + ' ' + r.role + ' ' + r.device + ' ' + r.browser).toLowerCase().includes(q);
   const online = lastData.online.filter(filterFn);
   const masters = online.filter(r => r.role === 'Master');
   const guests = online.filter(r => r.role !== 'Master');

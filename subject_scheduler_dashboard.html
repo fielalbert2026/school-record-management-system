@@ -423,12 +423,7 @@ function normalizeTime(v){
 const SESSION_KEY = 'srms_session';
 function getSession(){
   try{
-    const session = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
-    if(session && session.role !== 'Master' && session.guestPasswordVersion !== 1){
-      sessionStorage.removeItem(SESSION_KEY);
-      return null;
-    }
-    return session;
+    return JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
   }catch(e){}
   return null;
 }

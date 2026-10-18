@@ -117,7 +117,16 @@ function safePage(page) {
   return typeof page === 'string' && /^[A-Za-z0-9._-]{1,100}$/.test(page) ? page : 'unknown';
 }
 
-function applyAction(data, identity, action, page) {
+function safeClient(client) {
+  const devices = new Set(['Phone', 'Tablet', 'Desktop']);
+  const browsers = new Set(['Edge', 'Opera', 'Firefox', 'Samsung Internet', 'Chrome', 'Safari', 'Other browser']);
+  return {
+    device: client && devices.has(client.device) ? client.device : 'Unknown device',
+    browser: client && browsers.has(client.browser) ? client.browser : 'Unknown browser'
+  };
+}
+
+function applyAction(data, identity, action, page, client) {
   const now = timestamp();
   const idx = data.sessions.findIndex(session => session.sessionId === identity.sessionId);
   if (action === 'signout') {
@@ -132,7 +141,8 @@ function applyAction(data, identity, action, page) {
       isOwner: identity.isOwner,
       signedInAt: previous ? previous.signedInAt : now,
       lastSeen: now,
-      page
+      page,
+      ...safeClient(client || previous)
     };
     if (idx === -1) data.sessions.push(entry);
     else data.sessions[idx] = entry;
@@ -155,10 +165,10 @@ function applyAction(data, identity, action, page) {
   prune(data);
 }
 
-async function mutate(action, identity, page, githubToken, secret) {
+async function mutate(action, identity, page, client, githubToken, secret) {
   for (let attempt = 0; attempt < WRITE_ATTEMPTS; attempt++) {
     const current = await readStore(githubToken, secret);
-    applyAction(current.data, identity, action, page);
+    applyAction(current.data, identity, action, page, client);
     try {
       await writeStore(current.data, current.sha, githubToken, action);
       return;
@@ -187,11 +197,6 @@ module.exports = async (req, res) => {
     res.status(401).json({ error: 'Presence session expired. Please sign in again.' });
     return;
   }
-  if (identity.role !== 'Master' && identity.guestPasswordVersion !== 1) {
-    res.status(401).json({ error: 'Sign in with your account password to continue.' });
-    return;
-  }
-
   try {
     if (req.method === 'GET') {
       if (!identity.isOwner || identity.role !== 'Master') {
@@ -205,6 +210,11 @@ module.exports = async (req, res) => {
         const seen = Date.parse(session.lastSeen);
         return Number.isFinite(seen) && now - seen <= ACTIVE_WINDOW_MS;
       }).sort((a, b) => b.lastSeen.localeCompare(a.lastSeen));
+      const accountCounts = new Map();
+      online.forEach(session => accountCounts.set(session.userKey, (accountCounts.get(session.userKey) || 0) + 1));
+      online.forEach(session => {
+        session.instanceCount = accountCounts.get(session.userKey) || 1;
+      });
       const recentlyOffline = data.sessions.filter(session => {
         const seen = Date.parse(session.lastSeen);
         return Number.isFinite(seen) && now - seen > ACTIVE_WINDOW_MS;
@@ -218,12 +228,12 @@ module.exports = async (req, res) => {
       return;
     }
 
-    const { action, page } = req.body || {};
+    const { action, page, client } = req.body || {};
     if (!['signin', 'heartbeat', 'signout'].includes(action)) {
       res.status(400).json({ error: 'Unsupported presence action.' });
       return;
     }
-    await mutate(action, identity, safePage(page), githubToken, secret);
+    await mutate(action, identity, safePage(page), client, githubToken, secret);
     res.status(200).json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message || 'Presence update failed.' });

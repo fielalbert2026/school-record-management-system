@@ -33,9 +33,6 @@ data/presence.json                  Encrypted presence store (written by the ser
 flashcard-modes.js                 Multi-mode reviewer (Multiple Choice, Type, Match, Speed 60s)
 api/verify-master.js               Server-side ID+passphrase check → signed edit session
 api/presence-auth.js               Verifies any signed-in user → scoped presence token
-api/guest-password.js              Guest password setup and authenticated password changes
-api/_guest-passwords.js             Encrypts and stores Guest password verifiers
-data/guest-passwords.json            Encrypted Guest password store (written by the serverless API)
 api/presence.js                    Owner-only presence read + authenticated heartbeat/event writes
 api/_presence-token.js             Signs and verifies scoped presence tokens
 api/save.js                        Server-side commit to GitHub, using the signed session
@@ -105,19 +102,8 @@ that matter here, not just decoration:
   both paths, even when it's thrown away), so response speed alone can't be
   used to tell them apart either.
 
-Non-Master accounts create a password on their first sign-in. This initial
-claim is intentionally school-ID-only because those accounts have no
-existing credential; anyone who learns an unclaimed school ID could claim
-that account first. Users should create their password promptly and avoid
-sharing their IDs. Subsequent sign-ins require the password. The server
-stores a salted PBKDF2 verifier in an AES-GCM-encrypted file, using
-`SESSION_SECRET` for encryption; it is not added to the public workbook.
-Non-Master users can change their password from the signed-in dashboard by
-confirming the current password. Master passphrase sign-in is unchanged.
-Guest password setup and sign-in require the deployed Vercel API; a static
-preview cannot create or verify Guest passwords. Password setup and changes
-write an encrypted credential file through the configured GitHub token, so
-each change creates a repository commit.
+Guest accounts are unchanged: valid non-Master IDs sign in without a
+password. The optional field is used only for Master passphrases.
 
 **A basic form-level lockout** (5 failed attempts → 30s cooldown) also
 exists, but be clear-eyed about what it does and doesn't do: it only slows
@@ -235,7 +221,11 @@ with `SESSION_SECRET`; it does not add rows to the school workbook. The
 presence token cannot edit school data, and only a server-verified owner
 token can read the list/history. These server-backed features work on the
 Vercel deployment; a static/local preview can still permit the existing
-client-side sign-in, but cannot report presence.
+client-side Guest sign-in, but cannot report presence. The Active Users page
+shows the number of active sessions sharing an account and best-effort device
+type/browser labels. Those details come from each browser's user-agent and
+may be approximate; cross-device totals require the server-backed presence
+API and are unavailable on GitHub Pages alone.
 
 ### Owner maintenance switch
 
