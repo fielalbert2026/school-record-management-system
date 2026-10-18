@@ -5,7 +5,6 @@
 <script>(function(){try{var t=localStorage.getItem('srms_theme')||'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <script src="maintenance-guard.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="manifest" href="manifest.webmanifest">
 <title>Study Hub — Personalized School Record Management System</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@700;900&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -16,7 +15,6 @@
 <script src="shared/theme.js" defer></script>
 <script src="shared/aria-utils.js" defer></script>
 <script src="shared/presence.js"></script>
-<script src="shared/offline-access.js"></script>
 <style>
   /* Page-specific layout only — colors / spacing / typography / shared
      components come from shared/design-tokens.css and shared/components.css.
@@ -38,17 +36,6 @@
   #accessLockedPanel p, #loadPanel p, #connectPanel p, #tokenPanel p{ color:var(--muted); font-size:13.5px; line-height:1.7; margin:0 auto 18px; max-width:540px; overflow-wrap:anywhere; }
   .actions{display:flex; gap:10px; justify-content:center; flex-wrap:wrap; align-items:center;}
   #tokenPanel input[type="password"]{ font-family:'IBM Plex Mono',monospace; font-size:13px; padding:9px 10px; border:1.5px solid var(--paper-line); border-radius:6px; background:var(--card); color:var(--ink); }
-  .offline-panel{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin:0 0 14px;padding:15px 16px;border:1px solid var(--color-border);border-left:4px solid var(--color-accent);border-radius:12px;background:var(--card);box-shadow:var(--shadow-sm);}
-  .offline-panel p{max-width:610px;margin:4px 0 0;color:var(--muted);font-size:12.5px;line-height:1.55;}
-  .offline-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-  #offlineStatus{width:100%;margin:0;color:var(--muted);font-size:12.5px;}
-  #offlineProgress{width:100%;height:10px;accent-color:var(--color-accent);}
-  #offlineConsentDialog{width:min(540px,calc(100% - 28px));border:1px solid var(--color-border);border-top:4px solid var(--color-accent);border-radius:16px;padding:24px;background:var(--card);color:var(--ink);box-shadow:var(--shadow-md);}
-  #offlineConsentDialog::backdrop{background:rgb(6 18 32 / .62);}
-  #offlineConsentDialog h2{margin:0 0 10px;font-family:'Merriweather',serif;font-size:20px;}
-  #offlineConsentDialog p{font-size:13.5px;line-height:1.65;color:var(--muted);}
-  #offlineConsentDialog label{display:flex;align-items:flex-start;gap:9px;margin:16px 0;font-size:13px;line-height:1.55;}
-  #offlineConsentDialog label input{margin-top:3px;flex-shrink:0;}
 
   .section-toolbar{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:10px; padding:14px 16px; border:1px solid var(--color-border); border-bottom:3px solid var(--color-accent); border-radius:14px; background:var(--card); box-shadow:var(--shadow-sm);}
   .section-toolbar h2{font-family:'Merriweather',serif; font-size:19px; color:var(--ink); margin:0;}
@@ -295,40 +282,16 @@
   </div>
 
   <div id="content" style="display:none;">
-    <p id="offlineReadOnlyNotice" class="error-banner" hidden role="status" style="margin-bottom:18px;">Offline copy loaded · read-only snapshot · changes will not sync and cannot be remotely revoked.</p>
     <div class="coll-section" id="resourcesWrap">
       <div class="section-toolbar">
         <h2 class="sec-h"><button type="button" class="sec-toggle" id="resToggle" aria-expanded="false" aria-controls="resBody"><span class="sec-name">Resources</span><span class="sec-sign" aria-hidden="true">+</span></button></h2>
         <div class="toolbar-actions"><span class="note" id="resSummary"></span><button class="btn-text sec-open-only" id="resRefreshBtn" type="button">Refresh</button></div>
       </div>
       <div id="resBody" hidden>
-        <section class="offline-panel" aria-labelledby="offlineTitle">
-          <div>
-            <strong id="offlineTitle">Study offline on this device</strong>
-            <p>Save the read-only schedule, decks, and approved resource files for offline use. The workbook’s account and audit sheets are left out.</p>
-          </div>
-          <div class="offline-actions">
-            <button class="btn-highlight" id="offlinePrepareBtn" type="button">Prepare offline access</button>
-            <a id="offlineManifestLink" href="/__offline-data/manifest.json" target="_blank" rel="noopener" hidden>View bundle notice</a>
-            <button class="btn-text" id="offlineRemoveBtn" type="button" hidden>Remove offline copy</button>
-          </div>
-          <p id="offlineStatus" role="status" aria-live="polite">Offline access is not prepared on this device.</p>
-          <progress id="offlineProgress" max="1" value="0" hidden aria-label="Offline files cached"></progress>
-        </section>
         <div id="resFilterRow"><input id="resFilterInput" type="search" placeholder="Filter resources..." aria-label="Filter resources"></div>
         <div id="resBrowser"></div>
       </div>
     </div>
-    <dialog id="offlineConsentDialog" aria-labelledby="offlineConsentTitle">
-      <h2 id="offlineConsentTitle">Before preparing an offline copy</h2>
-      <p>The approved workbook sheets and all listed resource files will be stored in this browser on this device. The server will record your account, role, time, and that an offline package was requested.</p>
-      <p>Use the materials for personal school study. Do not redistribute them, remove attribution, or present them as your own. A local copy cannot be remotely recalled, and offline access cannot be reliably role-restricted. Removing it here only clears this browser’s copy.</p>
-      <label><input id="offlineConsentCheck" type="checkbox"> I understand and will use the offline materials responsibly.</label>
-      <div class="actions">
-        <button class="btn-primary" id="offlineConsentContinue" type="button" disabled>Continue and prepare</button>
-        <button class="btn-ghost" id="offlineConsentCancel" type="button">Cancel</button>
-      </div>
-    </dialog>
 
     <div class="coll-section" id="decksSection">
     <div class="section-toolbar" id="deckBrowserToolbar">
@@ -474,10 +437,9 @@
 const SESSION_KEY = 'srms_session';
 function getSession(){
   try{
-    const saved = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
-    if(saved) return saved;
+    return JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
   }catch(e){}
-  return window.SRMS && window.SRMS.offline ? window.SRMS.offline.restoreSession() : null;
+  return null;
 }
 </script>
 <script src="shared/rich-text.js"></script>
@@ -518,7 +480,6 @@ function renderSessionStrip(){
       else { queueAudit('Logout', ''); }
     }
     sessionStorage.removeItem(SESSION_KEY);
-    if(window.SRMS && window.SRMS.offline) window.SRMS.offline.clearGrant();
     window.location.href = 'index.html';
   });
 }
@@ -534,7 +495,6 @@ let editingEnabled = false;
 let workbook = null;
 let currentSha = null;
 let connected = false;
-let offlineSnapshot = false;
 let cards = [];
 let editingCardId = null;
 let currentType = 'basic';
@@ -787,37 +747,9 @@ async function loadFromGitHub(){
     renderDeckBrowser();
     renderMasterList();
   }catch(e){
-    let displayError = e;
-    try{
-      const offlineCopy = window.SRMS && window.SRMS.offline
-        ? await window.SRMS.offline.readWorkbook()
-        : null;
-      if(offlineCopy){
-        workbook = XLSX.read(offlineCopy, {type:'array'});
-        knownSheetNames = workbook.SheetNames.slice();
-        currentSha = null;
-        offlineSnapshot = true;
-        editingEnabled = false;
-        ghToken = null;
-        parseDecksFromWorkbook();
-        parseCardsFromWorkbook();
-        lastSyncAt = Date.now();
-        connected = true;
-        panel.style.display = 'none';
-        document.getElementById('content').style.display = 'block';
-        document.getElementById('addCardToggleBtn').style.display = 'none';
-        document.getElementById('addDeckToggleBtn').style.display = 'none';
-        document.getElementById('offlineReadOnlyNotice').hidden = false;
-        renderDeckBrowser();
-        renderMasterList();
-        return;
-      }
-    }catch(offlineError){
-      displayError = new Error(`${e.message} Offline copy could not be read: ${offlineError.message || offlineError}`);
-    }
     connected = false;
     document.getElementById('connectPanelTitle').textContent = "Couldn't load flashcards";
-    document.getElementById('connectPanelText').textContent = displayError.message;
+    document.getElementById('connectPanelText').textContent = e.message;
     document.getElementById('connectActions').style.display = 'flex';
   }
 }
@@ -846,7 +778,7 @@ async function fetchFreshWorkbook(){
    stale copy is rejected with 409. GitHub only accepts a write whose
    sha matches, so an accepted save is the exact content committed — no read-back needed. */
 async function persistCards(actionLabel, actionDetails, applyFn){
-  if(!isMaster || offlineSnapshot) return false;
+  if(!isMaster) return false;
   if(!editingEnabled || !ghToken){
     alert('This change was NOT saved — editing isn\'t enabled yet. Click "Enable editing" and confirm your passphrase, then redo this change.');
     promptEnableEditing();
@@ -907,7 +839,7 @@ async function persistCards(actionLabel, actionDetails, applyFn){
 
 /* ---------------- Token panel ---------------- */
 function promptEnableEditing(){
-  if(!isMaster || offlineSnapshot) return;
+  if(!isMaster) return;
   document.getElementById('tokenPanel').style.display = 'block';
   document.getElementById('editIdInput').focus();
 }
@@ -1015,7 +947,7 @@ function renderBrowseNode(node, depth, q){
     : isLeaf
     ? `${node.cards.length} card${node.cards.length===1?'':'s'}` + (tc.cloze ? ` · ${tc.cloze} cloze` : '')
     : `${node.total} card${node.total===1?'':'s'}` + (kids.length ? ` · ${kids.length} ${kids.length===1?'folder':'folders'}` : '');
-  const canRemove = isMaster && !offlineSnapshot && node.total === 0;
+  const canRemove = isMaster && node.total === 0;
   const cardRows = node.cards.length ? `<div class="card-list">${node.cards.map(c => `
       <div class="card-row"><span class="front-snip">${escapeHtml(plainFront(c))}</span></div>`).join('')}</div>` : '';
   return `<details class="dnode d${Math.min(depth,3)}" data-path="${escapeHtml(node.path)}" ${isOpen ? 'open' : ''}>
@@ -1158,7 +1090,7 @@ function getReviewActionCard(){
 function renderReviewCardActions(){
   const actions = document.getElementById('reviewCardActions');
   if(!actions) return;
-  const card = isMaster && !offlineSnapshot ? getReviewActionCard() : null;
+  const card = isMaster ? getReviewActionCard() : null;
   actions.hidden = !card;
   if(!card) return;
   const note = document.getElementById('reviewCardActionNote');
@@ -1545,7 +1477,7 @@ function syncDeckBoxes(){
 function renderMasterList(){
   const wrap = document.getElementById('masterListWrap');
   const toolbar = document.getElementById('manageToolbar');
-  if(!isMaster || offlineSnapshot){ wrap.innerHTML = ''; toolbar.style.display = 'none'; return; }
+  if(!isMaster){ wrap.innerHTML = ''; toolbar.style.display = 'none'; return; }
   if(cards.length === 0 && decks.length === 0){
     wrap.innerHTML = '<div class="empty">No cards yet — add your first one above.</div>';
     toolbar.style.display = 'none';
@@ -1685,7 +1617,7 @@ document.getElementById('nd_name').addEventListener('input', updateDeckPreview);
 document.getElementById('nd_parent').addEventListener('change', updateDeckPreview);
 document.getElementById('nd_name').addEventListener('keydown', (e) => { if(e.key === 'Enter'){ e.preventDefault(); document.getElementById('submitDeckBtn').click(); } });
 document.getElementById('submitDeckBtn').addEventListener('click', async () => {
-  if(!isMaster || offlineSnapshot) return;
+  if(!isMaster) return;
   if(!editingEnabled || !ghToken){ promptEnableEditing(); return; }
   const err = document.getElementById('deckFormError');
   const fail = (m) => { err.textContent = m; err.style.display = 'block'; };
@@ -1719,7 +1651,7 @@ document.getElementById('submitDeckBtn').addEventListener('click', async () => {
   }
 });
 async function removeEmptyDeck(path){
-  if(!isMaster || offlineSnapshot) return;
+  if(!isMaster) return;
   if(!editingEnabled || !ghToken){ promptEnableEditing(); return; }
   if(!confirm('Remove the empty deck "' + path.split(' / ').map(prettySeg).join(' › ') + '"? It has no cards.')) return;
   const snapshot = cards.slice(), snapDecks = decks.slice();
@@ -1881,98 +1813,12 @@ document.getElementById('cpExportPdf').addEventListener('click', () => {
   printWindow.document.close();
 });
 
-async function updateOfflineStatus(){
-  const status = document.getElementById('offlineStatus');
-  const removeButton = document.getElementById('offlineRemoveBtn');
-  try{
-    const bundle = await window.SRMS.offline.currentBundle();
-    if(!bundle){
-      status.textContent = 'Offline access is not prepared on this device.';
-      removeButton.hidden = true;
-      document.getElementById('offlineManifestLink').hidden = true;
-      return;
-    }
-    const response = await bundle.cache.match(new URL('/__offline-data/manifest.json', location.origin).href);
-    const manifest = await response.json();
-    const date = new Date(manifest.preparedAt).toLocaleString();
-    status.textContent = `Offline copy ready · ${manifest.resourceCount} resource files · prepared ${date}.`;
-    removeButton.hidden = false;
-    document.getElementById('offlineManifestLink').hidden = false;
-  }catch(error){
-    status.textContent = 'Offline storage status could not be checked: ' + (error.message || error);
-  }
-}
-
-const offlineDialog = document.getElementById('offlineConsentDialog');
-const offlineConsentCheck = document.getElementById('offlineConsentCheck');
-const offlineContinue = document.getElementById('offlineConsentContinue');
-offlineConsentCheck.addEventListener('change', () => { offlineContinue.disabled = !offlineConsentCheck.checked; });
-document.getElementById('offlinePrepareBtn').addEventListener('click', () => {
-  offlineConsentCheck.checked = false;
-  offlineContinue.disabled = true;
-  offlineDialog.showModal();
-});
-document.getElementById('offlineConsentCancel').addEventListener('click', () => offlineDialog.close());
-offlineContinue.addEventListener('click', async () => {
-  if(!offlineConsentCheck.checked || !session || !window.SRMS.offline) return;
-  const button = document.getElementById('offlinePrepareBtn');
-  const status = document.getElementById('offlineStatus');
-  const progress = document.getElementById('offlineProgress');
-  button.disabled = true;
-  offlineContinue.disabled = true;
-  progress.hidden = false;
-  progress.max = 1;
-  progress.value = 0;
-  offlineDialog.close();
-  try{
-    const manifest = await window.SRMS.offline.prepare({
-      session,
-      onProgress(update){
-        if(update.phase === 'listing') status.textContent = 'Checking available resources…';
-        else if(update.phase === 'workbook') status.textContent = 'Recording the request and preparing the study workbook…';
-        else if(update.phase === 'resources'){
-          progress.max = Math.max(update.total, 1);
-          progress.value = update.complete;
-          status.textContent = `Saving resource ${update.complete} of ${update.total}: ${update.path}`;
-        }
-      }
-    });
-    progress.value = progress.max;
-    status.textContent = `Offline copy ready · ${manifest.resourceCount} resource files · saved on this device.`;
-    document.getElementById('offlineRemoveBtn').hidden = false;
-    document.getElementById('offlineManifestLink').hidden = false;
-  }catch(error){
-    status.textContent = (error.message || 'Offline access could not be prepared.') + ' No complete offline copy was activated.';
-  }finally{
-    button.disabled = false;
-    offlineContinue.disabled = !offlineConsentCheck.checked;
-    setTimeout(() => { progress.hidden = true; }, 1400);
-  }
-});
-document.getElementById('offlineRemoveBtn').addEventListener('click', async () => {
-  if(!confirm('Remove the offline copy stored in this browser? This does not affect any copy saved elsewhere.')) return;
-  const status = document.getElementById('offlineStatus');
-  const button = document.getElementById('offlineRemoveBtn');
-  button.disabled = true;
-  try{
-    await window.SRMS.offline.clear();
-    status.textContent = 'Offline copy removed from this browser.';
-    button.hidden = true;
-    document.getElementById('offlineManifestLink').hidden = true;
-  }catch(error){
-    status.textContent = 'Could not remove the local offline copy: ' + (error.message || error);
-  }finally{
-    button.disabled = false;
-  }
-});
-
 /* ---------------- Boot ---------------- */
 if(!session){
   document.getElementById('accessLockedPanel').style.display = 'block';
   document.getElementById('connectPanel').style.display = 'none';
 } else {
   renderSessionStrip();
-  updateOfflineStatus();
   // Wire the mode chips (flashcard-modes.js) and restore the last-used chip.
   if(window.SRMS && window.SRMS.modes){
     window.SRMS.modes.wireModeChips();

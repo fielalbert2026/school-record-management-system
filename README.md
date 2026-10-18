@@ -29,19 +29,14 @@ shared/theme.js                    Theme toggle (light/dark), localStorage-backe
 shared/aria-utils.js               Tiny ARIA live-region helpers
 shared/api-fallback.js             Card Drafter's AI client: probes the server, falls back gracefully when the universal key isn't set
 shared/presence.js                 Presence heartbeats and sign-in/sign-out events for all roles
-shared/offline-access.js            Device-local offline package preparation and read-only access
 data/presence.json                  Encrypted presence store (written by the serverless API)
 flashcard-modes.js                 Multi-mode reviewer (Multiple Choice, Type, Match, Speed 60s)
 api/verify-master.js               Server-side ID+passphrase check → signed edit session
 api/presence-auth.js               Verifies any signed-in user → scoped presence token
 api/presence.js                    Owner-only presence read + authenticated heartbeat/event writes
 api/_presence-token.js             Signs and verifies scoped presence tokens
-api/offline-pack.js                Creates an authenticated, filtered workbook snapshot
 api/save.js                        Server-side commit to GitHub, using the signed session
 api/draft-cards.js                 Server-side proxy to Google's free Gemini API for card_drafter.html
-service-worker.js                  Offline app shell and approved resource caching
-offline.html                       Fallback page when an uncached page is requested offline
-manifest.webmanifest               Installable PWA metadata
 package.json                       Declares the xlsx dependency the functions above need
 ```
 
@@ -240,34 +235,13 @@ and may trigger a Vercel deployment, while the live endpoint makes the new
 switch state available immediately. This requires the deployed Vercel API
 and the existing `GITHUB_TOKEN` and `SESSION_SECRET`.
 
-### Offline use and data access
+### Offline access
 
-The Study Hub can prepare an offline copy on a device through the **Prepare
-offline access** control in its Resources section. Preparation requires an
-online signed-in session and an explicit acceptable-use acknowledgment. The
-server records the account, role, timestamp, and offline-package request in
-the encrypted presence activity log; the owner can review it on the Active
-Users page. This records a request, not proof of how the files were later
-used.
-
-The service worker caches the app shell, the study resources, and a read-only
-workbook snapshot containing only `Subject_Scheduler`, `Flashcards`, and
-`Decks`. Only the expected schedule, card, and deck columns are retained;
-workbook document properties and defined names are stripped. `Valid_Users`,
-`Audit_Log`, and every other workbook sheet are omitted. Offline changes do
-not sync. A device-local Guest profile can reopen the prepared study pages
-and grants no Master editing controls. Signing out removes that profile;
-**Remove offline copy** clears the bundle from this browser. Neither action
-can remove copies saved elsewhere.
-
-Offline copies can be copied, modified, or redistributed, and can remain
-available during a maintenance period. The use acknowledgment, local
-attribution notice, and activity record improve transparency and
-traceability, but do not prevent misuse or guarantee legal protection. Keep
-only materials cleared for offline distribution in `resources/`, retain
-source attribution, and obtain school/rights-holder approval where required.
-The original online workbook remains public and includes other sheets; this
-offline snapshot does not change or secure the online source data.
+Offline package preparation and offline study access have been removed.
+Study materials and workbook data require an internet connection to load.
+Previously prepared browser caches are cleared by the one-time service-worker
+cleanup when an affected browser next visits the deployed site; copies saved
+outside the browser cannot be remotely removed.
 
 **Keeping `GITHUB_TOKEN` fresh:** fine-grained tokens expire (90 days is
 typical). When it does, generate a new one the same way and update the

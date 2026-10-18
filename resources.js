@@ -44,26 +44,18 @@
       }catch(e){}
     }
     const url = `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/git/trees/${encodeURIComponent(cfg.branch)}?recursive=1`;
-    try{
-      const res = await fetch(url, { cache:'no-store' });
-      if(!res.ok){
-        if(res.status === 403 || res.status === 429) throw new Error('GitHub is limiting requests right now. Try again in a few minutes.');
-        throw new Error(`Couldn't load resources (${res.status}).`);
-      }
-      const json = await res.json();
-      const prefix = cfg.root + '/';
-      const out = (json.tree || [])
-        .filter(n => n.type === 'blob' && n.path.startsWith(prefix))
-        .map(n => ({ path:n.path, size:n.size || 0 }));
-      try{ sessionStorage.setItem(CACHE_KEY, JSON.stringify({ t:Date.now(), root:cfg.root, files:out })); }catch(e){}
-      return out;
-    }catch(error){
-      const saved = window.SRMS && window.SRMS.offline
-        ? await window.SRMS.offline.readResourceList()
-        : null;
-      if(saved && Array.isArray(saved)) return saved;
-      throw error;
+    const res = await fetch(url, { cache:'no-store' });
+    if(!res.ok){
+      if(res.status === 403 || res.status === 429) throw new Error('GitHub is limiting requests right now. Try again in a few minutes.');
+      throw new Error(`Couldn't load resources (${res.status}).`);
     }
+    const json = await res.json();
+    const prefix = cfg.root + '/';
+    const out = (json.tree || [])
+      .filter(n => n.type === 'blob' && n.path.startsWith(prefix))
+      .map(n => ({ path:n.path, size:n.size || 0 }));
+    try{ sessionStorage.setItem(CACHE_KEY, JSON.stringify({ t:Date.now(), root:cfg.root, files:out })); }catch(e){}
+    return out;
   }
 
   function buildTree(list){

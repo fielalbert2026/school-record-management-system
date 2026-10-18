@@ -5,7 +5,6 @@
 <script src="maintenance-guard.js"></script>
 <script>(function(){try{var t=localStorage.getItem('srms_theme')||'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="manifest" href="manifest.webmanifest">
 <title>Personalized School Record Management System</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@700;900&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -16,7 +15,6 @@
 <script src="shared/theme.js" defer></script>
 <script src="shared/aria-utils.js" defer></script>
 <script src="shared/presence.js"></script>
-<script src="shared/offline-access.js"></script>
 <script>window.addEventListener('DOMContentLoaded',function(){if(window.lucide)window.lucide.createIcons();});</script>
 <style>
   /* Page-specific layout only — colors / spacing / typography / shared
@@ -736,16 +734,12 @@ function registerFail(){
 
 function getSession(){
   try{
-    const saved = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
-    if(saved) return saved;
+    return JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
   }catch(e){}
-  return window.SRMS && window.SRMS.offline ? window.SRMS.offline.restoreSession() : null;
+  return null;
 }
 function setSession(s){ sessionStorage.setItem(SESSION_KEY, JSON.stringify(s)); }
-function clearSession(){
-  sessionStorage.removeItem(SESSION_KEY);
-  if(window.SRMS && window.SRMS.offline) window.SRMS.offline.clearGrant();
-}
+function clearSession(){ sessionStorage.removeItem(SESSION_KEY); }
 
 // Global session/role state — the Announcements section (and the token
 // panel it shares) reads these, same pattern as the Scheduler module.
