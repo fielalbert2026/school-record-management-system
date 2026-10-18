@@ -14,6 +14,7 @@
 <script src="shared/theme.js" defer></script>
 <script src="shared/aria-utils.js" defer></script>
 <script src="shared/presence.js"></script>
+<script src="shared/year-section.js"></script>
 <style>
   /* Page-specific layout only — colors / spacing / typography / shared
      components come from shared/design-tokens.css and shared/components.css.
@@ -164,6 +165,14 @@
   }
   input:focus, select:focus{outline:2px solid var(--color-focus-ring); outline-offset:1px; border-color:var(--color-brand);}
   .form-actions{grid-column:1/-1; display:flex; justify-content:flex-end; gap:10px; margin-top:2px;}
+  .ys-pill{font-family:'IBM Plex Mono',monospace; font-size:10.5px; padding:2px 8px; border-radius:20px; background:var(--paper-line); color:var(--muted); white-space:nowrap;}
+  .ys-pill.bad{background:var(--pencil-red); color:#fff;}
+  #scheduleUnavailable{
+    display:none; background:var(--card); border:1.5px dashed var(--paper-line); border-radius:var(--radius);
+    padding:30px; text-align:center; margin-bottom:28px;
+  }
+  #scheduleUnavailable h2{font-family:'Merriweather',serif; color:var(--ink); margin:0 0 8px; font-size:20px;}
+  #scheduleUnavailable p{color:var(--muted); font-size:13.5px; margin:0 auto; max-width:480px;}
   #formError{grid-column:1/-1; color:var(--pencil-red); font-size:13px; display:none;}
   .day-check-group{display:flex; gap:7px; flex-wrap:wrap;}
   .day-check{
@@ -315,6 +324,11 @@
     <div class="hero-list" id="heroList"></div>
   </div>
 
+  <div id="scheduleUnavailable" role="status" aria-live="polite">
+    <h2>Schedule unavailable</h2>
+    <p id="scheduleUnavailableText"></p>
+  </div>
+
   <div id="schedulerContent">
   <div class="section-toolbar">
     <h2>Weekly schedule</h2>
@@ -349,6 +363,8 @@
       <div class="field wide"><label for="f_meet">Google Meet Link</label><input id="f_meet" type="url" placeholder="https://meet.google.com/abc-defg-hij"></div>
       <div class="field"><label for="f_sy">SY (School Year)</label><input id="f_sy" placeholder="2026-2027"></div>
       <div class="field"><label for="f_term">Term / Semester</label><input id="f_term" placeholder="1st Sem"></div>
+      <div class="field"><label for="f_ys">Year-Section</label><input id="f_ys" placeholder="3rd-4" maxlength="12" autocomplete="off"></div>
+      <div class="field wide" style="justify-content:flex-end;"><span class="session-hint" style="margin:0;">Format <b>year-section</b>, e.g. 3rd-4. Use 0 for "any" (3rd-0 = all 3rd-year sections). Blank = everyone.</span></div>
       <div class="field full"><label for="f_notes">Notes</label><input id="f_notes" placeholder="Bring calculator"></div>
 
       <div id="formError">Please fill in Subject Code, Subject Name, Day, Start and End time.</div>
@@ -370,8 +386,8 @@
 
 /* Theme toggle is handled by shared/theme.js (loaded with defer). */
 const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
-const HEADERS = ["Subject Code","Subject Name","Professor","Day","Start Time","End Time","Room / Platform","Google Classroom Link","Google Meet Link","SY","Term / Semester","Notes"];
-const COL_WIDTHS = [12,24,20,12,11,11,18,30,22,12,16,24];
+const HEADERS = ["Subject Code","Subject Name","Professor","Day","Start Time","End Time","Room / Platform","Google Classroom Link","Google Meet Link","SY","Term / Semester","Notes","Year-Section"];
+const COL_WIDTHS = [12,24,20,12,11,11,18,30,22,12,16,24,14];
 const SHEET_NAME = "Subject_Scheduler";
 const todayIdx = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
 const todayName = DAYS[todayIdx];
@@ -436,7 +452,7 @@ function renderSessionStrip(){
   strip.style.display = 'inline-flex';
   const roleClass = isMaster ? 'master' : 'guest';
   const auditLink = session.isOwner ? ' <a href="audit_log.html" style="margin-left:8px; font-size:12px; text-decoration:underline;">Audit Log</a>' : '';
-  strip.innerHTML = `Signed in as <b>${escapeHtml(session.name)}</b> <span class="role-pill ${roleClass}">${escapeHtml(session.role)}</span>${auditLink} <button id="logoutBtn" type="button">Log out</button>`;
+  strip.innerHTML = `Signed in as <b>${escapeHtml(session.name)}</b> <span class="role-pill ${roleClass}">${escapeHtml(session.role)}</span>${(!isMaster && session.yearSection) ? ` <span class="ys-pill" title="${escapeHtml(YS.describe(session.yearSection))}">${escapeHtml(session.yearSection)}</span>` : ''}${auditLink} <button id="logoutBtn" type="button">Log out</button>`;
   document.getElementById('logoutBtn').addEventListener('click', async () => {
     if(session.presenceToken && window.SRMS && window.SRMS.presence){
       try{ await window.SRMS.presence.record('signout'); }
@@ -560,12 +576,15 @@ function parseSubjectsFromWorkbook(){
   let headerRowIdx = aoa.findIndex(row => row[0] === 'Subject Code');
   if(headerRowIdx === -1) headerRowIdx = 0;
   const rows = aoa.slice(headerRowIdx+1);
+  // Year-Section is found by header name so it can sit in any column.
+  const ysIdx = (aoa[headerRowIdx] || []).findIndex(h => /^year[\s_-]*section$/i.test(String(h).trim()));
   subjects = rows
     .filter(r => r.some(cell => cell !== undefined && cell !== ''))
     .map(r => ({
       id: uid(), code:r[0]||'', name:r[1]||'', professor:r[2]||'', day:r[3]||'',
       start:normalizeTime(r[4]), end:normalizeTime(r[5]), room:r[6]||'',
-      link:r[7]||'', meet:r[8]||'', sy:r[9]||'', term:r[10]||'', notes:r[11]||''
+      link:r[7]||'', meet:r[8]||'', sy:r[9]||'', term:r[10]||'', notes:r[11]||'',
+      ys: ysIdx >= 0 ? String(r[ysIdx] == null ? '' : r[ysIdx]).trim() : ''
     }));
 }
 
@@ -639,7 +658,7 @@ async function loadFromGitHub(){
 function buildSheetAOA(){
   const sorted = subjects.slice().sort((a,b) =>
     DAYS.indexOf(a.day) - DAYS.indexOf(b.day) || timeToMinutes(a.start) - timeToMinutes(b.start));
-  const rows = sorted.map(s => [s.code,s.name,s.professor,s.day,s.start,s.end,s.room,s.link,s.meet,s.sy,s.term,s.notes]);
+  const rows = sorted.map(s => [s.code,s.name,s.professor,s.day,s.start,s.end,s.room,s.link,s.meet,s.sy,s.term,s.notes,s.ys||'']);
   return [
     ["Subject Scheduler — Personalized School Record Management System"],
     ["Module: Academic Schedule — edits made here from the dashboard are saved automatically."],
@@ -774,6 +793,7 @@ document.getElementById('subjectForm').addEventListener('submit', async (e) => {
     sy: document.getElementById('f_sy').value.trim(),
     term: document.getElementById('f_term').value.trim(),
     notes: document.getElementById('f_notes').value.trim(),
+    ys: document.getElementById('f_ys').value.trim(),
   };
   const rows = Array.from(sessionRowsEl.querySelectorAll('.session-row')).map(row => ({
     day: row.dataset.day,
@@ -786,6 +806,13 @@ document.getElementById('subjectForm').addEventListener('submit', async (e) => {
     document.getElementById('formError').style.display = 'block';
     return;
   }
+  const ysParsed = YS.parse(base.ys);
+  if(!ysParsed.valid){
+    document.getElementById('formError').textContent = 'Year-Section must look like 3rd-4 (year-section). Use 0 for "any", e.g. 3rd-0.';
+    document.getElementById('formError').style.display = 'block';
+    return;
+  }
+  if(base.ys) base.ys = YS.format(ysParsed);
   if(!isMaster) return; // Master-only mutation, enforced here as well as in the UI.
   if(!editingEnabled || !ghToken){ promptEnableEditing(); return; }
 
@@ -839,6 +866,7 @@ function startEdit(id){
   document.getElementById('f_sy').value = s.sy;
   document.getElementById('f_term').value = s.term;
   document.getElementById('f_notes').value = s.notes;
+  document.getElementById('f_ys').value = s.ys || '';
   document.getElementById('formTitle').textContent = 'Edit class session';
   document.getElementById('submitBtn').textContent = 'Save changes';
   openForm();
@@ -859,11 +887,35 @@ async function deleteEntry(id){
 window.startEdit = startEdit;
 window.deleteEntry = deleteEntry;
 
+/* ---------------- Year-Section visibility ----------------
+ * Display filter only (see shared/year-section.js). Masters see every row so
+ * they can manage all sections; everyone else sees rows that match their own
+ * Year-Section. Edits and saves always work on the full `subjects` list.
+ * The Study Hub / reviewers are intentionally NOT filtered.
+ */
+const YS = window.SRMS.yearSection;
+const userYS = session ? YS.parse(session.yearSection) : YS.parse('');
+// Sessions created before this feature have no yearSection at all.
+const sessionStale = !!session && session.yearSection === undefined;
+function visibleSubjects(){
+  if(isMaster) return subjects;
+  return subjects.filter(s => YS.matches(userYS, s.ys));
+}
+function isScheduleGated(){
+  return connected && !isMaster && subjects.length > 0 && visibleSubjects().length === 0;
+}
+function ysBadge(s){
+  if(!isMaster) return '';
+  const p = YS.parse(s.ys);
+  if(!p.valid) return ` <span class="ys-pill bad" title="Not a valid Year-Section — hidden from everyone except Masters">${escapeHtml(s.ys)} ?</span>`;
+  return ` <span class="ys-pill">${escapeHtml(YS.format(p))}</span>`;
+}
+
 /* ---------------- Rendering ---------------- */
 function renderTabs(){
   const tabsEl = document.getElementById('tabs');
   tabsEl.innerHTML = DAYS.map(day => {
-    const count = subjects.filter(s => s.day === day).length;
+    const count = visibleSubjects().filter(s => s.day === day).length;
     return `<div class="tab ${day===activeDay?'active':''} ${day===todayName?'is-today':''}" data-day="${day}">
       ${day.slice(0,3)}<span class="count">${count?('· '+count):''}</span>
     </div>`;
@@ -874,7 +926,7 @@ function renderTabs(){
 function renderDayPanel(){
   const panel = document.getElementById('dayPanel');
   if(!connected){ panel.innerHTML = '<div class="empty">Loading your schedule…</div>'; return; }
-  const list = subjects.filter(s => s.day === activeDay).sort((a,b) => timeToMinutes(a.start)-timeToMinutes(b.start));
+  const list = visibleSubjects().filter(s => s.day === activeDay).sort((a,b) => timeToMinutes(a.start)-timeToMinutes(b.start));
   if(list.length === 0){ panel.innerHTML = `<div class="empty">No classes added for ${activeDay} yet.</div>`; return; }
   const now = new Date();
   const nowMin = now.getHours()*60 + now.getMinutes();
@@ -883,7 +935,7 @@ function renderDayPanel(){
     return `<div class="row-card">
       <div class="time-block ${isNow?'now':''}">${fmtTime(s.start)}<br>${fmtTime(s.end)}</div>
       <div class="row-main">
-        <span class="subject-name">${escapeHtml(s.name)}</span><span class="code-pill">${escapeHtml(s.code)}</span>
+        <span class="subject-name">${escapeHtml(s.name)}</span><span class="code-pill">${escapeHtml(s.code)}</span>${ysBadge(s)}
         <div class="row-meta">
           ${s.professor?escapeHtml(s.professor)+' · ':''}${s.room?escapeHtml(s.room):''}
           ${s.sy?` · SY ${escapeHtml(s.sy)}`:''}${s.term?` ${escapeHtml(s.term)}`:''}
@@ -905,7 +957,7 @@ function renderTodayHero(){
   if(!connected){ hero.classList.remove('show'); return; }
   hero.classList.add('show');
   document.getElementById('heroDate').textContent = new Date().toLocaleDateString(undefined, {weekday:'long', month:'long', day:'numeric'});
-  const todays = subjects.filter(s => s.day === todayName).sort((a,b) => timeToMinutes(a.start)-timeToMinutes(b.start));
+  const todays = visibleSubjects().filter(s => s.day === todayName).sort((a,b) => timeToMinutes(a.start)-timeToMinutes(b.start));
   const list = document.getElementById('heroList');
   if(todays.length === 0){
     list.innerHTML = `<div class="hero-empty">No classes scheduled today — nothing on the books.</div>`;
@@ -939,6 +991,18 @@ function renderTodayHero(){
 }
 
 function render(){
+  const gated = isScheduleGated();
+  const notice = document.getElementById('scheduleUnavailable');
+  notice.style.display = gated ? 'block' : 'none';
+  document.getElementById('schedulerContent').style.display = gated ? 'none' : '';
+  if(gated){
+    document.getElementById('scheduleUnavailableText').textContent = sessionStale
+      ? 'Your sign-in is from before year and section support was added. Log out and sign in again to refresh it.'
+      : YS.unavailableReason(userYS);
+    document.getElementById('todayHero').classList.remove('show');
+    document.getElementById('nextCountdown').classList.remove('show');
+    return;
+  }
   renderTabs();
   renderDayPanel();
   renderTodayHero();
@@ -947,12 +1011,13 @@ function render(){
 
 /* ---------------- Live countdown to next subject ---------------- */
 function getNextSession(){
-  if(subjects.length === 0) return null;
+  const pool = visibleSubjects();
+  if(pool.length === 0) return null;
   const now = new Date();
   const nowDayIdx = now.getDay() === 0 ? 6 : now.getDay() - 1;
   const nowMin = now.getHours()*60 + now.getMinutes() + now.getSeconds()/60;
   let best = null, bestScore = Infinity;
-  subjects.forEach(s => {
+  pool.forEach(s => {
     const dIdx = DAYS.indexOf(s.day);
     if(dIdx === -1) return;
     let dayDelta = dIdx - nowDayIdx;

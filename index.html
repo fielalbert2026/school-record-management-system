@@ -15,6 +15,7 @@
 <script src="shared/theme.js" defer></script>
 <script src="shared/aria-utils.js" defer></script>
 <script src="shared/presence.js"></script>
+<script src="shared/year-section.js"></script>
 <script>window.addEventListener('DOMContentLoaded',function(){if(window.lucide)window.lucide.createIcons();});</script>
 <style>
   /* Page-specific layout only — colors / spacing / typography / shared
@@ -702,8 +703,16 @@ async function fetchValidUsers(){
   const ws = wb.Sheets['Valid_Users'];
   const aoa = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
   const headerIdx = aoa.findIndex(r => r[0] === 'Unique_Identifier');
-  return aoa.slice(headerIdx+1).filter(r => r[0]);
-  // row shape: [Unique_Identifier, Name_IV, Name_Enc, Designation, Master_Salt, Master_Verifier]
+  // Year-Section is looked up by header name (not a fixed position) so the
+  // column can sit anywhere. Older sheets without it just yield '' -> 0-0.
+  const headerRow = headerIdx === -1 ? [] : aoa[headerIdx];
+  const ysIdx = headerRow.findIndex(h => /^year[\s_-]*section$/i.test(String(h).trim()));
+  return aoa.slice(headerIdx+1).filter(r => r[0]).map(r => {
+    const row = r.slice(0, 6);
+    row[6] = ysIdx >= 0 ? r[ysIdx] : '';
+    return row;
+  });
+  // row shape: [Unique_Identifier, Name_IV, Name_Enc, Designation, Master_Salt, Master_Verifier, Year-Section]
 }
 
 /* ---------------- Attempt throttling ----------------
@@ -1465,14 +1474,14 @@ document.getElementById('signinForm').addEventListener('submit', async (e) => {
         const encKey = await pbkdf2Bits(`${idVal}:${passVal}:enc`, salt, PBKDF2_ITER);
         const key = await crypto.subtle.importKey('raw', encKey, {name:'AES-GCM'}, false, ['decrypt']);
         const plainBuf = await crypto.subtle.decrypt({name:'AES-GCM', iv:b64ToBytes(match[1])}, key, b64ToBytes(match[2]));
-        session = { name: new TextDecoder().decode(plainBuf), role: 'Master', isOwner: idVal === OWNER_SCHOOL_ID };
+        session = { name: new TextDecoder().decode(plainBuf), role: 'Master', isOwner: idVal === OWNER_SCHOOL_ID, yearSection: window.SRMS.yearSection.format(match[6]) };
       } else {
         // Wrong passphrase for a real Master row — still falls through to the
         // generic failure below, identical to an unrecognized ID.
       }
     } else if(match){
       // Guest row — fast path, no passphrase involved.
-      session = { name: await decryptNameGuest(idVal, match[1], match[2]), role: match[3] || 'Guest', isOwner: idVal === OWNER_SCHOOL_ID };
+      session = { name: await decryptNameGuest(idVal, match[1], match[2]), role: match[3] || 'Guest', isOwner: idVal === OWNER_SCHOOL_ID, yearSection: window.SRMS.yearSection.format(match[6]) };
       // Burn a comparable amount of time to a real Master check so a Guest
       // login and a wrong-passphrase Master attempt don't time differently.
       await pbkdf2Bits(`dummy:${idVal}`, new Uint8Array(16), PBKDF2_ITER);
