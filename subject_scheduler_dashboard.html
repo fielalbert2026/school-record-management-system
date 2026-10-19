@@ -633,7 +633,15 @@ async function loadFromGitHub(){
     }
     const json = await res.json();
     currentSha = json.sha;
-    const buf = b64ToArrayBuffer(json.content);
+    // The contents API sends no inline content once the file passes ~1 MB, so
+    // ask for the raw bytes instead (same URL, raw media type).
+    let buf;
+    if(json.content && json.encoding === 'base64'){ buf = b64ToArrayBuffer(json.content); }
+    else {
+      const raw = await fetch(url, { cache:'no-store', headers:{ 'Accept':'application/vnd.github.raw' } });
+      if(!raw.ok) throw new Error(`Couldn't load right now (${raw.status}).`);
+      buf = await raw.arrayBuffer();
+    }
     workbook = XLSX.read(buf, {type:'array'});
     parseSubjectsFromWorkbook();
     connected = true;

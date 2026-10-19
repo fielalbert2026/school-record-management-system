@@ -691,8 +691,17 @@ async function fetchWorkbookFresh(){
   const res = await fetch(url);
   if(!res.ok) throw new Error(`Couldn't load right now (${res.status}). Please try again in a moment.`);
   const json = await res.json();
-  const bytes = b64ToBytes(json.content.replace(/\n/g,''));
-  const wb = XLSX.read(bytes.buffer, {type:'array'});
+  let buf;
+  if(json.content && json.encoding === 'base64'){
+    buf = b64ToBytes(json.content.replace(/\n/g,'')).buffer;
+  } else {
+    // The contents API sends no inline content once the file passes ~1 MB,
+    // so ask for the raw bytes instead (same URL, raw media type).
+    const raw = await fetch(url, { cache:'no-store', headers:{ 'Accept':'application/vnd.github.raw' } });
+    if(!raw.ok) throw new Error(`Couldn't load right now (${raw.status}). Please try again in a moment.`);
+    buf = await raw.arrayBuffer();
+  }
+  const wb = XLSX.read(buf, {type:'array'});
   cachedWorkbook = wb;
   cachedSha = json.sha;
   return wb;
@@ -701,6 +710,8 @@ async function fetchWorkbookFresh(){
 async function fetchValidUsers(){
   const wb = await fetchWorkbookFresh();
   const ws = wb.Sheets['Valid_Users'];
+  // Never let an unreadable user list look like "ID not recognized".
+  if(!ws) throw new Error("The user list couldn't be read right now. Please try again in a moment.");
   const aoa = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
   const headerIdx = aoa.findIndex(r => r[0] === 'Unique_Identifier');
   // Year-Section is looked up by header name (not a fixed position) so the
